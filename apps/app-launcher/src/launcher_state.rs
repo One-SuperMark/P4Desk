@@ -57,12 +57,15 @@ pub enum UiCommand {
 }
 
 pub struct LauncherState {
+    pub current_page: usize,
+    pub total_pages: usize,
     pub active_app: ActiveApp,
     pub running_apps: HashMap<String, ActiveApp>,
     pub page_controller: PageController,
     pub snapshot: Snapshot,
     pub timer: TimerService,
     pub settings: LocalSettings,
+    pub usb_connected: bool,
     pub connected: bool,
     pub sd_ready: bool,
     pub time_valid: bool,
@@ -87,12 +90,15 @@ impl Default for LauncherState {
 impl LauncherState {
     pub fn new() -> Self {
         Self {
+            current_page: 0,
+            total_pages: 1,
             active_app: ActiveApp::Launcher,
             running_apps: HashMap::new(),
             page_controller: PageController::new(),
             snapshot: Snapshot::default(),
             timer: TimerService::default(),
             settings: LocalSettings::default(),
+            usb_connected: false,
             connected: false,
             sd_ready: false,
             time_valid: false,
@@ -130,9 +136,21 @@ impl LauncherState {
         self.active_app = ActiveApp::Launcher;
         self.changed();
     }
+    /// The original BackListener semantics, with the settings editor's nested route.
+    pub fn back_active_app(&mut self) {
+        if matches!(self.active_app, ActiveApp::Settings) && self.manual_time_open {
+            self.manual_time_open = false;
+            self.changed();
+        } else {
+            self.background_active_app();
+        }
+    }
     pub fn kill_active_app(&mut self) {
         if let Some(id) = self.active_app.id() {
             self.running_apps.remove(id);
+        }
+        if matches!(self.active_app, ActiveApp::Settings) {
+            self.manual_time_open = false;
         }
         self.active_app = ActiveApp::Launcher;
         self.changed();
@@ -151,6 +169,9 @@ impl LauncherState {
     }
     pub fn apply_snapshot(&mut self, mut snapshot: Snapshot) {
         snapshot.apply_deletions();
+        self.mac_page = self
+            .mac_page
+            .min(snapshot.buttons.len().div_ceil(12).saturating_sub(1));
         self.snapshot = snapshot;
         self.changed();
     }

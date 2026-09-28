@@ -135,6 +135,12 @@ python3 scripts/package-release.py --build-dir /Volumes/work/esp/build/p4desk
 
 ## Rust 桌面预览与字形工具
 
+应用图标采用项目自制的 128×128 RGB565／alpha8 资源，已经保存在源码中。修改图标几何定义后，可用 Python 标准库重新生成：
+
+```sh
+python3 scripts/generate-desktop-assets.py
+```
+
 ```sh
 cargo run -p app-launcher --features screenshots --bin p4desk-simulator -- \
   --headless --demo --screen all --output artifacts/pad-screenshots

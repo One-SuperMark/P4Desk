@@ -1,0 +1,191 @@
+{
+  "schema": "p4desk.original-app-icons.v1",
+  "license": "MIT",
+  "pixel_format": "RGB565",
+  "byte_order": "little",
+  "alpha_format": "unassociated-u8",
+  "supersampling": [
+    4,
+    4
+  ],
+  "quantization": "ordered-4x4-bayer",
+  "rust_storage_alignment_bytes": 2,
+  "icons": {
+    "clock": {
+      "source": "source/clock.svg",
+      "source_sha256": "d979cd5fd3df7cc28ef4c63db464cba18c49fdee490b8d9ddb145828edf541ff",
+      "width": 128,
+      "height": 128,
+      "files": {
+        "clock.rgb565": {
+          "bytes": 32768,
+          "sha256": "5d586919ef20667bf77ef29dc741130fe929240a623e82ab62eafb3c75e83f7a"
+        },
+        "clock.alpha": {
+          "bytes": 16384,
+          "sha256": "44c2105ea4dfaf5d77540ec00c099c9dee91e892bf9cf15af2c362d469b35f6d"
+        },
+        "clock.png": {
+          "bytes": 3660,
+          "sha256": "0256241aa2c23432550e5e808a07c6c11a8e1a72ae7b0e9167acd863cf66ccc1"
+        }
+      }
+    },
+    "timer": {
+      "source": "source/timer.svg",
+      "source_sha256": "b7524b56f3111944158b23d9ced79bfea6512c39a65c20cc5aa838c80e6cbea5",
+      "width": 128,
+      "height": 128,
+      "files": {
+        "timer.rgb565": {
+          "bytes": 32768,
+          "sha256": "a59eab36e99be79ea1b06295cc76ed054cf39b1b7ae49c5ba3dd8d60a8efebd2"
+        },
+        "timer.alpha": {
+          "bytes": 16384,
+          "sha256": "44c2105ea4dfaf5d77540ec00c099c9dee91e892bf9cf15af2c362d469b35f6d"
+        },
+        "timer.png": {
+          "bytes": 3533,
+          "sha256": "0e2fcae1c5faeb17c3b55dd9c915e3b06138ba8ae2bbc32926ffbc179c2beb72"
+        }
+      }
+    },
+    "notes": {
+      "source": "source/notes.svg",
+      "source_sha256": "6c3c5a9715ca4294e092be3a840698910504d55be6e4ad24089aecc1fb2a760f",
+      "width": 128,
+      "height": 128,
+      "files": {
+        "notes.rgb565": {
+          "bytes": 32768,
+          "sha256": "8b6b131694d7024d369e755431cba0d40044c8d20274ac17be16fc051decc60e"
+        },
+        "notes.alpha": {
+          "bytes": 16384,
+          "sha256": "44c2105ea4dfaf5d77540ec00c099c9dee91e892bf9cf15af2c362d469b35f6d"
+        },
+        "notes.png": {
+          "bytes": 2326,
+          "sha256": "bb0e5c449efc638db40fc4a4f065812ed16ed7bce0699e341ce7b3842cb5bf4b"
+        }
+      }
+    },
+    "calculator": {
+      "source": "source/calculator.svg",
+      "source_sha256": "4814d522d6ffa6d893a9a05ad6898ae31a17d3ef37d8f7a4123a13d9f5769004",
+      "width": 128,
+      "height": 128,
+      "files": {
+        "calculator.rgb565": {
+          "bytes": 32768,
+          "sha256": "32c5f4ae529d116c3044cd7f2c5447bbe89b3e15edce24b7f602bfa31d3d4644"
+        },
+        "calculator.alpha": {
+          "bytes": 16384,
+          "sha256": "44c2105ea4dfaf5d77540ec00c099c9dee91e892bf9cf15af2c362d469b35f6d"
+        },
+        "calculator.png": {
+          "bytes": 3004,
+          "sha256": "268c594ce3ee5f1bdc25b932cedd219d5537d03931ba41de33d98a2d1714a0b8"
+        }
+      }
+    },
+    "mac": {
+      "source": "source/mac.svg",
+      "source_sha256": "31b99026a2ad7cc601cd992e061270de3e5e2de178dd6bb0e30c5d4ddeaad72f",
+      "width": 128,
+      "height": 128,
+      "files": {
+        "mac.rgb565": {
+          "bytes": 32768,
+          "sha256": "680c9bfae75ffcf51a7e0ae8d26e023d311ef804edbbab53c373457b22692094"
+        },
+        "mac.alpha": {
+          "bytes": 16384,
+          "sha256": "44c2105ea4dfaf5d77540ec00c099c9dee91e892bf9cf15af2c362d469b35f6d"
+        },
+        "mac.png": {
+          "bytes": 2634,
+          "sha256": "d89894b703085c9a55d20671249a4cab8f1b11e6faaea9b368261e49048f9fe6"
+        }
+      }
+    },
+    "settings": {
+      "source": "source/settings.svg",
+      "source_sha256": "68e4ca85aea757297f1a6563be800f7a1dff91be078b2d59f2f1464d9684ce3d",
+      "width": 128,
+      "height": 128,
+      "files": {
+        "settings.rgb565": {
+          "bytes": 32768,
+          "sha256": "d948a945953ea0ea970267ec7b575ab4d9dcf3a761415bb0365ca39f5a43c519"
+        },
+        "settings.alpha": {
+          "bytes": 16384,
+          "sha256": "44c2105ea4dfaf5d77540ec00c099c9dee91e892bf9cf15af2c362d469b35f6d"
+        },
+        "settings.png": {
+          "bytes": 3107,
+          "sha256": "139376aacb1e439753e3dbca30de1fc6307377ae074f45e76e4ae8bdb57a1b87"
+        }
+      }
+    },
+    "display": {
+      "source": "source/display.svg",
+      "source_sha256": "4e37401a99dda5770ff2329aa790f31dc10d073dcbdf3f2919be1c4f46800ddd",
+      "width": 128,
+      "height": 128,
+      "files": {
+        "display.rgb565": {
+          "bytes": 32768,
+          "sha256": "d4cb3f04a94ff47a37cfbf75eee67d3e101e97df55762cb6bcc275a6c737aa80"
+        },
+        "display.alpha": {
+          "bytes": 16384,
+          "sha256": "44c2105ea4dfaf5d77540ec00c099c9dee91e892bf9cf15af2c362d469b35f6d"
+        },
+        "display.png": {
+          "bytes": 2934,
+          "sha256": "9dc8ca8036998f0e6ced1222e5685cf90e1028318ec3f486701000e4b4db7206"
+        }
+      }
+    },
+    "screen": {
+      "source": "source/screen.svg",
+      "source_sha256": "750952e31eda20c0ae60f50227bad8470ec757d1f7afb139ccb18a83e6ab5115",
+      "width": 128,
+      "height": 128,
+      "files": {
+        "screen.rgb565": {
+          "bytes": 32768,
+          "sha256": "70a015c7709953633da37eb249ab483b5acf7875dbff494405048bd297edba56"
+        },
+        "screen.alpha": {
+          "bytes": 16384,
+          "sha256": "44c2105ea4dfaf5d77540ec00c099c9dee91e892bf9cf15af2c362d469b35f6d"
+        },
+        "screen.png": {
+          "bytes": 3294,
+          "sha256": "fe870c5b7120179692f6f9a01a9a07c9e7e8a8b605412b5b121c6834f05a9dfa"
+        }
+      }
+    }
+  },
+  "preview": {
+    "file": "preview.png",
+    "columns": 4,
+    "rows": 2,
+    "order": [
+      "clock",
+      "timer",
+      "notes",
+      "calculator",
+      "mac",
+      "settings",
+      "display",
+      "screen"
+    ],
+    "sha256": "32bea514d6e049ac02debecb7b2f7b02d3b8be15c018a5fc54a72b3d7190f750"
+  }
+}

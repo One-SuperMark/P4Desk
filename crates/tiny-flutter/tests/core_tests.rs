@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use tiny_flutter::prelude::*;
 
@@ -460,6 +460,207 @@ fn immediate_page_swipe_changes_once_and_never_taps_neighbor() {
     assert_eq!(controller.page(), 1);
     assert_eq!(taps.load(Ordering::SeqCst), 0);
 }
+
+struct TouchCancelProbe {
+    cancels: Arc<AtomicUsize>,
+}
+
+impl Widget for TouchCancelProbe {
+    fn create_render_object(&self) -> Box<dyn RenderBox> {
+        Box::new(RenderTouchCancelProbe {
+            cancels: self.cancels.clone(),
+            size: Size::ZERO,
+            offset: Offset::ZERO,
+        })
+    }
+}
+
+struct RenderTouchCancelProbe {
+    cancels: Arc<AtomicUsize>,
+    size: Size,
+    offset: Offset,
+}
+
+impl RenderBox for RenderTouchCancelProbe {
+    fn size(&self) -> Size {
+        self.size
+    }
+
+    fn offset(&self) -> Offset {
+        self.offset
+    }
+
+    fn set_offset(&mut self, offset: Offset) {
+        self.offset = offset;
+    }
+
+    fn layout(&mut self, constraints: &BoxConstraints) -> Size {
+        self.size = constraints.constrain(Size::new(200.0, 150.0));
+        self.size
+    }
+
+    fn paint(&self, _canvas: &mut Canvas, _offset: Offset) {}
+
+    fn dispatch_touch(&mut self, event: &TouchEvent) -> bool {
+        if matches!(event, TouchEvent::Cancel) {
+            self.cancels.fetch_add(1, Ordering::SeqCst);
+        }
+        false
+    }
+}
+
+struct PageTouchFixture {
+    render: Box<dyn RenderBox>,
+    controller: PageController,
+    taps: Arc<AtomicUsize>,
+    cancels: Vec<Arc<AtomicUsize>>,
+    page_changes: Arc<AtomicUsize>,
+}
+
+fn page_touch_fixture(initial_page: usize) -> PageTouchFixture {
+    let taps = Arc::new(AtomicUsize::new(0));
+    let cancels: Vec<_> = (0..3).map(|_| Arc::new(AtomicUsize::new(0))).collect();
+    let page_changes = Arc::new(AtomicUsize::new(0));
+    let controller = PageController::with_initial_page(initial_page);
+    let children: Vec<Box<dyn Widget>> = cancels
+        .iter()
+        .map(|c| {
+            let t = taps.clone();
+            Box::new(
+                GestureDetector::new(TouchCancelProbe { cancels: c.clone() }).on_tap(move || {
+                    t.fetch_add(1, Ordering::SeqCst);
+                }),
+            ) as Box<dyn Widget>
+        })
+        .collect();
+    let changes = page_changes.clone();
+    let mut render = PageView::new(children)
+        .controller(controller.clone())
+        .transition(PageTransition::None)
+        .on_page_changed(move |_| {
+            changes.fetch_add(1, Ordering::SeqCst);
+        })
+        .create_render_object();
+    render.layout(&BoxConstraints::tight(Size::new(200.0, 150.0)));
+    PageTouchFixture {
+        render,
+        controller,
+        taps,
+        cancels,
+        page_changes,
+    }
+}
+
+#[test]
+fn page_view_requires_live_down_and_rearms_after_cancel() {
+    let mut f = page_touch_fixture(1);
+    for event in [
+        TouchEvent::Move(Point::new(150.0, 75.0)),
+        TouchEvent::Up(Point::new(150.0, 75.0)),
+        TouchEvent::Down(Point::new(250.0, 75.0)),
+        TouchEvent::Move(Point::new(150.0, 75.0)),
+        TouchEvent::Up(Point::new(150.0, 75.0)),
+    ] {
+        assert!(!f.render.dispatch_touch(&event));
+        assert_eq!(f.controller.page(), 1);
+    }
+
+    f.controller.set_page(0);
+    f.render
+        .layout(&BoxConstraints::tight(Size::new(200.0, 150.0)));
+    f.render
+        .dispatch_touch(&TouchEvent::Down(Point::new(180.0, 75.0)));
+    f.render
+        .dispatch_touch(&TouchEvent::Move(Point::new(100.0, 75.0)));
+    assert_eq!(f.controller.page(), 1);
+    f.render.dispatch_touch(&TouchEvent::Cancel);
+    for event in [
+        TouchEvent::Move(Point::new(190.0, 75.0)),
+        TouchEvent::Up(Point::new(100.0, 75.0)),
+    ] {
+        assert!(!f.render.dispatch_touch(&event));
+    }
+    assert_eq!(f.controller.page(), 1);
+    assert_eq!(f.page_changes.load(Ordering::SeqCst), 1);
+    assert_eq!(f.taps.load(Ordering::SeqCst), 0);
+
+    f.render
+        .dispatch_touch(&TouchEvent::Down(Point::new(100.0, 75.0)));
+    f.render
+        .dispatch_touch(&TouchEvent::Up(Point::new(100.0, 75.0)));
+    assert_eq!(f.taps.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn page_view_completed_touch_ignores_late_move_and_up() {
+    let mut f = page_touch_fixture(1);
+    f.render
+        .dispatch_touch(&TouchEvent::Down(Point::new(100.0, 75.0)));
+    f.render
+        .dispatch_touch(&TouchEvent::Up(Point::new(100.0, 75.0)));
+    assert_eq!(f.taps.load(Ordering::SeqCst), 1);
+    for event in [
+        TouchEvent::Move(Point::new(20.0, 75.0)),
+        TouchEvent::Up(Point::new(20.0, 75.0)),
+    ] {
+        assert!(!f.render.dispatch_touch(&event));
+    }
+    assert_eq!(f.controller.page(), 1);
+    assert_eq!(f.page_changes.load(Ordering::SeqCst), 0);
+    assert_eq!(f.taps.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn page_view_up_only_swipe_cancels_origin_child() {
+    // The second sequence reaches the Up threshold after a Move below the
+    // higher Move threshold. Both paths must cancel the original child.
+    for movement in [None, Some(Point::new(150.0, 75.0))] {
+        let mut f = page_touch_fixture(0);
+        f.render
+            .dispatch_touch(&TouchEvent::Down(Point::new(180.0, 75.0)));
+        if let Some(point) = movement {
+            f.render.dispatch_touch(&TouchEvent::Move(point));
+            assert_eq!(f.controller.page(), 0);
+        }
+        let end = movement.unwrap_or(Point::new(100.0, 75.0));
+        assert!(f.render.dispatch_touch(&TouchEvent::Up(end)));
+        assert_eq!(f.controller.page(), 1);
+        assert_eq!(f.page_changes.load(Ordering::SeqCst), 1);
+        assert_eq!(f.cancels[0].load(Ordering::SeqCst), 1);
+        assert_eq!(f.cancels[1].load(Ordering::SeqCst), 0);
+        assert_eq!(f.taps.load(Ordering::SeqCst), 0);
+        assert!(!f.render.dispatch_touch(&TouchEvent::Up(end)));
+        assert_eq!(f.controller.page(), 1);
+    }
+}
+
+#[test]
+fn page_view_boundary_swipes_never_launch_apps() {
+    for (initial, start, end) in [
+        (0, 40.0, 120.0),
+        (2, 180.0, 100.0),
+        (0, 40.0, 250.0),
+        (2, 180.0, -40.0),
+    ] {
+        for with_move in [false, true] {
+            let mut f = page_touch_fixture(initial);
+            f.render
+                .dispatch_touch(&TouchEvent::Down(Point::new(start, 75.0)));
+            if with_move {
+                f.render
+                    .dispatch_touch(&TouchEvent::Move(Point::new(end, 75.0)));
+            }
+            assert!(f
+                .render
+                .dispatch_touch(&TouchEvent::Up(Point::new(end, 75.0))));
+            assert_eq!(f.controller.page(), initial);
+            assert_eq!(f.page_changes.load(Ordering::SeqCst), 0);
+            assert!(f.cancels[initial].load(Ordering::SeqCst) > 0);
+            assert_eq!(f.taps.load(Ordering::SeqCst), 0);
+        }
+    }
+}
+
 #[test]
 fn moved_finger_inside_large_tile_does_not_become_tap() {
     let tapped = Arc::new(AtomicBool::new(false));

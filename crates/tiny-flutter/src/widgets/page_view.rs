@@ -161,6 +161,7 @@ impl Widget for PageView {
             transition: self.transition,
             current_page: self.controller.page(),
             drag_offset: self.controller.drag_offset(),
+            touch_active: false,
             is_swiping: false,
             gesture_handled: false,
             touch_start_x: 0.0,
@@ -178,6 +179,7 @@ pub struct RenderPageView {
     pub transition: PageTransition,
     current_page: usize,
     drag_offset: f32,
+    touch_active: bool,
     is_swiping: bool,
     gesture_handled: bool,
     touch_start_x: f32,
@@ -311,6 +313,7 @@ impl RenderBox for RenderPageView {
 
         match event {
             TouchEvent::Down(pt) if inside => {
+                self.touch_active = true;
                 self.touch_start_x = pt.x;
                 self.touch_start_y = pt.y;
                 self.is_swiping = false;
@@ -324,7 +327,9 @@ impl RenderBox for RenderPageView {
                 self.children[current_page].dispatch_touch(event);
                 true
             }
-            TouchEvent::Move(pt) if inside || self.is_swiping => {
+            // A valid Down owns the gesture through release, including moves
+            // beyond the page bounds. Late samples after Cancel/Up are ignored.
+            TouchEvent::Move(pt) if self.touch_active => {
                 let dx = pt.x - self.touch_start_x;
                 let dy = pt.y - self.touch_start_y;
 
@@ -397,7 +402,8 @@ impl RenderBox for RenderPageView {
                     }
                 }
             }
-            TouchEvent::Up(pt) => {
+            TouchEvent::Up(pt) if self.touch_active => {
+                self.touch_active = false;
                 if self.transition == PageTransition::Fade
                     || self.transition == PageTransition::None
                 {
@@ -407,6 +413,10 @@ impl RenderBox for RenderPageView {
                     self.is_swiping = false;
 
                     if !self.gesture_handled && dx.abs() > 28.0 && dx.abs() > dy.abs() {
+                        // Up can be the first sample reaching the swipe
+                        // threshold. Cancel the original child before switching
+                        // pages, even when already at the first/last page.
+                        self.children[current_page].dispatch_touch(&TouchEvent::Cancel);
                         self.gesture_handled = true;
                         let mut page_changed = false;
                         if dx < -28.0 && current_page + 1 < self.children.len() {
@@ -479,6 +489,7 @@ impl RenderBox for RenderPageView {
                 }
             }
             TouchEvent::Cancel => {
+                self.touch_active = false;
                 self.is_swiping = false;
                 self.gesture_handled = false;
                 if self.transition == PageTransition::Slide {
@@ -492,6 +503,7 @@ impl RenderBox for RenderPageView {
                 }
                 self.children[current_page].dispatch_touch(event)
             }
+            TouchEvent::Down(_) | TouchEvent::Move(_) | TouchEvent::Up(_) => false,
             _ => self.children[current_page].dispatch_touch(event),
         }
     }

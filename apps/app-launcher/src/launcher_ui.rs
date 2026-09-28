@@ -1,18 +1,39 @@
+//! Launcher shell ported from esp32-rust-ui 0b75870835902cbf950505d1539dbb8f6e0a7197
+//! (MIT): icon slots, PageView pages, page dots, background-app status bar and
+//! full-screen sub-app routing. Layout follows the actual panel size; local tools,
+//! Chinese text and touch Back/Kill controls extend the original shell. Each page
+//! contains four columns and two rows; system shortcuts share the original slots.
+
+use crate::app_icons::get_app_icon_asset;
 use crate::launcher_state::{ActiveApp, LauncherState, UiCommand};
+use crate::status_bar::{build_status_bar, STATUS_BAR_HEIGHT};
 use crate::timer::{Phase, TimerKind};
+use crate::widgets::{build_app_icon, make_dot, WallpaperPainter};
 use p4desk_protocol::Mode;
 use std::sync::{Arc, Mutex};
 use tiny_flutter::prelude::*;
 
 const BG: Color = Color::from_hex(0x11161e);
-const SIDE: Color = Color::from_hex(0x171e28);
 const CARD: Color = Color::from_hex(0x202a37);
 const LINE: Color = Color::from_hex(0x344252);
 const INK: Color = Color::from_hex(0xe8edf2);
 const MUTED: Color = Color::from_hex(0x94a4b6);
 const MINT: Color = Color::from_hex(0x8edbc5);
 const WARM: Color = Color::from_hex(0xffbe82);
-const NAV_W: f32 = 178.0;
+
+const GRID_COLUMNS: usize = 4;
+const GRID_ROWS: usize = 2;
+pub const DESKTOP_PAGE_CAPACITY: usize = GRID_COLUMNS * GRID_ROWS;
+pub const DESKTOP_ENTRIES: &[(&str, &str)] = &[
+    ("clock", "时钟"),
+    ("timer", "番茄钟"),
+    ("notes", "便签"),
+    ("calculator", "计算器"),
+    ("mac", "Mac 控制"),
+    ("settings", "设置"),
+    ("display", "USB 副屏"),
+    ("screen", "关闭屏幕"),
+];
 
 fn at(child: impl Widget + 'static, x: f32, y: f32) -> Positioned {
     Positioned::new(child).left(x).top(y)
@@ -51,152 +72,238 @@ fn edit(state: &Arc<Mutex<LauncherState>>, f: impl FnOnce(&mut LauncherState)) {
         s.changed();
     }
 }
-fn launch_button(
-    id: &'static str,
-    title: &'static str,
-    sub: &str,
-    w: f32,
-    h: f32,
-    state: Arc<Mutex<LauncherState>>,
-) -> impl Widget {
-    let contents = Stack::new()
-        .push(at(text(title, 28.0, INK), 18.0, 15.0))
-        .push(at(text(sub, 18.0, MUTED), 18.0, 55.0));
-    GestureDetector::new(panel(w, h).child(contents))
-        .on_tap(move || edit(&state, |s| s.open_app(id)))
-}
-
-pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> impl Widget {
-    let (active, clock, date, connected, sd_ready, notice, revision) = {
+pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dyn Widget> {
+    let (active, clock, date, notice, manual_time_open) = {
         let s = state.lock().unwrap();
         (
             s.active_app.clone(),
             s.clock.clone(),
             s.date.clone(),
-            s.connected,
-            s.sd_ready,
             s.notice.clone(),
-            s.revision,
+            s.manual_time_open,
         )
     };
-    let w = size.width.max(640.0);
-    let h = size.height.max(480.0);
-    let x = NAV_W + 24.0;
-    let bw = w - x - 24.0;
-    let title = match &active {
-        ActiveApp::Launcher => "桌面助手",
-        ActiveApp::Clock => "时钟",
-        ActiveApp::Timer => "专注与计时",
-        ActiveApp::Notes(_) => "便签",
-        ActiveApp::Calculator(_) => "计算器",
-        ActiveApp::MacControls => "Mac 控制",
-        ActiveApp::Settings => "设置",
-    };
-    let mut root = Stack::new()
-        .push(Container::new().width(w).height(h).color(BG))
-        .push(Container::new().width(NAV_W).height(h).color(SIDE))
-        .push(at(text("P4Desk", 28.0, MINT), 22.0, 26.0))
-        .push(at(text("桌面辅助工具", 18.0, MUTED), 22.0, 67.0))
-        .push(at(text(title, 28.0, INK), x, 25.0))
-        .push(at(
-            text(
-                if connected {
-                    "Mac 已连接"
-                } else {
-                    "离线可用"
-                },
-                18.0,
-                if connected { MINT } else { MUTED },
-            ),
-            w - 158.0,
-            28.0,
-        ))
-        .push(at(
-            text(
-                if sd_ready {
-                    "TF 卡就绪"
-                } else {
-                    "基本工具模式"
-                },
-                18.0,
-                MUTED,
-            ),
-            22.0,
-            h - 71.0,
-        ))
-        .push(at(
-            text(format!("{}", clock.get(..5).unwrap_or("--:--")), 22.0, INK),
-            22.0,
-            h - 39.0,
-        ));
-    for (i, (id, label)) in [
-        ("home", "首页"),
-        ("clock", "时钟"),
-        ("timer", "番茄钟 / 计时"),
-        ("notes", "便签"),
-        ("calculator", "计算器"),
-        ("mac", "Mac 控制"),
-        ("settings", "设置"),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let selected = if id == "home" {
-            matches!(active, ActiveApp::Launcher)
-        } else {
-            active.id() == Some(id)
+    let w = size.width.max(1.0);
+    let h = size.height.max(1.0);
+    let mut root: Box<dyn Widget> = if matches!(active, ActiveApp::Launcher) {
+        Box::new(build_desktop(state.clone(), Size::new(w, h)))
+    } else {
+        let title = match &active {
+            ActiveApp::Clock => "时钟",
+            ActiveApp::Timer => "专注与计时",
+            ActiveApp::Notes(_) => "便签",
+            ActiveApp::Calculator(_) => "计算器",
+            ActiveApp::MacControls => "Mac 控制",
+            ActiveApp::Settings => "设置",
+            ActiveApp::Launcher => unreachable!(),
         };
-        let s = state.clone();
-        root = root.push(at(
-            button(label, 146.0, 46.0, selected, move || {
-                edit(&s, |s| {
-                    if id == "home" {
-                        s.background_active_app()
+        let content_w = (w - 48.0).max(1.0);
+        let content_h = (h - 94.0).max(1.0);
+        let content: Box<dyn Widget> = match active.clone() {
+            ActiveApp::Clock => Box::new(clock_page(state.clone(), content_w, clock, date)),
+            ActiveApp::Timer => Box::new(timer_page(state.clone(), content_w)),
+            ActiveApp::Notes(view) => Box::new(notes_page(state.clone(), view, content_w)),
+            ActiveApp::Calculator(calc) => Box::new(calculator::build_calculator_ui(
+                calc,
+                Size::new(content_w, content_h),
+            )),
+            ActiveApp::MacControls => Box::new(mac_page(state.clone(), content_w)),
+            ActiveApp::Settings => Box::new(settings_page(state.clone(), content_w)),
+            ActiveApp::Launcher => unreachable!(),
+        };
+        let back = state.clone();
+        let kill = state.clone();
+        let bar = Stack::new()
+            .push(
+                Container::new()
+                    .width(w)
+                    .height(STATUS_BAR_HEIGHT)
+                    .color(CARD),
+            )
+            .push(at(text(title, 28.0, INK), 24.0, 10.0))
+            .push(at(
+                button(
+                    if matches!(active, ActiveApp::Settings) && manual_time_open {
+                        "返回设置"
                     } else {
-                        s.open_app(id)
-                    }
-                })
-            }),
-            16.0,
-            116.0 + i as f32 * 53.0,
-        ));
-    }
-    let content: Box<dyn Widget> = match active.clone() {
-        ActiveApp::Launcher => Box::new(home(state.clone(), bw, clock, date)),
-        ActiveApp::Clock => Box::new(clock_page(state.clone(), bw, clock, date)),
-        ActiveApp::Timer => Box::new(timer_page(state.clone(), bw)),
-        ActiveApp::Notes(view) => Box::new(notes_page(state.clone(), view, bw)),
-        ActiveApp::Calculator(calc) => {
-            Box::new(Container::new().width(bw).height(h - 112.0).child(
-                calculator::build_calculator_ui(calc, Size::new(bw, h - 112.0)),
+                        "回桌面"
+                    },
+                    152.0,
+                    44.0,
+                    false,
+                    move || edit(&back, |s| s.back_active_app()),
+                ),
+                w - 304.0,
+                6.0,
             ))
-        }
-        ActiveApp::MacControls => Box::new(mac_page(state.clone(), bw)),
-        ActiveApp::Settings => Box::new(settings_page(state.clone(), bw)),
+            .push(at(
+                button("结束应用", 108.0, 44.0, false, move || {
+                    edit(&kill, |s| s.kill_active_app())
+                }),
+                w - 132.0,
+                6.0,
+            ));
+        Box::new(
+            Stack::new()
+                .push(Container::new().width(w).height(h).color(BG))
+                .push(at(bar, 0.0, 0.0))
+                .push(at(
+                    Container::new()
+                        .width(content_w)
+                        .height(content_h)
+                        .child(content),
+                    24.0,
+                    78.0,
+                )),
+        )
     };
-    root = root.push(at(
-        Container::new().width(bw).height(h - 106.0).child(content),
-        x,
-        88.0,
-    ));
     if !notice.is_empty() {
-        root = root.push(at(
-            Container::new()
-                .width(bw)
-                .height(38.0)
-                .color(LINE)
-                .border_radius(8.0)
-                .padding(EdgeInsets::all(6.0))
-                .child(text(short(&notice, 42), 18.0, WARM)),
-            x,
-            h - 43.0,
-        ));
+        // Desktop notices occupy the left of the footer, leaving page dots visible.
+        let on_desktop = matches!(active, ActiveApp::Launcher);
+        let notice_width = if on_desktop { w * 0.38 } else { w - 48.0 };
+        let notice_chars = if on_desktop {
+            ((notice_width - 12.0) / 18.0).floor().max(4.0) as usize
+        } else {
+            42
+        };
+        root = Box::new(
+            Stack::new().push(root).push(at(
+                Container::new()
+                    .width(notice_width)
+                    .height(38.0)
+                    .color(LINE)
+                    .border_radius(8.0)
+                    .padding(EdgeInsets::all(6.0))
+                    .child(text(short(&notice, notice_chars), 18.0, WARM)),
+                24.0,
+                h - 43.0,
+            )),
+        );
     }
     let back = state.clone();
     let kill = state.clone();
-    let _ = revision;
-    BackListener::new(root, move || edit(&back, |s| s.background_active_app()))
-        .on_kill(move || edit(&kill, |s| s.kill_active_app()))
+    Box::new(
+        BackListener::new(root, move || edit(&back, |s| s.back_active_app()))
+            .on_kill(move || edit(&kill, |s| s.kill_active_app())),
+    )
+}
+
+/// Upstream icon-slot structure, expanded to 4 × 2 with stable empty slots.
+fn build_app_grid_page(mut icons: Vec<Box<dyn Widget>>, icon_size: f32) -> impl Widget {
+    let mut slots: Vec<Box<dyn Widget>> = Vec::with_capacity(DESKTOP_PAGE_CAPACITY);
+    for _ in 0..DESKTOP_PAGE_CAPACITY {
+        slots.push(if icons.is_empty() {
+            Box::new(SizedBox::from_size(Size::new(
+                (icon_size + 32.0).max(160.0),
+                icon_size + 44.0,
+            )))
+        } else {
+            icons.remove(0)
+        });
+    }
+    let mut slots = slots.into_iter();
+    let mut grid = Column::new()
+        .main_axis_alignment(MainAxisAlignment::SpaceEvenly)
+        .cross_axis_alignment(CrossAxisAlignment::Center);
+    for _ in 0..GRID_ROWS {
+        let mut row = Row::new()
+            .main_axis_alignment(MainAxisAlignment::SpaceEvenly)
+            .cross_axis_alignment(CrossAxisAlignment::Center);
+        for _ in 0..GRID_COLUMNS {
+            row = row.push(slots.next().unwrap());
+        }
+        grid = grid.push(row);
+    }
+    grid
+}
+
+fn build_desktop(state: Arc<Mutex<LauncherState>>, size: Size) -> impl Widget {
+    let (controller, current_page, total_pages) = {
+        let mut s = state.lock().unwrap();
+        s.total_pages = DESKTOP_ENTRIES.len().div_ceil(DESKTOP_PAGE_CAPACITY).max(1);
+        let saved_page = s.page_controller.page();
+        s.current_page = saved_page.min(s.total_pages - 1);
+        if s.current_page != saved_page {
+            s.page_controller.set_page(s.current_page);
+        }
+        (s.page_controller.clone(), s.current_page, s.total_pages)
+    };
+    let page_y = STATUS_BAR_HEIGHT + 12.0;
+    let page_h = (size.height - page_y - 44.0).max(1.0);
+    let icon_size = (page_h * 0.30).clamp(96.0, 146.0);
+    let entry = |id: &'static str, label: &'static str| -> Box<dyn Widget> {
+        let launch = state.clone();
+        Box::new(build_app_icon(
+            label,
+            get_app_icon_asset(id).expect("missing built-in app icon"),
+            icon_size,
+            move || {
+                edit(&launch, |s| match id {
+                    "display" => s.queue(UiCommand::RequestMode(Mode::Display)),
+                    "screen" => s.queue(UiCommand::Screen(false)),
+                    _ => s.open_app(id),
+                })
+            },
+        ))
+    };
+    let grid_pages: Vec<_> = DESKTOP_ENTRIES
+        .chunks(DESKTOP_PAGE_CAPACITY)
+        .map(|entries| {
+            build_app_grid_page(
+                entries
+                    .iter()
+                    .map(|&(id, label)| entry(id, label))
+                    .collect(),
+                icon_size,
+            )
+        })
+        .collect();
+    let changed = state.clone();
+    let pages = PageView::new(grid_pages)
+        .controller(controller)
+        .transition(PageTransition::None)
+        .on_page_changed(move |page| edit(&changed, |s| s.current_page = page));
+    let mut dots = Row::new()
+        .main_axis_alignment(MainAxisAlignment::Center)
+        .cross_axis_alignment(CrossAxisAlignment::Center);
+    let indicator_count = if total_pages > 1 { total_pages } else { 0 };
+    for page in 0..indicator_count {
+        let select = state.clone();
+        dots = dots.push(
+            GestureDetector::new(
+                Container::new()
+                    .width(44.0)
+                    .height(28.0)
+                    .child(Center::new(make_dot(current_page == page))),
+            )
+            .on_tap(move || {
+                edit(&select, |s| {
+                    s.page_controller.set_page(page);
+                    s.current_page = page;
+                })
+            }),
+        );
+    }
+    CustomPaint::new(WallpaperPainter).size(size).child(
+        Stack::new()
+            .push(at(build_status_bar(state, size.width), 0.0, 0.0))
+            .push(at(
+                Container::new()
+                    .width(size.width)
+                    .height(page_h)
+                    .child(pages),
+                0.0,
+                page_y,
+            ))
+            .push(at(
+                Container::new()
+                    .width(size.width)
+                    .height(44.0)
+                    .child(Center::new(dots)),
+                0.0,
+                size.height - 44.0,
+            )),
+    )
 }
 fn short(s: &str, max: usize) -> String {
     if s.chars().count() > max {
@@ -209,62 +316,6 @@ fn short(s: &str, max: usize) -> String {
     }
 }
 
-fn home(state: Arc<Mutex<LauncherState>>, w: f32, clock: String, date: String) -> Stack {
-    let top_w = w * 0.60 - 8.0;
-    let side_w = w - top_w - 16.0;
-    let (timer, notes, running) = {
-        let s = state.lock().unwrap();
-        (
-            s.timer.display(),
-            s.snapshot.notes.len(),
-            s.running_apps.len(),
-        )
-    };
-    let mut p = Stack::new()
-        .push(at(panel(top_w, 202.0), 0.0, 0.0))
-        .push(at(text("今天", 18.0, MINT), 22.0, 16.0))
-        .push(at(text(clock, 68.0, INK), 22.0, 55.0))
-        .push(at(text(date, 18.0, MUTED), 22.0, 156.0))
-        .push(at(panel(side_w, 202.0), top_w + 16.0, 0.0))
-        .push(at(text("当前专注", 18.0, WARM), top_w + 38.0, 16.0))
-        .push(at(text(timer, 54.0, INK), top_w + 38.0, 59.0));
-    let s = state.clone();
-    p = p.push(at(
-        button("打开番茄钟", side_w - 44.0, 46.0, false, move || {
-            edit(&s, |s| s.open_app("timer"))
-        }),
-        top_w + 38.0,
-        137.0,
-    ));
-    p = p.push(at(text("常用工具", 22.0, INK), 0.0, 225.0)).push(at(
-        text(
-            format!("{notes} 条便签  /  {running} 个后台工具"),
-            18.0,
-            MUTED,
-        ),
-        w - 282.0,
-        231.0,
-    ));
-    let cw = (w - 32.0) / 3.0;
-    for (i, (id, label, sub)) in [
-        ("clock", "时钟", "日期与本地时间"),
-        ("timer", "番茄钟", "专注 · 休息 · 倒计时"),
-        ("notes", "便签", "Mac 编辑，随时查看"),
-        ("calculator", "计算器", "保留上次计算"),
-        ("mac", "Mac 控制", "快捷键 · 应用 · 媒体"),
-        ("settings", "设置", "屏幕与 USB 副屏"),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        p = p.push(at(
-            launch_button(id, label, sub, cw, 96.0, state.clone()),
-            i as f32 % 3.0 * (cw + 16.0),
-            269.0 + (i / 3) as f32 * 112.0,
-        ));
-    }
-    p
-}
 fn clock_page(state: Arc<Mutex<LauncherState>>, w: f32, clock: String, date: String) -> Stack {
     let s = state.clone();
     Stack::new()

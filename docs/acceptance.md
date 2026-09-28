@@ -17,8 +17,8 @@
 
 | 检查 | 结果与证据 |
 | --- | --- |
-| Rust workspace | 最终 `cargo test --workspace`：57 项测试通过；全部 workspace 构建通过 |
-| UI 与状态 | 覆盖应用切换保留、后台计时、换行／裁剪／逐字回退、存储恢复与删除合并；交互模拟器构建通过 |
+| Rust workspace | 最终 `cargo test --workspace`：70 项测试通过；全部 workspace 构建通过 |
+| UI 与状态 | 覆盖八图标点击路由、触屏返回／结束／后台恢复、设置嵌套返回、时钟更新期间滑动、取消后迟到抬指、按钮缩短后的分页恢复；原后台计时、换行／裁剪／逐字回退、存储恢复与删除合并继续通过 |
 | Pad 渲染 | 同一 Rust UI 输出 8 张 1024×600 演示 PNG；桌面、便签、计算器、设置与手动校时已视觉检查 |
 | C/Rust 混合固件 | ESP-IDF 完整链接成功，包含 DSI、GT911、SDMMC、USB、硬件 JPEG 解码及 Rust 静态库 |
 | FFI | 编译断言验证 time_t／timeval、bool、整数；多点触摸 point 8 字节、frame 56 字节、points offset 16 |
@@ -39,10 +39,10 @@ Mac 探测的可复查 JSON 在 [mac27-arm64-probes.json](../desktop/macos/accep
 
 ## 设备操作
 
-当前软件旋转应用固件为 **1,876,080 字节**，SHA256：
+当前八图标桌面应用固件为 **2,174,816 字节**，SHA256：
 
 ```text
-eedaa4019afe293ff6fc781ccc7ff3e96e5c88b30e73f6cd43b50804a02b2b81
+910870d28ee2a98fade1784bdf6847ae67d6ca9e4af2f6c1fe10a42907671760
 ```
 
 完整 32 MiB Flash 分段备份已完成：32 段均检查设备 MD5，合并 SHA256 校验通过，独立 NVS 为 24 KiB。私有目录为 `backups/2026-09-28/`，权限 0700，未进入 Git／交付包。NVS 保留在 0x9000／0x6000，原 `storage` 区保留在 0x810000／7 MiB。
@@ -71,9 +71,21 @@ ESP-IDF 6.0.2 增量构建通过。该次固件 SHA256 为 `f90b87556934dbfd8762
 
 Pad 与 JPEG 共用生产 `display_pixels.c`：在 `FB_BUILDING` 目标上一次拷贝完成行列倒置，原始 Rust 画布和 JPEG 解码缓冲不翻转；灰度先转 RGB565，只处理可见的 600 行。当前扫描／退役缓冲不被写入，原有模式检查及刷新后回收流程保留。
 
-生产像素测试与 ESP-IDF 6.0.2 完整构建通过。已刷入“设备操作”中的当前固件，三个设备写入 Hash 校验通过；复位后观察 35 秒，日志确认 `Pad framebuffer software rotation=180 applied`。30 秒时 Pad 呈现计数 33，PSRAM 空闲 22,927,880 字节；TF 与设置读写自检通过，未发现 panic、abort 或 watchdog timeout。
+生产像素测试与 ESP-IDF 6.0.2 完整构建通过。该次软件旋转固件为 1,876,080 字节，SHA256 为 `eedaa4019afe293ff6fc781ccc7ff3e96e5c88b30e73f6cd43b50804a02b2b81`，三个设备写入 Hash 校验通过；复位后观察 35 秒，日志确认 `Pad framebuffer software rotation=180 applied`。30 秒时 Pad 呈现计数 33，PSRAM 空闲 22,927,880 字节；TF 与设置读写自检通过，未发现 panic、abort 或 watchdog timeout。
 
 用户已在实板确认“画面和触摸都正常”，本次 Pad 画面方向与触摸点击对应验收通过。USB 副屏端到端效果、RGB 色块、完整边界及专门的四角触摸测试仍待联调。脱敏构建、刷写、启动和用户确认记录见 [acceptance-board-software180.json](acceptance-board-software180.json)。
+
+## Rust 桌面移植修正与八图标布局
+
+用户指出首版不像参考项目后，核对固定上游源码，确认首版保留了真实的 `tiny-flutter`／`tiny_gfx`、计算器和应用生命周期，但应用桌面被重写为左侧导航与工具卡片。现已按上游职责恢复图标绘制、图标槽位、`PageView`、页码圆点、后台应用状态栏与全屏应用路由。复用范围和差异见 [Rust UI 移植说明](rust-ui-port.md)。
+
+随后按用户“一屏放 8 个图标试试”的要求，将网格调整为 **4 列 × 2 行**：时钟、番茄钟、便签、计算器／Mac 控制、设置、USB 副屏、关闭屏幕。后两项调用已有系统命令，不新建后台应用。当前一页八项，单页隐藏分页圆点；超过八项时仍按容量分组翻页。图标为项目自制、带 MIT 源 SVG 的 128×128 RGB565／alpha8 资源，生成器 `--check` 逐字节复现通过；内嵌系统字形更新并校验通过。
+
+最终 Rust workspace 70 项测试通过，包括八个入口的实际触摸路由、触屏回桌面后恢复同一计算器实例、结束后新建实例、手动校时子页返回、外部时钟重建期间滑动不点应用、取消后迟到事件、同步按钮缩短后立即可点击。PageView 新增四项回归先在旧代码上失败，修复后全部通过。最终八张 1024×600 演示预览已生成；主页已更新到 README。
+
+ESP-IDF 6.0.2 完整构建并刷入“设备操作”中的当前固件，完整备份在刷写前重新校验，bootloader／分区表／应用三个设备写入 Hash 均通过。复位观察 35 秒：Rust UI 和 GT911 启动，默认 Pad，TF 与设置读写自检通过；没有触发格式化，没有检测到 panic、abort 或 watchdog timeout。30 秒时呈现计数 51，内部空闲 223,511 字节、PSRAM 空闲 22,911,496 字节，坏 JPEG／解析错误／控制队列深度均为 0。
+
+显示／触摸方向实现没有在本次桌面修改中改变，启动仍确认软件旋转 180°、触摸校正 0°。用户已在实板回复“八图标布局和点击正常”，4×2 八图标画面及所询问的时钟／计算器触摸位置验收通过；未将此回复视为全部八个入口或 USB 副屏的实机功能验收。USB 端到端链路仍按用户安排延后权限授权。脱敏证据见 [acceptance-board-rust-ui-port.json](acceptance-board-rust-ui-port.json)。
 
 ## 待实机验证
 

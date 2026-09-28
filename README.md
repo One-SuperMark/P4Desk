@@ -2,7 +2,7 @@
 
 适配微雪 **ESP32-P4-WIFI6-Touch-LCD-7B** 的 1024×600 横屏。画面与触摸使用同一板级方向配置，按当前摆放整体校正。设备默认启动 Pad；Mac 配套应用负责编辑便签和快捷按钮、同步字形包，以及创建真正的系统扩展显示器。
 
-UI 从 [esp32-rust-ui](https://github.com/pomelos-on-sale/esp32-rust-ui) 的 tiny-flutter、tiny_gfx、应用桌面和状态管理移植。固件采用 C `app_main()` 调用 Rust 静态库，C 层直接驱动 DSI、GT911、SDMMC、USB 与硬件 JPEG 解码。
+UI 基于 [esp32-rust-ui](https://github.com/pomelos-on-sale/esp32-rust-ui) 的 tiny-flutter、tiny_gfx、图标分页桌面、后台应用管理和计算器移植，再加入本项目的本地工具与 Mac 功能。固件采用 C `app_main()` 调用 Rust 静态库，C 层直接驱动 DSI、GT911、SDMMC、USB 与硬件 JPEG 解码。复用范围及首版桌面重写的修正见 [Rust UI 移植说明](docs/rust-ui-port.md)。
 
 ## 功能
 
@@ -13,6 +13,8 @@ UI 从 [esp32-rust-ui](https://github.com/pomelos-on-sale/esp32-rust-ui) 的 tin
 | USB 副屏 | 独立 1024×600 macOS 显示器、单指点击和拖动、双指滚动 |
 
 切换应用保留计算器和便签浏览状态，计时服务在后台继续运行。开机时间无效时显示“待校时”；连接 Mac 后通过 USB 校时。进入副屏由用户手动触发；Mac 菜单退出、板上三指长按一秒、断线或主机心跳超时都会返回 Pad。
+
+桌面沿用原项目的图标槽位、分页框架与后台状态栏，按 7 寸横屏排列为 **4 列 × 2 行**，一屏八个入口：时钟、番茄钟、便签、计算器、Mac 控制、设置、USB 副屏、关闭屏幕。当前八项在同一页，超过八项时分页并显示页码圆点。返回桌面保留当前应用实例，状态栏图标可恢复后台应用；触屏“结束应用”释放该应用实例。设置中的手动校时子页先返回设置主页。
 
 ### Pad 预览
 
@@ -43,7 +45,7 @@ UI 从 [esp32-rust-ui](https://github.com/pomelos-on-sale/esp32-rust-ui) 的 tin
 | `firmware` | ESP-IDF 工程、最小 7B 硬件层、显示管理器、USB、Rust 静态库入口 |
 | `desktop/macos` | SwiftUI 菜单栏应用、虚拟显示器、屏幕捕获、USB 与输入桥接 |
 | `tools/fontpack` | 生成和校验 P4F1 字形包的 Rust 命令行工具 |
-| `assets` | 获准分发的字体与固件内嵌系统字形 |
+| `assets` | 获准分发的字体、固件内嵌系统字形与自制应用图标 |
 | `docs` | 构建、接线、资源存储、协议及验收记录 |
 
 ## 架构

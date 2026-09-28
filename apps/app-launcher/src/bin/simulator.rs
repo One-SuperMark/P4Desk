@@ -74,6 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if args.iter().any(|a| a == "--demo") {
             s.snapshot = demo();
             s.connected = true;
+            s.usb_connected = true;
             s.sd_ready = true;
         }
         if let Some(p) = get("--snapshot") {
@@ -119,6 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let mut s = state.lock().unwrap();
                     if name == "home" {
                         s.background_active_app();
+                        s.page_controller.set_page(0);
                     } else if name == "manual" {
                         s.open_app("settings");
                         s.manual_time_open = true;

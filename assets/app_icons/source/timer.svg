@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>P4Desk timer icon</title>
+  <desc>Original P4Desk geometric artwork. Copyright 2026 P4Desk contributors. MIT License.</desc>
+  <defs>
+    <linearGradient id="background" gradientUnits="userSpaceOnUse" x1="0" y1="8" x2="0" y2="120">
+      <stop offset="0" stop-color="#fa9e56"/>
+      <stop offset="1" stop-color="#e55c4e"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="27" fill="url(#background)" stroke="#ffffff" stroke-opacity="0.14" stroke-width="1"/>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <rect x="54" y="23" width="20" height="7" rx="3.5" fill="#ffffff"/>
+    <line x1="64" y1="30" x2="64" y2="39" stroke="#ffffff" stroke-width="5"/>
+    <line x1="86" y1="39" x2="93" y2="45" stroke="#ffffff" stroke-width="6"/>
+    <circle cx="64" cy="73" r="29" fill="none" stroke="#ffffff" stroke-width="5.5"/>
+    <line x1="64" y1="73" x2="64" y2="53" stroke="#ffffff" stroke-width="5.5"/>
+    <line x1="64" y1="73" x2="77" y2="65" stroke="#ffffff" stroke-width="4"/>
+    <circle cx="64" cy="73" r="4" fill="#ffffff"/>
+  </g>
+</svg>
+

@@ -277,10 +277,12 @@ impl<H: Hal> DeviceRuntime<H> {
         }
         let mut state = self.state.lock().unwrap();
         let before = state.revision;
-        if state.connected != (connected && active && self.hello)
+        if state.usb_connected != connected
+            || state.connected != (connected && active && self.hello)
             || state.sd_ready != sd_ready
             || state.mode != mode
         {
+            state.usb_connected = connected;
             state.connected = connected && active && self.hello;
             state.sd_ready = sd_ready;
             state.mode = mode;
@@ -494,6 +496,20 @@ mod tests {
             r.hal.messages.last().unwrap(),
             (4, DeviceMessage::Ack { ok: false, .. })
         ));
+    }
+    #[test]
+    fn desktop_usb_status_tracks_enumeration_without_companion_handshake() {
+        let mut r = runtime();
+        assert!(r.tick());
+        {
+            let state = r.state.lock().unwrap();
+            assert!(state.usb_connected);
+            assert!(!state.connected);
+        }
+        // A change within the same clock second still rebuilds the status bar.
+        r.hal.connected = false;
+        assert!(r.tick());
+        assert!(!r.state.lock().unwrap().usb_connected);
     }
     #[test]
     fn timer_continues_in_display_and_disconnect_returns_ui_state() {
