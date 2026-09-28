@@ -95,6 +95,11 @@ static esp_err_t panel_init(board_p4_t *board)
     ESP_RETURN_ON_ERROR(esp_lcd_new_panel_ek79007(io, &panel, &board->panel), TAG, "EK79007");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_reset(board->panel), TAG, "panel reset");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_init(board->panel), TAG, "panel init");
+    // EK79007 resets MADCTL to 0x01 (SHLR=1, UPDN=0). Its mirror API sets
+    // absolute scan bits: 0x02 toggles both axes relative to that baseline.
+    // The shared LCD rotates Pad and JPEG without an extra framebuffer copy.
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(board->panel, false, true), TAG, "panel rotation 180");
+    ESP_LOGI(TAG, "panel rotation=180 (MADCTL=0x02)");
     void *framebuffers[P4DESK_FB_COUNT] = {0};
     ESP_RETURN_ON_ERROR(esp_lcd_dpi_panel_get_frame_buffer(board->panel, P4DESK_FB_COUNT,
         &framebuffers[0], &framebuffers[1], &framebuffers[2]), TAG, "framebuffers");
@@ -125,7 +130,8 @@ static esp_err_t touch_init(board_p4_t *board)
         .x_max = P4DESK_WIDTH, .y_max = P4DESK_HEIGHT,
         .rst_gpio_num = GPIO_NUM_NC, .int_gpio_num = GPIO_NUM_NC,
         .levels = {.reset = 0, .interrupt = 0},
-        // Calibrated orientation used by the working 7B painting firmware.
+        // Keep physical coordinates here; touch_task rotates every contact
+        // using zero-based pixel limits before Pad, raw touch and USB input.
         .flags = {.swap_xy = false, .mirror_x = false, .mirror_y = false},
         .driver_data = &driver_data,
     };

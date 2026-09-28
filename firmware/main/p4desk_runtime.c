@@ -557,6 +557,10 @@ static void touch_task(void *argument)
         for (uint8_t n = 0; n < count; n++) {
             if (points[n].x >= P4DESK_WIDTH) points[n].x = P4DESK_WIDTH - 1;
             if (points[n].y >= P4DESK_HEIGHT) points[n].y = P4DESK_HEIGHT - 1;
+            // Match the LCD's 180-degree rotation before all input consumers.
+            // Clamp first; the generic touch mirror uses width-x, not width-1-x.
+            points[n].x = (P4DESK_WIDTH - 1) - points[n].x;
+            points[n].y = (P4DESK_HEIGHT - 1) - points[n].y;
         }
         // Publish one coherent raw sample, including empty release frames.
         // Pad's latched primary contact below remains a separate UI policy.

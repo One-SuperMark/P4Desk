@@ -50,6 +50,14 @@ partition_table/partition-table.bin
 flasher_args.json
 ```
 
+## 屏幕方向
+
+固件将 LCD 画面相对首版旋转 **180°**，Pad 与 USB 副屏统一生效。EK79007 使用硬件扫描方向，不增加每帧像素倒转或帧缓冲复制。
+
+本地 EK79007 驱动的初始 MADCTL 为 `0x01`，`esp_lcd_panel_mirror(panel, false, true)` 将其设为 `0x02`，同时反转原始扫描的两个轴；具体寄存器定义见 [EK79007 数据手册 R36h](https://dl.espressif.com/dl/schematics/display_driver_chip_EK79007AD_datasheet.pdf)。该调用位于面板初始化后、背光点亮与 display owner 启动前，失败会明确返回。
+
+GT911 保留物理原始坐标，在 `touch_task` 对每个触点先限制到有效像素范围，再转换 `x = 1023 - x`、`y = 599 - y`，随后提供给 Pad、原始多点触摸帧和 USB 回传。Mac 侧按 1024×600 逻辑坐标处理输入和画面。
+
 ## 首次刷写与恢复备份
 
 先选择实际串口路径，再执行备份。不要在同一串口同时运行串口监视器。

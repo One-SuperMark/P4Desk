@@ -1,0 +1,88 @@
+{
+  "schema": "p4desk.board.rotation.acceptance.v1",
+  "recorded_at": "2026-09-28T13:48:47.957285+08:00",
+  "rotation": {
+    "degrees": 180,
+    "relative_to": "initial P4Desk orientation",
+    "panel_madctl": "0x02",
+    "panel_command_succeeded": true,
+    "shared_pad_and_usb_lcd": true,
+    "width": 1024,
+    "height": 600
+  },
+  "touch_mapping": {
+    "x": "1023 - clamp(raw_x, 0, 1023)",
+    "y": "599 - clamp(raw_y, 0, 599)",
+    "consumers": [
+      "Pad primary contact",
+      "Raw multi-touch frame",
+      "USB multi-touch IN"
+    ],
+    "track_ids_preserved": true,
+    "physical_corner_acceptance": false
+  },
+  "esp_idf": "6.0.2",
+  "flashed_images": [
+    {
+      "offset": "0x2000",
+      "file": "bootloader/bootloader.bin",
+      "bytes": 23888,
+      "sha256": "60cbed96a0ccdc2afce4f8af7c1f1ed151c77cbb0f9e3b422cc5e8bc78c9fd6f",
+      "esptool_write_hash_verified": true
+    },
+    {
+      "offset": "0x8000",
+      "file": "partition_table/partition-table.bin",
+      "bytes": 3072,
+      "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330",
+      "esptool_write_hash_verified": true
+    },
+    {
+      "offset": "0x10000",
+      "file": "p4desk.bin",
+      "bytes": 1875824,
+      "sha256": "f90b87556934dbfd8762d1bf3cd3aab3edc876eef7fb2ebcfde5a19ad5a85f8d",
+      "esptool_write_hash_verified": true
+    }
+  ],
+  "startup": {
+    "reset_monitor_seconds": 35,
+    "rust_ui_started": true,
+    "gt911_initialized": true,
+    "default_mode": "pad",
+    "panic_abort_watchdog_detected": false
+  },
+  "tf": {
+    "filesystem": "FAT32",
+    "total_bytes": 63833325568,
+    "free_bytes": 63805587456,
+    "read_write_fsync_readback_cleanup_passed": true,
+    "automatic_format_enabled": false
+  },
+  "settings": {
+    "partition": "p4settings",
+    "total_bytes": 956561,
+    "free_bytes": 956561,
+    "read_write_fsync_readback_cleanup_passed": true,
+    "mounted_without_format": true
+  },
+  "diagnostics": [
+    {
+      "uptime_s": 30,
+      "mode": "pad",
+      "internal_free": 213931,
+      "internal_largest": 94208,
+      "psram_free": 22927880,
+      "psram_largest": 22020096,
+      "presented": 38,
+      "bad_jpeg": 0,
+      "parser_errors": 0,
+      "control_queue": 0
+    }
+  ],
+  "first_install_backup_record": "acceptance-board.json",
+  "existing_verified_full_flash_backup_rechecked_before_write": true,
+  "physical_lcd_visual_acceptance": false,
+  "end_to_end_usb_display_acceptance": false,
+  "screen_recording_or_accessibility_permission_requested": false
+}
