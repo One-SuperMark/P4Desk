@@ -8,6 +8,14 @@
 
 #define P4DESK_WIDTH 1024
 #define P4DESK_HEIGHT 600
+// Matches the working 7B paint firmware: rotate display pixels, keep GT911 raw.
+// Panel and touch have different native axes, so calibrate each explicitly.
+#define P4DESK_DISPLAY_ROTATION_DEGREES 180
+#define P4DESK_TOUCH_ROTATION_DEGREES 0
+#if (P4DESK_DISPLAY_ROTATION_DEGREES != 0 && P4DESK_DISPLAY_ROTATION_DEGREES != 180) || \
+    (P4DESK_TOUCH_ROTATION_DEGREES != 0 && P4DESK_TOUCH_ROTATION_DEGREES != 180)
+#error "P4Desk display and touch rotations must be 0 or 180"
+#endif
 #define P4DESK_FB_COUNT 3
 #define P4DESK_FB_BYTES (P4DESK_WIDTH * P4DESK_HEIGHT * sizeof(uint16_t))
 

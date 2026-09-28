@@ -1,5 +1,5 @@
 idf_component_register(SRCS "main.c" "p4desk_runtime.c" "usb_device.c" "usb_rx_stream.c"
-    "usb_tx_queue.c" "touch_exit_notice.c"
+    "usb_tx_queue.c" "touch_exit_notice.c" "display_pixels.c"
     "../../common/protocol/p4desk_protocol.c"
     INCLUDE_DIRS "." "tusb" "../../include" "../../common/protocol"
     PRIV_REQUIRES board_p4 rust_main esp_timer esp_driver_jpeg esp_lcd esp_lcd_touch

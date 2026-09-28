@@ -1,6 +1,6 @@
 # P4Desk：ESP32-P4 桌面助手与 USB 副屏
 
-适配微雪 **ESP32-P4-WIFI6-Touch-LCD-7B** 的 1024×600 横屏。画面相对首版旋转 180°，触摸坐标同步匹配。设备默认启动 Pad；Mac 配套应用负责编辑便签和快捷按钮、同步字形包，以及创建真正的系统扩展显示器。
+适配微雪 **ESP32-P4-WIFI6-Touch-LCD-7B** 的 1024×600 横屏。画面与触摸使用同一板级方向配置，按当前摆放整体校正。设备默认启动 Pad；Mac 配套应用负责编辑便签和快捷按钮、同步字形包，以及创建真正的系统扩展显示器。
 
 UI 从 [esp32-rust-ui](https://github.com/pomelos-on-sale/esp32-rust-ui) 的 tiny-flutter、tiny_gfx、应用桌面和状态管理移植。固件采用 C `app_main()` 调用 Rust 静态库，C 层直接驱动 DSI、GT911、SDMMC、USB 与硬件 JPEG 解码。
 
@@ -80,6 +80,7 @@ TF 资源位于 `/sdcard/p4desk`。支持 FAT32 和 exFAT，挂载失败时保�
 
 ```sh
 ./scripts/test-protocol.sh
+./scripts/test-display.sh
 cargo test --workspace
 swift test --package-path desktop/macos
 ./scripts/probe-macos.sh

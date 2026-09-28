@@ -52,11 +52,15 @@ flasher_args.json
 
 ## 屏幕方向
 
-固件将 LCD 画面相对首版旋转 **180°**，Pad 与 USB 副屏统一生效。EK79007 使用硬件扫描方向，不增加每帧像素倒转或帧缓冲复制。
+本次按当前摆放，对送往 LCD 的画面像素进行 **180° 软件旋转**，Pad 与 USB 副屏统一生效。用户实板反馈 EK79007 MADCTL 命令返回成功后，屏幕没有实际旋转，因此采用最终帧缓冲反向拷贝。
 
-本地 EK79007 驱动的初始 MADCTL 为 `0x01`，`esp_lcd_panel_mirror(panel, false, true)` 将其设为 `0x02`，同时反转原始扫描的两个轴；具体寄存器定义见 [EK79007 数据手册 R36h](https://dl.espressif.com/dl/schematics/display_driver_chip_EK79007AD_datasheet.pdf)。该调用位于面板初始化后、背光点亮与 display owner 启动前，失败会明确返回。
+方向在 `firmware/components/board_p4/include/board_p4.h` 配置：`P4DESK_DISPLAY_ROTATION_DEGREES=180`、`P4DESK_TOUCH_ROTATION_DEGREES=0`。这与本机旧 `waveshare_touch_paint` 的实际编译配置一致：画面软件旋转 180°，GT911 使用原始坐标。面板扫描固定为 MADCTL `0x01`，软件旋转只作用于 display owner 拥有的 `FB_BUILDING` 目标。
 
-GT911 保留物理原始坐标，在 `touch_task` 对每个触点先限制到有效像素范围，再转换 `x = 1023 - x`、`y = 599 - y`，随后提供给 Pad、原始多点触摸帧和 USB 回传。Mac 侧按 1024×600 逻辑坐标处理输入和画面。
+Pad 从未旋转的 Rust 画布反向拷贝；JPEG 按实际 stride 读取，只将可见的 600 行反向写入，解码到 608 行时末尾填充不会进入画面。RGB565 按 16 位像素处理，灰度先转换成 RGB565。旋转合并在原有拷贝中，不分配额外帧缓冲，不增加第二次全帧反转。
+
+GT911 保留本次已经调整后的原始坐标，`touch_task` 将每个触点限制到有效像素范围，统一提供给 Pad、原始多点触摸帧和 USB 回传。触摸和面板原生轴向分别校准，不能直接用显示角度替代 GT911 校正值。Mac 侧按 1024×600 逻辑坐标处理输入和画面。
+
+运行 `./scripts/test-display.sh` 检查生产代码的 RGB565／灰度方向、重复帧重建、行填充、完整 600 行和边界保护，使用 ASan／UBSan。
 
 ## 首次刷写与恢复备份
 

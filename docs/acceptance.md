@@ -35,12 +35,14 @@
 
 Mac 探测的可复查 JSON 在 [mac27-arm64-probes.json](../desktop/macos/acceptance/mac27-arm64-probes.json)。桌面 UI 预览使用演示内容，不作为板上画面或触摸证明。
 
+软件画面旋转新增 `./scripts/test-display.sh`，编译生产 `display_pixels.c` 并通过 ASan／UBSan：固定 RGB565 方向、重复重建、灰度转换、行填充、完整 600 行／排除 608 行填充与目标 guard 检查。
+
 ## 设备操作
 
-当前 180° 方向应用固件为 **1,875,824 字节**，SHA256：
+当前软件旋转应用固件为 **1,876,080 字节**，SHA256：
 
 ```text
-f90b87556934dbfd8762d1bf3cd3aab3edc876eef7fb2ebcfde5a19ad5a85f8d
+eedaa4019afe293ff6fc781ccc7ff3e96e5c88b30e73f6cd43b50804a02b2b81
 ```
 
 完整 32 MiB Flash 分段备份已完成：32 段均检查设备 MD5，合并 SHA256 校验通过，独立 NVS 为 24 KiB。私有目录为 `backups/2026-09-28/`，权限 0700，未进入 Git／交付包。NVS 保留在 0x9000／0x6000，原 `storage` 区保留在 0x810000／7 MiB。
@@ -57,17 +59,27 @@ Mac 在首次交付固件正常运行后枚举检查，匹配 P4Desk HS 数据�
 
 ## 180° 方向调整
 
-按用户要求，将画面相对首版旋转 180°。EK79007 硬件扫描设置为 MADCTL `0x02`，Pad 与 USB 副屏共用该方向；不增加每帧图像倒转。全部 GT911 触点在限制到有效范围后转换为 `1023-x / 599-y`，随后发布给 Pad、原始多点帧和 USB，保留触点 ID。实现与寄存器来源见 [方向说明](build.md#屏幕方向)。
+第一次尝试通过 EK79007 的 MADCTL `0x02` 旋转画面，触摸转换为 `1023-x / 599-y`。随后按用户摆放将寄存器改回 `0x01`、触摸恢复原始坐标。两次命令均返回成功，但用户明确反馈只改变了触摸，屏幕没有实际旋转。因此硬件命令的画面方向验收未通过，按下节改为软件像素旋转。当前实现见 [方向说明](build.md#屏幕方向)。
 
-ESP-IDF 6.0.2 增量构建通过。已刷入“设备操作”中列出的当前固件，bootloader／分区表／应用三个设备写入 Hash 校验通过；主动复位后观察 35 秒，启动日志确认 `panel rotation=180 (MADCTL=0x02)`，GT911、TF 与 Rust UI 初始化成功。TF 与设置分区的持久化／读回／清理自检再次通过，设置分区直接挂载，没有初始化或格式化。
+ESP-IDF 6.0.2 增量构建通过。该次固件 SHA256 为 `f90b87556934dbfd8762d1bf3cd3aab3edc876eef7fb2ebcfde5a19ad5a85f8d`，bootloader／分区表／应用三个设备写入 Hash 校验通过；主动复位后观察 35 秒，启动日志确认 `panel rotation=180 (MADCTL=0x02)`，GT911、TF 与 Rust UI 初始化成功。TF 与设置分区的持久化／读回／清理自检再次通过，设置分区直接挂载，没有初始化或格式化。
 
-30 秒时模式为 Pad，呈现计数 38，PSRAM 空闲 22,927,880 字节，坏 JPEG、解析错误和控制队列深度为 0；没有检测到 panic、abort 或 watchdog timeout。实板可见方向与四角触摸位置仍待观察，USB 副屏端到端验收保持待联调。此次脱敏证据见 [acceptance-board-rotation180.json](acceptance-board-rotation180.json)。
+30 秒时模式为 Pad，呈现计数 38，PSRAM 空闲 22,927,880 字节，坏 JPEG、解析错误和控制队列深度为 0；没有检测到 panic、abort 或 watchdog timeout。用户随后反馈当前摆放看着仍是反向，按下节继续调整。该次脱敏证据见 [acceptance-board-rotation180.json](acceptance-board-rotation180.json)。
+
+## 软件旋转修正
+
+根据用户“触摸已转、屏幕没有转”的实板反馈，将最终帧缓冲拷贝改为真正的 180° 像素写入。LCD 固定基准 MADCTL `0x01`，画面软件旋转 180°，保留目前 GT911 原始坐标。该组合与本机旧绘图固件实际采用的配置一致。
+
+Pad 与 JPEG 共用生产 `display_pixels.c`：在 `FB_BUILDING` 目标上一次拷贝完成行列倒置，原始 Rust 画布和 JPEG 解码缓冲不翻转；灰度先转 RGB565，只处理可见的 600 行。当前扫描／退役缓冲不被写入，原有模式检查及刷新后回收流程保留。
+
+生产像素测试与 ESP-IDF 6.0.2 完整构建通过。已刷入“设备操作”中的当前固件，三个设备写入 Hash 校验通过；复位后观察 35 秒，日志确认 `Pad framebuffer software rotation=180 applied`。30 秒时 Pad 呈现计数 33，PSRAM 空闲 22,927,880 字节；TF 与设置读写自检通过，未发现 panic、abort 或 watchdog timeout。
+
+已请用户确认新固件的实际朝向与点击对应关系，当前记录为待用户确认；USB 副屏端到端效果仍待联调。脱敏构建、刷写和启动证据见 [acceptance-board-software180.json](acceptance-board-software180.json)。
 
 ## 待实机验证
 
 | 项目 | 当前状态／通过条件 |
 | --- | --- |
-| RGB565、底部 24 行、四角触摸与方向 | 待实板观察；颜色顺序正确，全部 600 行可见，四角位置无偏差，180° 方向符合安装位置 |
+| RGB565、底部 24 行、四角触摸与方向 | 待实板观察；颜色顺序正确，全部 600 行可见，四角位置无偏差，当前方向符合摆放位置 |
 | TF 实际格式／容量／读写 | 实板已通过；FAT32、容量和读写自检见上节。空间不足和写入中断恢复仍待实测 |
 | USB HS 枚举与双向传输 | 当前 Mac 匹配设备 0 个；待核对 Type-A HS 数据连接并联调，串口刷写不作为 HS 传输证明 |
 | 系统设置可见及拖入窗口 | 虚拟显示器登记通过；设置界面和普通窗口拖入待用户授权后验证 |

@@ -1,6 +1,7 @@
 #include "p4desk_runtime.h"
 #include "p4desk_hal.h"
 #include "touch_exit_notice.h"
+#include "display_pixels.h"
 
 #include <inttypes.h>
 #include <stdatomic.h>
@@ -416,17 +417,14 @@ static bool decode_frame(const owned_packet_t *packet, uint16_t *target)
     if (jpeg_decoder_process(s_decoder, &config, packet->payload, packet->header.payload_length,
                             s_decoded, s_decoded_capacity, &written) != ESP_OK || written != required) return reject_jpeg();
     if (!frame_current(packet)) return false;
-    for (uint32_t y = 0; y < P4DESK_HEIGHT; y++) {
-        if (gray) {
-            for (uint32_t x = 0; x < P4DESK_WIDTH; x++) {
-                uint8_t v = s_decoded[y * stride + x];
-                target[y * P4DESK_WIDTH + x] = ((uint16_t)(v >> 3) << 11) | ((uint16_t)(v >> 2) << 5) | (v >> 3);
-            }
-        } else {
-            // Crop MCU padding (e.g. YUV420 decodes 600 visible rows to 608).
-            memcpy(target + y * P4DESK_WIDTH, s_decoded + y * stride * 2, P4DESK_WIDTH * 2);
-        }
-    }
+    // Rotate only the visible 600 rows while copying to a BUILDING buffer.
+    // MCU padding (e.g. 608 decoded rows) never enters the visible image.
+    if (gray)
+        p4desk_pixels_copy_gray565(target, s_decoded, P4DESK_WIDTH, P4DESK_HEIGHT,
+                                  stride, P4DESK_DISPLAY_ROTATION_DEGREES == 180);
+    else
+        p4desk_pixels_copy_rgb565(target, (const uint16_t *)s_decoded, P4DESK_WIDTH,
+                                 P4DESK_HEIGHT, stride, P4DESK_DISPLAY_ROTATION_DEGREES == 180);
     return frame_current(packet);
 }
 
@@ -476,8 +474,12 @@ static void display_task(void *argument)
             }
             owner.states[building] = FB_BUILDING;
             xSemaphoreTake(s_pad_lock, portMAX_DELAY);
-            memcpy(s_board->framebuffers[building], s_pad_pixels, P4DESK_FB_BYTES);
+            p4desk_pixels_copy_rgb565(s_board->framebuffers[building], s_pad_pixels,
+                                     P4DESK_WIDTH, P4DESK_HEIGHT, P4DESK_WIDTH,
+                                     P4DESK_DISPLAY_ROTATION_DEGREES == 180);
             xSemaphoreGive(s_pad_lock);
+            if (first_frame) ESP_LOGI(TAG, "Pad framebuffer software rotation=%d applied",
+                                     P4DESK_DISPLAY_ROTATION_DEGREES);
             uint32_t current_mode, current_epoch;
             state_snapshot(&current_mode, &current_epoch, NULL);
             if (current_mode != MODE_PAD || current_epoch != epoch) {
@@ -557,10 +559,12 @@ static void touch_task(void *argument)
         for (uint8_t n = 0; n < count; n++) {
             if (points[n].x >= P4DESK_WIDTH) points[n].x = P4DESK_WIDTH - 1;
             if (points[n].y >= P4DESK_HEIGHT) points[n].y = P4DESK_HEIGHT - 1;
-            // Match the LCD's 180-degree rotation before all input consumers.
+            // Apply the calibrated GT911 correction before all input consumers.
             // Clamp first; the generic touch mirror uses width-x, not width-1-x.
+#if P4DESK_TOUCH_ROTATION_DEGREES == 180
             points[n].x = (P4DESK_WIDTH - 1) - points[n].x;
             points[n].y = (P4DESK_HEIGHT - 1) - points[n].y;
+#endif
         }
         // Publish one coherent raw sample, including empty release frames.
         // Pad's latched primary contact below remains a separate UI policy.
