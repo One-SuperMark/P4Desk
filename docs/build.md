@@ -109,7 +109,7 @@ python3 scripts/device-tool.py monitor \
 open dist/P4Desk.app
 ```
 
-脚本构建 arm64 SwiftPM release、Rust 字形工具，打包 Noto Regular 字体和 OFL 许可后签名。默认 ad-hoc 签名用于本机自用；已有签名身份可通过 `P4DESK_CODESIGN_IDENTITY` 指定。输出 `dist/P4Desk.app`。
+脚本构建 arm64 SwiftPM release、Rust 字形工具，打包 Noto Regular 字体和 OFL 许可后签名。默认选择本机唯一有效的 Developer ID Application 证书，字体 helper 与主 App 都启用 Hardened Runtime 并添加安全时间戳；没有证书或有多张时明确报错。可通过 `P4DESK_CODESIGN_IDENTITY` 指定身份，只有显式设为 `-` 才使用 ad hoc。输出 `dist/P4Desk.app`，安装时放入 `/Applications`。
 
 首次进入副屏时授予屏幕录制权限；需要触摸和快捷键时授予辅助功能权限。配置窗口显示当前权限和连接状态，并提供系统设置入口。便签／快捷面板编辑和同步不要求录屏权限。
 

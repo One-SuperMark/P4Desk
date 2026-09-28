@@ -46,7 +46,7 @@ enum DeskError: LocalizedError {
          permission(String), displayUnavailable, captureUnavailable, encodingFailed, fontUnavailable, fontBakeFailed, invalidFont
     var errorDescription: String? {
         switch self {
-        case .usbDisconnected: return "USB 未连接。请连接开发板的 USB HS 接口。"
+        case .usbDisconnected: return "USB HS 未连接。请连接板上 Type-A USB-OTG 大接口；Type-C 小接口仅用于供电／烧录调试。"
         case .usbQueueUnavailable: return "USB 发送队列不可用，请重新连接。"
         case .timeout(let op): return "设备操作超时：\(op)。"
         case .deviceRejected(let op): return "设备未接受操作：\(op)。请查看 TF 卡与设备状态。"

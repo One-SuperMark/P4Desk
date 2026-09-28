@@ -87,13 +87,25 @@ ESP-IDF 6.0.2 完整构建并刷入“设备操作”中的当前固件，完整
 
 显示／触摸方向实现没有在本次桌面修改中改变，启动仍确认软件旋转 180°、触摸校正 0°。用户已在实板回复“八图标布局和点击正常”，4×2 八图标画面及所询问的时钟／计算器触摸位置验收通过；未将此回复视为全部八个入口或 USB 副屏的实机功能验收。USB 端到端链路仍按用户安排延后权限授权。脱敏证据见 [acceptance-board-rust-ui-port.json](acceptance-board-rust-ui-port.json)。
 
+## Mac 窗口、USB 识别与 Developer ID 签名
+
+用户反馈“USB 未连接，app 看不到”后，本机最初只枚举 `303A:1001 / USB JTAG_serial debug unit`，用户确认线接在 Type-C 小接口。该通道用于供电／烧录／调试；本项目数据通道使用 Type-A USB-OTG。随后系统出现 `303A:4044 / P4Desk`，IOService 中有完整 vendor interface 0 与 HID interface 1。
+
+原 App 已安装、进程也在运行，但再次打开只激活进程，配置窗口仍不显示。现由自有 `NSWindowController` 承载原编辑界面，启动、标准 reopen 与菜单入口共用同一个窗口。已实际核对启动窗口可见、重复打开三次仍只有一个编辑窗口；用户回复“可以看到配置窗口”。关闭后恢复的实现已接入，未将启动检查扩大为手动关闭／重开或全部菜单点击验收。首个窗口修正版本的脱敏证据见 [窗口验收记录](acceptance-mac-app-visibility.json)。
+
+系统有数据接口后，原 USB 筛选仍返回 0 个。本机编译执行只读 IOKit 对照：Apple helper 生成的平铺匹配字典匹配 0 个；标准 `IOServiceMatching("IOUSBHostInterface")` 加 `IOPropertyMatch`、保留相同 VID／PID／接口号／class 条件，精确匹配 1 个 vendor 接口。已修正 App，并补齐接口／端点失败的错误提示。
+
+按用户要求，主 App 和字体 helper 均使用 `Developer ID Application: Zhejiang Zhongwei Safety Technology Co., LTD (322V86ZQ9K)` 签名，包含安全时间戳和 Hardened Runtime。构建通过，安装到 `/Applications/P4Desk.app`，安装版的 deep／strict 签名校验通过。当前 App 显示“已连接 P4 Desk”，因此 HELLO 能力校验、USB 校时 ACK、读取设备状态和 Pad 模式 ACK 均已通过，设备报告 TF 就绪。未请求录屏／辅助功能权限，未执行便签同步、快捷键／触摸动作或实际屏幕捕获；未执行 Apple 公证。
+
+本次数据链路实际协商为 **Full Speed（macOS DeviceSpeed=1）**。固件配置使用 UTMI HS controller／rhport1，允许 High Speed，且包含 P4 v3 的 PHY 处理；未发现确定的强制 FS 配置错误。线材、转接头与 Hub 路径尚未完整记录，降速原因未确定。当前不能将协议连接成功视为 HS 480 Mbps 或副屏性能通过。实际匹配、安装签名和控制消息回执证据见 [USB 与 Developer ID 验收记录](acceptance-mac-usb-developerid.json)。
+
 ## 待实机验证
 
 | 项目 | 当前状态／通过条件 |
 | --- | --- |
 | RGB565、底部 24 行、四角触摸与方向 | 当前方向与一般触摸点击已获用户实板确认；RGB 色块、完整 600 行边界与专门的四角测试仍待记录 |
 | TF 实际格式／容量／读写 | 实板已通过；FAT32、容量和读写自检见上节。空间不足和写入中断恢复仍待实测 |
-| USB HS 枚举与双向传输 | 当前 Mac 匹配设备 0 个；待核对 Type-A HS 数据连接并联调，串口刷写不作为 HS 传输证明 |
+| USB HS 枚举与双向传输 | vendor interface 0 已匹配并打开，HELLO／校时／状态／Pad ACK 已通过；当前实际为 FS，HS 协商和视频传输仍待核对 |
 | 系统设置可见及拖入窗口 | 虚拟显示器登记通过；设置界面和普通窗口拖入待用户授权后验证 |
 | ScreenCaptureKit 实际捕获 | 按用户要求稍后授予屏幕录制权限，再验证仅捕获虚拟屏 |
 | JPEG 硬件解码与呈现 | 待端到端链路；SOF 实际尺寸／MCU 行对齐、颜色与底部 24 行必须在实板检查 |

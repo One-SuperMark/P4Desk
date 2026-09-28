@@ -10,7 +10,7 @@ final class DeskModel: ObservableObject {
     static let shared = DeskModel()
     @Published var snapshot: Snapshot
     @Published var connected = false
-    @Published var connectionStatus = "未连接 USB"
+    @Published var connectionStatus = "未连接 USB HS（Type-A）"
     @Published var displayActive = false
     @Published var changingMode = false
     @Published var syncing = false
@@ -19,7 +19,7 @@ final class DeskModel: ObservableObject {
     @Published var sdReady = false
     @Published var screenAllowed = false
     @Published var inputAllowed = false
-    @Published var message = "请将电脑连接到开发板的 USB HS 接口。"
+    @Published var message = "请用数据线连接板上 Type-A USB-OTG 大接口（USB HS 数据口）。Type-C 小接口用于供电／烧录调试，不能连接此副屏协议。"
     @Published var codec = "尚未启动"
     @Published var presentedFrames = 0
     @Published var presentationMS: Double?
@@ -143,9 +143,9 @@ final class DeskModel: ObservableObject {
             guard let sequence = frameTokens.removeValue(forKey: token) else { break }
             if var timing = frameEnqueued[sequence] { timing.usbSentNS = timeNS; frameEnqueued[sequence] = timing }
             else { performance.markSent(sequence: sequence, timeNS: timeNS) }
-        case .error:
+        case .error(let reason):
             connectionStatus = "USB 未能打开"
-            message = "请允许 USB 配件访问，连接 HS 数据口，并关闭占用设备的其他应用。"
+            message = "\(reason) 请确认已允许 USB 配件访问，连接板上 Type-A USB-OTG 大接口（USB HS 数据口），并关闭占用设备的其他应用。Type-C 小接口用于供电／烧录调试。"
         }
     }
     private func currentConnection(_ epoch: UInt64) -> Bool { usbOpen && connectionEpoch == epoch && !stopping }

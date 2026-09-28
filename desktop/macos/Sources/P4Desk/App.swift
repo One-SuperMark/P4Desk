@@ -4,10 +4,50 @@ import P4DeskCore
 
 @MainActor
 final class DeskAppDelegate: NSObject, NSApplicationDelegate {
-    func applicationDidFinishLaunching(_ notification: Notification) { DeskModel.shared.start() }
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        DeskModel.shared.start()
+        DispatchQueue.main.async { DeskEditorWindow.shared.show() }
+    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        DeskEditorWindow.shared.show()
+        return false
+    }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         Task { await DeskModel.shared.shutdown(); sender.reply(toApplicationShouldTerminate: true) }
         return .terminateLater
+    }
+}
+
+/// Own the editor window directly so launch, reopen and the menu use one instance.
+/// This does not depend on SwiftUI's internal window identifiers or scene restoration.
+@MainActor
+final class DeskEditorWindow {
+    static let shared = DeskEditorWindow()
+    private var controller: NSWindowController?
+    private init() {}
+
+    func show() {
+        if controller == nil {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 650),
+                                  styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                                  backing: .buffered, defer: false)
+            window.title = "P4 Desk"
+            window.contentViewController = NSHostingController(rootView: DeskEditor(model: .shared))
+            window.contentMinSize = NSSize(width: 800, height: 560)
+            window.setContentSize(NSSize(width: 960, height: 650))
+            window.isReleasedWhenClosed = false
+            let frameName = NSWindow.FrameAutosaveName("P4Desk.EditorWindow")
+            if !window.setFrameUsingName(frameName) { window.center() }
+            window.setFrameAutosaveName(frameName)
+            controller = NSWindowController(window: window)
+        }
+        guard let controller, let window = controller.window else { return }
+        if window.isMiniaturized { window.deminiaturize(nil) }
+        NSApp.unhide(nil)
+        controller.showWindow(nil)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
 
@@ -18,23 +58,19 @@ struct P4DeskApp: App {
         MenuBarExtra("P4 Desk", systemImage: model.displayActive ? "display.2" : "rectangle.and.hand.point.up.left") {
             MenuContent(model: model)
         }
-        Window("P4 Desk", id: "editor") {
-            DeskEditor(model: model)
-        }.defaultSize(width: 960, height: 650)
         Settings { DeskSettings(model: model).frame(width: 560) }
     }
 }
 
 struct MenuContent: View {
     @ObservedObject var model: DeskModel
-    @Environment(\.openWindow) private var openWindow
     var body: some View {
         Text(model.connectionStatus)
         Text(model.displayActive ? "当前模式：USB 副屏" : "当前模式：Pad")
         Button(model.displayActive ? "切回 Pad" : "开启 USB 副屏") {
             Task { if model.displayActive { await model.endDisplay(sendPad: true) } else { await model.beginDisplay() } }
         }.disabled(!model.connected || model.changingMode)
-        Button("打开便签与按钮配置") { openWindow(id: "editor"); NSApp.activate(ignoringOtherApps: true) }
+        Button("打开便签与按钮配置") { DeskEditorWindow.shared.show() }
         Button(model.syncing ? "正在同步…" : "同步到设备") { Task { await model.sync() } }
             .disabled(!model.connected || model.syncing || !model.sdReady)
         Divider()

@@ -25,7 +25,7 @@
 
 本轮开发板操作以 [验收记录](acceptance.md) 为准。已刷入对应固件时，直接启动 App 即可；完整备份已经存在时，无需重复读取 32 MiB Flash。
 
-Mac 打开 `P4Desk.app` 后，菜单栏显示连接状态。字体与生成器已包含在 App 中；编辑便签／按钮并点击同步，会自动生成所需中文资源并启用。设备默认 Pad，进入副屏需手动操作。
+将 `P4Desk.app` 放入 Mac 的“应用程序”文件夹（`/Applications`），再打开安装版。当前开发主机已安装到 `/Applications/P4Desk.app`。启动或重新打开会显示便签与按钮配置窗口；关闭窗口后仍在菜单栏运行，可从菜单打开配置。字体与生成器已包含在 App 中；编辑便签／按钮并点击同步，会自动生成所需中文资源并启用。设备默认 Pad，进入副屏需手动操作。
 
 权限可稍后授予。屏幕录制用于捕获虚拟屏，辅助功能用于触摸与快捷键；应用在手动开启相应功能时请求权限。
 
@@ -56,4 +56,6 @@ python3 scripts/device-tool.py flash \
 codesign --verify --deep --strict P4Desk.app
 ```
 
-默认 ad hoc 签名适用于本机／个人使用。若改用开发者身份签名，应在第一次授权前确定身份，并在后续版本保持一致。重新签名会改变 App 文件的 SHA256，需要重新生成交付清单。
+当前版本按用户要求使用 **Developer ID Application** 开发者证书签名，字体 helper 与主 App 都包含安全时间戳和 Hardened Runtime。当前签名 Team ID 为 `322V86ZQ9K`。构建脚本默认选择本机唯一有效的 Developer ID Application 证书；没有有效证书或存在多张时明确报错，也可通过 `P4DESK_CODESIGN_IDENTITY` 指定证书 SHA1 或完整名称。仅显式设置为 `-` 时使用 ad hoc。
+
+首次授权前确定身份，后续版本沿用该身份。重新签名后需要重新生成交付清单。Developer ID 签名校验与 Apple 公证分别记录；当前交付没有执行 Apple 公证。

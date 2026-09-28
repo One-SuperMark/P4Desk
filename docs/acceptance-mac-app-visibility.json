@@ -1,0 +1,51 @@
+{
+  "schema": "p4desk.mac.app_visibility.acceptance.v1",
+  "recorded_at": "2026-09-28T15:10:24.935785+08:00",
+  "diagnosis_before": {
+    "usb_debug_interface_enumerated": "303A:1001",
+    "p4desk_vendor_match_count": 0,
+    "user_confirmed_mac_cable_port": "Type-C small port",
+    "installed_application_running": true,
+    "open_activated_app_but_editor_remained_off_screen": true
+  },
+  "mac_application": {
+    "installed_path": "/Applications/P4Desk.app",
+    "bundle_identifier": "com.p4desk.mac",
+    "executable_bytes": 1314544,
+    "executable_sha256": "8f265f962c925c3782304cf7fed4ed693c5af7baa6fb24894957d8b52aacd333",
+    "release_build_passed": true,
+    "installed_signature_verified_deep_strict": true,
+    "preserves_menu_bar_mode": true
+  },
+  "window_acceptance": {
+    "launched_editor_on_screen": true,
+    "repeated_open_count": 3,
+    "editor_instance_count_after_repeated_open": 1,
+    "editor_on_screen_after_repeated_open": true,
+    "user_confirmed_visible_configuration_window": true,
+    "user_confirmation": "可以看到配置窗口",
+    "closed_window_reopen_physical_test_recorded": false,
+    "menu_open_click_physical_test_recorded": false,
+    "native_app_hide_fixture_supported": false
+  },
+  "usb_after": {
+    "interfaces": [
+      {
+        "vid": "303A",
+        "pid": "1001",
+        "product": "USB JTAG_serial debug unit"
+      },
+      {
+        "vid": "303A",
+        "pid": "4044",
+        "product": "P4Desk"
+      }
+    ],
+    "p4desk_vendor_match_count": 1,
+    "type_a_otg_data_connection_still_required": false,
+    "end_to_end_display_acceptance": false
+  },
+  "screen_recording_or_accessibility_permission_requested": false,
+  "screen_capture_started": false,
+  "firmware_modified_or_flashed": false
+}

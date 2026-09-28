@@ -23,12 +23,14 @@ open dist/P4Desk.app
 
 脚本会构建 Swift release 应用；字体 helper 缺失时自动运行 `cargo build --release -p p4desk-fontpack`。打包必须包含 Regular OTF、字体 helper、OFL、字体版权声明与来源清单，缺失时构建失败。应用 bundle ID 固定为 `com.p4desk.mac`。
 
-默认使用本机 ad hoc 签名。已有开发者签名身份时，可在首次授权前设置 `P4DESK_CODESIGN_IDENTITY`；重建应用时沿用该身份。ad hoc 重建后系统可能要求重新授权。字体 helper 的开发覆盖路径可通过 `P4DESK_FONTPACK_BIN` 指定。
+默认自动选择本机唯一有效的 `Developer ID Application` 证书，同时签署字体 helper 与主 App，并添加安全时间戳。没有有效证书或存在多张时，脚本报错；可设置 `P4DESK_CODESIGN_IDENTITY` 为证书 SHA1 或完整名称显式选择。仅本机开发时，显式设置 `P4DESK_CODESIGN_IDENTITY=-` 才使用 ad hoc 签名。
+
+在首次授权前确定签名身份，并在后续版本沿用；ad hoc 重建或更换签名身份后系统可能要求重新授权。字体 helper 的开发覆盖路径可通过 `P4DESK_FONTPACK_BIN` 指定。
 
 ## 使用
 
-1. 用数据线连接开发板 **USB HS** 接口。Type-C 的串口/刷机口不能传输此副屏协议。
-2. 菜单栏打开便签与按钮配置。内容自动保存在本机 Application Support/P4Desk/state.json；编辑后点“同步更改”。
+1. 用数据线连接开发板 **USB HS 数据口，即板上 Type-A USB-OTG 大接口**。Type-C 小接口用于供电／烧录调试，不能传输此副屏协议；只连接 Type-C 时，App 会显示 USB HS 未连接。
+2. 启动或再次打开 App 会显示便签与按钮配置窗口。关闭窗口后 App 继续在菜单栏运行，可从菜单栏“打开便签与按钮配置”重新打开。内容自动保存在本机 Application Support/P4Desk/state.json；编辑后点“同步更改”。
 3. 同步先读取设备状态，离线删除记录优先合并。中文字库与 Snapshot 使用 `sync_begin → RESOURCE/ACK → sync_commit` 完整一代提交。失败时设备保留上一有效代次。
 4. 按钮支持快捷键、启动应用、播放/音量等媒体键。快捷键和应用动作按设备已提交的按钮代次查找；媒体操作由板上的标准 USB HID Consumer 接口执行。
 5. 开启副屏需要屏幕录制权限；触摸指针与快捷键需要辅助功能权限。启动应用、编辑与同步不会请求这些权限。权限可在应用设置中手动管理。
@@ -44,6 +46,7 @@ open dist/P4Desk.app
 - 当前 CoreGraphics 进程可能缓存 `CGDisplayMode`。创建之后用活动显示列表与尺寸校验，probe 还用独立子进程校验模式的逻辑/像素尺寸。
 - `ScreenCaptureKit` 只匹配新显示器的 ID。编码优先 VideoToolbox JPEG，运行时失败切换到 ImageIO baseline JPEG；JPEG 必须为 1024×600、8 bit SOF0、完整 SOI/EOI。
 - USB 仅匹配 VID `303A` / PID `4044`、Vendor interface 0，使用 OUT `01` / IN `81`；HID interface 1 留给系统。发送保持一帧在途和最新一帧缓存，控制消息优先于下一完整帧。
+- USB 扫描使用 `IOServiceMatching("IOUSBHostInterface")` 加 `IOPropertyMatch` 的精确属性约束。本机 macOS 27 的只读 probe 已验证：旧 helper 平铺字典匹配 0 个，标准属性字典匹配 1 个 Vendor 接口。接口或端点打不开时显示一次包含阶段和错误码的提示，不把失败隐藏成“未连接”。
 - 每秒心跳。接口重开前保留至少 3.25 秒 OUT 静默，允许设备清除已中断的部分帧；静默结束后才报告连接并开始 HELLO 超时计时。
 
 ## 验证与诊断

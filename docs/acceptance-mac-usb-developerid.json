@@ -1,0 +1,123 @@
+{
+  "schema": "p4desk.mac.usb_developer_id.acceptance.v1",
+  "recorded_at": "2026-09-28T15:27:06.138627+08:00",
+  "initial_user_cable_port": "Type-C small port",
+  "initial_usb_debug_device": "303A:1001",
+  "matching_comparison": {
+    "apple_flat": {
+      "dictionary": {
+        "bInterfaceClass": 255,
+        "bInterfaceNumber": 0,
+        "idProduct": 16452,
+        "idVendor": 12346,
+        "IOProviderClass": "IOUSBHostInterface"
+      },
+      "iokit_status": 0,
+      "p4desk_interfaces": []
+    },
+    "class_only": {
+      "dictionary": {
+        "IOProviderClass": "IOUSBHostInterface"
+      },
+      "iokit_status": 0,
+      "p4desk_interfaces": [
+        {
+          "bConfigurationValue": 1,
+          "bInterfaceClass": 3,
+          "bInterfaceNumber": 1,
+          "bNumEndpoints": 1,
+          "idProduct": 16452,
+          "idVendor": 12346
+        },
+        {
+          "bConfigurationValue": 1,
+          "bInterfaceClass": 255,
+          "bInterfaceNumber": 0,
+          "bNumEndpoints": 2,
+          "idProduct": 16452,
+          "idVendor": 12346
+        }
+      ]
+    },
+    "property_match": {
+      "dictionary": {
+        "IOPropertyMatch": {
+          "bInterfaceClass": 255,
+          "bInterfaceNumber": 0,
+          "idProduct": 16452,
+          "idVendor": 12346
+        },
+        "IOProviderClass": "IOUSBHostInterface"
+      },
+      "iokit_status": 0,
+      "p4desk_interfaces": [
+        {
+          "bConfigurationValue": 1,
+          "bInterfaceClass": 255,
+          "bInterfaceNumber": 0,
+          "bNumEndpoints": 2,
+          "idProduct": 16452,
+          "idVendor": 12346
+        }
+      ]
+    }
+  },
+  "matching_probe_opened_interfaces": false,
+  "application_installation": "/Applications/P4Desk.app",
+  "executable_bytes": 1332976,
+  "executable_sha256": "7d52279ccb0e9ea4a066a56aa40309e7ef5a28c9ef0860d77aa948aadb4109c9",
+  "font_helper_sha256": "ea546e5fc4f86cdd44420c156081c678c269ed5d0853cb2ca811d3c24ecdea81",
+  "developer_id_signatures": [
+    {
+      "path": "P4Desk.app",
+      "authority_chain": [
+        "Developer ID Application: Zhejiang Zhongwei Safety Technology Co., LTD (322V86ZQ9K)",
+        "Developer ID Certification Authority",
+        "Apple Root CA"
+      ],
+      "team_identifier": "322V86ZQ9K",
+      "secure_timestamp": "Sep 28, 2026 at 15:22:37",
+      "hardened_runtime": true
+    },
+    {
+      "path": "P4Desk.app/Contents/Resources/p4desk-fontpack",
+      "authority_chain": [
+        "Developer ID Application: Zhejiang Zhongwei Safety Technology Co., LTD (322V86ZQ9K)",
+        "Developer ID Certification Authority",
+        "Apple Root CA"
+      ],
+      "team_identifier": "322V86ZQ9K",
+      "secure_timestamp": "Sep 28, 2026 at 15:22:36",
+      "hardened_runtime": true
+    }
+  ],
+  "installed_deep_strict_signature_verification_passed": true,
+  "window_fix_user_acceptance": "可以看到配置窗口",
+  "usb_runtime": {
+    "devices": [
+      {
+        "vid": "303A",
+        "pid": "4044",
+        "product": "P4Desk",
+        "device_speed": 1
+      }
+    ],
+    "application_connection_status": "已连接 P4 Desk",
+    "hello_caps_validated": true,
+    "time_sync_ack_received": true,
+    "get_state_reply_received": true,
+    "pad_mode_ack_received": true,
+    "tf_ready_reported_by_device": true,
+    "connection_status_observed_via_public_ui_text_only": true,
+    "device_state_or_note_contents_logged": false,
+    "negotiated_high_speed": false,
+    "high_speed_negotiation_cause_if_false": "not established; actual cable, adapter and hub path not recorded"
+  },
+  "screen_recording_or_accessibility_permission_requested": false,
+  "screen_capture_started": false,
+  "notes_or_buttons_sync_executed": false,
+  "keyboard_or_touch_actions_executed": false,
+  "apple_notarization_performed": false,
+  "firmware_modified_or_flashed": false,
+  "end_to_end_usb_display_acceptance": false
+}

@@ -14,6 +14,18 @@
 
 本项目固件将 Type-A 的 P4 OTG 配置为 **USB device / HS**，Mac 作为 host。枚举为 `P4Desk`，开发 VID/PID 为 `303A:4044`，vendor interface 0（bulk OUT 0x01／IN 0x81），HID Consumer interface 1。这个 VID/PID 用于当前个人开发固件；量产分发需使用自己的设备标识。
 
+板上状态栏的“USB 未连接”指这一路 **USB-OTG 数据接口尚未枚举**。仅连接 Type-C 时，开发板可以供电、运行 Pad，并通过相应接口刷写／调试；Mac 配套应用仍会显示未连接。USB Serial/JTAG 调试接口可能显示为 `303A:1001`，与本项目的数据接口 `303A:4044` 分属不同 USB 控制器。
+
+连接 OTG 数据接口后，Mac 应用自动握手并校时。打开应用、编辑便签和同步不需要屏幕录制或辅助功能权限；开启副屏与执行触摸／快捷键输入时再处理对应权限。
+
+微雪随板清单包含双 USB-A 公头线。对于 USB-C 接口的 Mac，数据连接可按以下路径接入；已有带 USB-A 母口的数据扩展坞时，也可从其 USB-A 数据口接出：
+
+```text
+Mac USB-C → USB-C 公／USB-A 母的数据转接头 → 随板双 USB-A 公头线 → 板上 Type-A USB-OTG
+```
+
+线材来源见[微雪官方随板清单](https://www.waveshare.com/product/arduino/displays/esp32-p4-wifi6-touch-lcd-7b.htm)，Mac 转接方式见 [Apple USB-C 转 USB 转换器说明](https://support.apple.com/zh-cn/111751)。板端供电按官方电源要求设置，具体实板与线材的 VBUS／供电组合验收见验收记录。
+
 ## TF 卡与屏幕
 
 1. 断电时将现有 TF 卡插入板载卡槽，避免带电拔插造成正在写入的资源代次中断。
@@ -36,7 +48,8 @@ TF 挂载／读写异常时，界面保留基础时钟、计算器和计时工�
 
 | 状态 | 检查 |
 | --- | --- |
-| 有串口、Mac 应用没有设备 | 检查 Type-A HS 数据口是否连接，以及是否已刷入本项目固件 |
+| Type-C 已插上，板上仍显示 USB 未连接 | 将 Mac 数据连接接到 Type-A USB-OTG 大接口；Type-C 供电／调试连接不承担本项目的同步和副屏协议 |
+| 有串口、Mac 应用没有设备 | 检查 Type-A HS 数据口是否连接，以及是否已刷入本项目固件；Mac 应识别 `303A:4044`，USB Serial/JTAG 的 `303A:1001` 不是配套应用的数据接口 |
 | USB 配件访问被拒绝 | 在 macOS 配件权限提示／系统设置允许设备，再点重新连接 |
 | 便签不能同步 | 检查 TF 就绪状态、空间、字形生成器与字体资源 |
 | 副屏进入失败 | 查看 Mac 提示中的录屏权限、虚拟屏登记、编码或设备呈现回执状态 |

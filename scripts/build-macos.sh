@@ -8,6 +8,27 @@ TASK_OFL="$TASK_ROOT/third_party/licenses/NotoSans-OFL.txt"
 TASK_COPYRIGHT="$TASK_ROOT/third_party/licenses/NotoSans-copyright.txt"
 TASK_FONT_SOURCES="$TASK_ROOT/assets/fonts/SOURCES.json"
 TASK_FONTPACK="${P4DESK_FONTPACK_BIN:-$TASK_ROOT/target/release/p4desk-fontpack}"
+TASK_CODESIGN_IDENTITY="${P4DESK_CODESIGN_IDENTITY:-}"
+if [[ -z "$TASK_CODESIGN_IDENTITY" ]]; then
+  TASK_DEVELOPER_IDS=()
+  while IFS= read -r TASK_DEVELOPER_ID; do
+    if [[ -n "$TASK_DEVELOPER_ID" ]]; then
+      TASK_DEVELOPER_IDS+=("$TASK_DEVELOPER_ID")
+    fi
+  done < <(security find-identity -v -p codesigning | awk '$2 ~ /^[0-9A-Fa-f]+$/ && length($2) == 40 && /"Developer ID Application:/ { print $2 }')
+  if (( ${#TASK_DEVELOPER_IDS[@]} == 0 )); then
+    print -u2 "未找到有效的 Developer ID Application 签名证书。请安装证书或设置 P4DESK_CODESIGN_IDENTITY；仅本机开发时可显式设置为 - 使用 ad hoc。"
+    exit 1
+  elif (( ${#TASK_DEVELOPER_IDS[@]} != 1 )); then
+    print -u2 "存在多张有效的 Developer ID Application 证书。请设置 P4DESK_CODESIGN_IDENTITY 指定证书的 SHA1 或完整名称。"
+    exit 1
+  fi
+  TASK_CODESIGN_IDENTITY="${TASK_DEVELOPER_IDS[1]}"
+fi
+TASK_CODESIGN_FLAGS=(--force --sign "$TASK_CODESIGN_IDENTITY" --options runtime)
+if [[ "$TASK_CODESIGN_IDENTITY" != "-" ]]; then
+  TASK_CODESIGN_FLAGS+=(--timestamp)
+fi
 if [[ ! -x "$TASK_FONTPACK" ]]; then
   cargo build --manifest-path "$TASK_ROOT/Cargo.toml" --release -p p4desk-fontpack
 fi
@@ -33,7 +54,7 @@ cp "$TASK_OFL" "$TASK_APP/Contents/Resources/NotoSans-OFL.txt"
 cp "$TASK_COPYRIGHT" "$TASK_APP/Contents/Resources/NotoSans-copyright.txt"
 cp "$TASK_FONT_SOURCES" "$TASK_APP/Contents/Resources/FONT-SOURCES.json"
 cp "$TASK_FONTPACK" "$TASK_APP/Contents/Resources/p4desk-fontpack"
-codesign --force --sign "${P4DESK_CODESIGN_IDENTITY:--}" --options runtime --identifier com.p4desk.fontpack "$TASK_APP/Contents/Resources/p4desk-fontpack"
-codesign --force --sign "${P4DESK_CODESIGN_IDENTITY:--}" --options runtime --identifier com.p4desk.mac "$TASK_APP"
-codesign --verify --strict "$TASK_APP"
+codesign "${TASK_CODESIGN_FLAGS[@]}" --identifier com.p4desk.fontpack "$TASK_APP/Contents/Resources/p4desk-fontpack"
+codesign "${TASK_CODESIGN_FLAGS[@]}" --identifier com.p4desk.mac "$TASK_APP"
+codesign --verify --deep --strict "$TASK_APP"
 print "Mac 应用已构建：$TASK_APP"

@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import <IOKit/IOKitLib.h>
+#import <IOKit/IOKitKeys.h>
 #import <IOKit/IOMessage.h>
 #import <IOKit/usb/USB.h>
 #import <IOUSBHost/IOUSBHost.h>
@@ -45,10 +46,14 @@
 }
 - (void)scan {
     if (!self.running || self.interface || NSProcessInfo.processInfo.systemUptime < self.connectAfter) return;
-    CFMutableDictionaryRef matching = [IOUSBHostInterface createMatchingDictionaryWithVendorID:@(self.vendorID)
-        productID:@(self.productID) bcdDevice:nil interfaceNumber:@0 configurationValue:nil
-        interfaceClass:@255 interfaceSubclass:nil interfaceProtocol:nil speed:nil productIDArray:nil];
+    CFMutableDictionaryRef matching = IOServiceMatching("IOUSBHostInterface");
     if (!matching) return;
+    // macOS 27's helper puts these properties at the dictionary's top level,
+    // which matches no interfaces on the verified host. IOPropertyMatch applies
+    // them to the IOUSBHostInterface service itself and preserves exact filtering.
+    NSDictionary *properties = @{@"idVendor": @(self.vendorID), @"idProduct": @(self.productID),
+        @"bInterfaceNumber": @0, @"bInterfaceClass": @255};
+    CFDictionarySetValue(matching, CFSTR(kIOPropertyMatchKey), (__bridge CFDictionaryRef)properties);
     io_iterator_t iterator = 0;
     if (IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) != KERN_SUCCESS) return;
     io_service_t service;
@@ -68,13 +73,28 @@
             }];
         IOObjectRelease(service);
         if (!interface) {
-            if (!self.reportedOpenError) [self emit:P4USB_ERROR token:0 data:nil reason:"cannot open USB interface; allow accessory access or close another owner"];
+            if (!self.reportedOpenError) {
+                uint32_t status = error ? (uint32_t)error.code : (uint32_t)kIOReturnNotFound;
+                NSString *reason = [NSString stringWithFormat:@"无法打开 USB Vendor 接口 0（错误 0x%08x）。", status];
+                [self emit:P4USB_ERROR token:0 data:nil reason:reason.UTF8String];
+            }
             self.reportedOpenError = YES;
             continue;
         }
-        IOUSBHostPipe *output = [interface copyPipeWithAddress:0x01 error:&error];
-        IOUSBHostPipe *input = [interface copyPipeWithAddress:0x81 error:&error];
-        if (!output || !input) { [interface destroy]; continue; }
+        NSError *outputError = nil, *inputError = nil;
+        IOUSBHostPipe *output = [interface copyPipeWithAddress:0x01 error:&outputError];
+        IOUSBHostPipe *input = [interface copyPipeWithAddress:0x81 error:&inputError];
+        if (!output || !input) {
+            if (!self.reportedOpenError) {
+                NSError *pipeError = !output ? outputError : inputError;
+                uint32_t status = pipeError ? (uint32_t)pipeError.code : (uint32_t)kIOReturnNotFound;
+                NSString *reason = [NSString stringWithFormat:@"无法打开 USB %@ 端点（错误 0x%08x）。",
+                    !output ? @"OUT 0x01" : @"IN 0x81", status];
+                [self emit:P4USB_ERROR token:0 data:nil reason:reason.UTF8String];
+            }
+            self.reportedOpenError = YES;
+            [interface destroy]; continue;
+        }
         self.interface = interface; self.output = output; self.input = input;
         self.reportedOpenError = NO; self.epoch++;
         [self emit:P4USB_CONNECTED token:0 data:nil reason:nullptr];
