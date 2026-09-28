@@ -73,13 +73,13 @@ Pad 与 JPEG 共用生产 `display_pixels.c`：在 `FB_BUILDING` 目标上一次
 
 生产像素测试与 ESP-IDF 6.0.2 完整构建通过。已刷入“设备操作”中的当前固件，三个设备写入 Hash 校验通过；复位后观察 35 秒，日志确认 `Pad framebuffer software rotation=180 applied`。30 秒时 Pad 呈现计数 33，PSRAM 空闲 22,927,880 字节；TF 与设置读写自检通过，未发现 panic、abort 或 watchdog timeout。
 
-已请用户确认新固件的实际朝向与点击对应关系，当前记录为待用户确认；USB 副屏端到端效果仍待联调。脱敏构建、刷写和启动证据见 [acceptance-board-software180.json](acceptance-board-software180.json)。
+用户已在实板确认“画面和触摸都正常”，本次 Pad 画面方向与触摸点击对应验收通过。USB 副屏端到端效果、RGB 色块、完整边界及专门的四角触摸测试仍待联调。脱敏构建、刷写、启动和用户确认记录见 [acceptance-board-software180.json](acceptance-board-software180.json)。
 
 ## 待实机验证
 
 | 项目 | 当前状态／通过条件 |
 | --- | --- |
-| RGB565、底部 24 行、四角触摸与方向 | 待实板观察；颜色顺序正确，全部 600 行可见，四角位置无偏差，当前方向符合摆放位置 |
+| RGB565、底部 24 行、四角触摸与方向 | 当前方向与一般触摸点击已获用户实板确认；RGB 色块、完整 600 行边界与专门的四角测试仍待记录 |
 | TF 实际格式／容量／读写 | 实板已通过；FAT32、容量和读写自检见上节。空间不足和写入中断恢复仍待实测 |
 | USB HS 枚举与双向传输 | 当前 Mac 匹配设备 0 个；待核对 Type-A HS 数据连接并联调，串口刷写不作为 HS 传输证明 |
 | 系统设置可见及拖入窗口 | 虚拟显示器登记通过；设置界面和普通窗口拖入待用户授权后验证 |

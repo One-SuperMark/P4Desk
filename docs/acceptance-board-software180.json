@@ -73,8 +73,14 @@
     }
   ],
   "existing_verified_full_flash_backup_rechecked_before_write": true,
-  "physical_lcd_visual_acceptance": "pending user confirmation",
-  "physical_touch_acceptance": "pending user confirmation",
+  "physical_lcd_visual_acceptance": "user confirmed display orientation normal",
+  "physical_touch_acceptance": "user confirmed touch clicks match displayed positions",
   "end_to_end_usb_display_acceptance": false,
-  "screen_recording_or_accessibility_permission_requested": false
+  "screen_recording_or_accessibility_permission_requested": false,
+  "user_confirmation": {
+    "recorded_at": "2026-09-28T14:11:30.351542+08:00",
+    "display_orientation_normal": true,
+    "touch_clicks_normal": true,
+    "specific_four_corner_test_recorded": false
+  }
 }
