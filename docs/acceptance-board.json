@@ -1,0 +1,136 @@
+{
+  "schema": "p4desk.board.acceptance.v1",
+  "recorded_at": "2026-09-28T12:09:13.975018+08:00",
+  "board": {
+    "model": "ESP32-P4-WIFI6-Touch-LCD-7B",
+    "chip_revision": "v3.2",
+    "flash_bytes": 33554432,
+    "psram_bytes": 33554432
+  },
+  "backup": {
+    "full_flash_bytes": 33554432,
+    "nvs_bytes": 24576,
+    "device_md5_verified_segments": 32,
+    "merged_file_sha256_verified": true,
+    "new_settings_region_verified_blank_before_flash": true,
+    "private_backup_in_release": false
+  },
+  "flashed_images": [
+    {
+      "offset": "0x2000",
+      "file": "bootloader/bootloader.bin",
+      "bytes": 23888,
+      "sha256": "60cbed96a0ccdc2afce4f8af7c1f1ed151c77cbb0f9e3b422cc5e8bc78c9fd6f",
+      "esptool_write_hash_verified": true
+    },
+    {
+      "offset": "0x8000",
+      "file": "partition_table/partition-table.bin",
+      "bytes": 3072,
+      "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330",
+      "esptool_write_hash_verified": true
+    },
+    {
+      "offset": "0x10000",
+      "file": "p4desk.bin",
+      "bytes": 1875376,
+      "sha256": "78272d56c5efc6832d138dc78ee518d5cbca5236d8fe02fc5eee97107021fdbb",
+      "esptool_write_hash_verified": true
+    }
+  ],
+  "startup": {
+    "reset_monitor_seconds": 95,
+    "rust_ui_started": true,
+    "lcd_initialized": {
+      "width": 1024,
+      "height": 600,
+      "format": "RGB565"
+    },
+    "gt911_initialized": true,
+    "default_mode": "pad",
+    "panic_abort_watchdog_detected": false
+  },
+  "tf": {
+    "filesystem": "FAT32",
+    "total_bytes": 63833325568,
+    "free_bytes": 63805587456,
+    "temporary_write_fsync_read_close_cleanup_passed": true,
+    "automatic_format_enabled": false
+  },
+  "flash_settings": {
+    "partition": "p4settings",
+    "offset": "0xf10000",
+    "partition_bytes": 1048576,
+    "mount_path": "/flash",
+    "total_bytes": 956561,
+    "free_bytes": 956561,
+    "temporary_write_fsync_read_close_cleanup_passed": true,
+    "mounted_after_reset_without_format": true,
+    "legacy_storage_retained": {
+      "offset": "0x810000",
+      "bytes": 7340032
+    },
+    "nvs_retained": {
+      "offset": "0x9000",
+      "bytes": 24576
+    }
+  },
+  "diagnostics": {
+    "samples": [
+      {
+        "uptime_s": 30,
+        "mode": "pad",
+        "internal_free": 214019,
+        "internal_largest": 94208,
+        "psram_free": 22927880,
+        "psram_largest": 22020096,
+        "presented": 33,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0
+      },
+      {
+        "uptime_s": 60,
+        "mode": "pad",
+        "internal_free": 214003,
+        "internal_largest": 94208,
+        "psram_free": 22927880,
+        "psram_largest": 22020096,
+        "presented": 63,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0
+      },
+      {
+        "uptime_s": 90,
+        "mode": "pad",
+        "internal_free": 214027,
+        "internal_largest": 94208,
+        "psram_free": 22927880,
+        "psram_largest": 22020096,
+        "presented": 93,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0
+      }
+    ],
+    "psram_free_change_bytes": 0,
+    "presented_counter_at_90_seconds": 93,
+    "duration_is_full_30_minute_acceptance": false
+  },
+  "mac_usb_enumeration": {
+    "p4desk_usb_match_count": 0,
+    "matches": []
+  },
+  "pending_real_device_checks": [
+    "LCD colors, all 600 rows and four-corner touch coordinates",
+    "HS USB bidirectional transfer and JPEG decode presentation",
+    "ScreenCaptureKit capture and CGEvent input after user grants permissions",
+    "Notes and glyph sync, offline delete reconnect merge, storage interruption recovery",
+    "Mode switching, disconnect, sleep wake, input release and 30-minute run",
+    "Presented FPS and end-to-end latency"
+  ],
+  "screen_recording_or_accessibility_permission_requested_this_stage": false,
+  "physical_lcd_visual_acceptance": false,
+  "end_to_end_usb_display_acceptance": false
+}

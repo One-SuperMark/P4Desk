@@ -73,7 +73,9 @@ python3 scripts/device-tool.py flash \
   --build-dir /absolute/ascii/path/p4desk-build
 ```
 
-只写 `flasher_args.json` 列出的 bootloader、分区表和应用。当前 NVS 地址／大小保持为 0x9000／0x6000，settings SPIFFS 为 0x810000 起的 7 MiB，与既有 7B 工程布局兼容。TF 卡不参与刷写。
+只写 `flasher_args.json` 列出的 bootloader、分区表和应用。NVS 地址／大小保持为 0x9000／0x6000；旧 `storage` 区保留 0x810000 起的 7 MiB。P4Desk 的设置／删除记录改用独立 `p4settings` SPIFFS，0xf10000 起的 1 MiB。首次初始化仅允许全 0xFF 的空白新分区；既有数据挂载失败时保持原状。TF 卡不参与刷写。
+
+这块板的旧 `storage` 挂载返回 `SPIFFS_ERR_NOT_A_FS`，旧／新 SPIFFS 关键参数相同。完整备份确认新增设置区全部为空白，因此保留旧区并单独建立 P4Desk 设置区。没有格式化旧 `storage` 或 TF。
 
 读取启动日志：
 
