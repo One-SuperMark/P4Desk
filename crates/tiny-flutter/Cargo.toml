@@ -1,0 +1,29 @@
+[package]
+name = "tiny-flutter"
+version = "0.1.0"
+edition = "2021"
+description = "A lightweight Flutter-like UI framework for embedded devices powered by tiny-skia"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+tiny_gfx = { path = "crates/tiny_gfx" }
+fontdue = { version = "0.9", default-features = false, features = ["std"] }
+log = { version = "0.4", default-features = false }
+
+# Optional simulator dependencies for desktop previews
+winit = { version = "0.30", default-features = false, features = ["rwh_06", "wayland", "wayland-dlopen", "x11", "x11-dl"], optional = true }
+softbuffer = { version = "0.4", optional = true }
+
+[features]
+default = []
+simulator = ["dep:winit", "dep:softbuffer"]
+profile = []
+
+[[example]]
+name = "desktop_demo"
+path = "examples/desktop_demo.rs"
+required-features = ["simulator"]
+
+[[example]]
+name = "esp_wasm_demo"
+path = "examples/esp_wasm_demo.rs"

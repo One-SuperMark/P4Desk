@@ -1,0 +1,6 @@
+{
+  "description": "P4Desk v1 CRC16-CCITT-FALSE little-endian hello",
+  "sequence": 7,
+  "payload_utf8": "{\"op\":\"hello\",\"request_id\":7,\"version\":1}",
+  "packet_hex": "c1571001000000000000000007a400007b226f70223a2268656c6c6f222c22726571756573745f6964223a372c2276657273696f6e223a317d"
+}

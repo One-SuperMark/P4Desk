@@ -1,0 +1,3 @@
+# 保留上游 FatFs 与许可证原始空白；本项目代码使用 Git 默认空白检查。
+firmware/components/fatfs/** -whitespace
+third_party/licenses/** -whitespace

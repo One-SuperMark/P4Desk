@@ -1,0 +1,75 @@
+{
+  "schema": "p4desk.macos-probes.v1",
+  "recorded_utc": "2026-09-28T03:37:41.746598+00:00",
+  "os_version": "27.0",
+  "os_build": "26A428",
+  "architecture": "arm64",
+  "bundle_id": "com.p4desk.mac",
+  "executable_sha256": "b8ed2718e1f226d0b46175c563bac26daf065e12362aa36001b873f0b30a6ad0",
+  "codesign_verified": true,
+  "capture_requested": false,
+  "screen_content_saved": false,
+  "usb_hardware_transfer_tested": false,
+  "input_permission_requested": false,
+  "all_probes_passed": true,
+  "results": {
+    "swift_tests": {
+      "exit_code": 0,
+      "test_count": 19,
+      "passed": true
+    },
+    "protocol": {
+      "exit_code": 0,
+      "observations": [
+        {
+          "self_test": true,
+          "crc": true,
+          "fragmentation": true,
+          "negative_origin": true
+        }
+      ]
+    },
+    "synthetic_jpeg": {
+      "exit_code": 0,
+      "observations": [
+        {
+          "probe": "jpeg",
+          "baseline": true,
+          "bytes": 10320,
+          "backend": "VideoToolbox JPEG",
+          "source": "synthetic"
+        }
+      ]
+    },
+    "virtual_display": {
+      "exit_code": 0,
+      "observations": [
+        {
+          "probe": "virtual_display",
+          "created": true,
+          "removed": true,
+          "active": true,
+          "online": true,
+          "width": 1024,
+          "height": 600,
+          "capture_requested": false
+        },
+        {
+          "active": true,
+          "height": 600,
+          "mode_height": 600,
+          "mode_width": 1024,
+          "online": true,
+          "pixel_height": 600,
+          "pixel_width": 1024,
+          "width": 1024
+        }
+      ]
+    },
+    "bundled_fontpack": {
+      "bytes": 205968,
+      "glyph_count": 540,
+      "valid": true
+    }
+  }
+}

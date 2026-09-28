@@ -1,0 +1,16 @@
+.cache/
+target/
+build/
+dist/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/managed_components/
+firmware/build/
+.DS_Store
+*.log
+backups/
+desktop/macos/.build/
+tests/artifacts/
+artifacts/
+__pycache__/
+*.pyc

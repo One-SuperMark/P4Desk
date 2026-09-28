@@ -1,0 +1,40 @@
+{
+  "generation": 1,
+  "notes": [
+    {
+      "id": "demo-note",
+      "title": "欢迎使用 P4 Desk",
+      "body": "中文便签\nMac 编辑后同步到 TF 卡。\n计时器切换到副屏后继续运行。",
+      "updated_ms": 0
+    }
+  ],
+  "buttons": [
+    {
+      "id": "demo-copy",
+      "label": "复制",
+      "action": {
+        "kind": "shortcut",
+        "key_code": 8,
+        "modifiers": 1048576
+      }
+    },
+    {
+      "id": "demo-paste",
+      "label": "粘贴",
+      "action": {
+        "kind": "shortcut",
+        "key_code": 9,
+        "modifiers": 1048576
+      }
+    },
+    {
+      "id": "demo-media",
+      "label": "播放暂停",
+      "action": {
+        "kind": "media",
+        "usage": 205
+      }
+    }
+  ],
+  "deleted_note_ids": []
+}

@@ -1,0 +1,10 @@
+[package]
+name = "p4desk-fontpack"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+tiny-flutter = { path = "../../crates/tiny-flutter" }
+fontdue = { version = "=0.9.4", default-features = false, features = ["std"] }
+serde_json = "1"

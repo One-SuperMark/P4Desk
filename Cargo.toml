@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/tiny-flutter",
+    "crates/tiny-flutter/crates/tiny_gfx",
+    "crates/p4desk-protocol",
+    "apps/app-launcher",
+    "apps/calculator",
+    "tools/fontpack",
+    "firmware/components/rust_main",
+]
+exclude = ["apps/counter", "apps/hello", "apps/terminal", "apps/music-player"]
+default-members = ["crates/p4desk-protocol", "apps/app-launcher", "tools/fontpack"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"

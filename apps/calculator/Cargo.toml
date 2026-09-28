@@ -1,0 +1,20 @@
+[package]
+name = "calculator"
+version = "0.1.0"
+edition = "2021"
+description = "A sleek, responsive calculator app built with tiny-flutter for ESP-WASMachine"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+tiny-flutter = { path = "../../crates/tiny-flutter", default-features = false }
+
+[features]
+default = []
+simulator = ["tiny-flutter/simulator"]
+
+[[bin]]
+name = "calculator-simulator"
+path = "src/bin/simulator.rs"
+required-features = ["simulator"]

@@ -1,0 +1,27 @@
+[package]
+name = "app-launcher"
+version = "0.1.0"
+edition = "2021"
+description = "P4Desk Pad apps built with the original tiny-flutter framework"
+license = "MIT"
+
+[lib]
+crate-type = ["rlib"]
+
+[[bin]]
+name = "p4desk-simulator"
+path = "src/bin/simulator.rs"
+
+[dependencies]
+tiny-flutter = { path = "../../crates/tiny-flutter", default-features = false }
+calculator = { path = "../calculator", default-features = false }
+p4desk-protocol = { path = "../../crates/p4desk-protocol" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+png = { version = "0.17", optional = true }
+
+[features]
+default = []
+simulator = ["tiny-flutter/simulator", "calculator/simulator"]
+screenshots = ["dep:png"]
