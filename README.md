@@ -22,6 +22,8 @@ UI 从 [esp32-rust-ui](https://github.com/pomelos-on-sale/esp32-rust-ui) 的 tin
 
 ## 快速开始
 
+已经取得交付 ZIP 时，按 [交付包使用](docs/release.md) 直接打开包内 App 和使用固件。以下构建命令在源码项目根目录执行；交付包中的源码需先解压 `P4Desk-0.1.0-source.tar.gz`。
+
 1. 按 [接线说明](docs/wiring.md) 连接供电／串口与 Type-A USB-OTG 高速数据口，保持现有 TF 卡在板载卡槽。
 2. 按 [构建说明](docs/build.md) 使用 ESP-IDF **6.0.2** 与 `nightly-2026-09-27` 构建固件。
 3. 首次刷写先执行完整 Flash 备份；`device-tool.py flash` 会校验备份后再写入固件。

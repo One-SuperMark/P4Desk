@@ -2,9 +2,19 @@
 
 SwiftUI 菜单栏应用，使用原生 `IOUSBHost` 与 P4 Desk 固件通信。当前验证主机为 **macOS 27.0（26A428）、Apple Silicon arm64**。SwiftPM 的最低部署声明为 macOS 14；其他 macOS 版本与 Intel 的实际运行尚未验收。
 
-## 构建与打开
+## 打开已构建交付包
 
-在项目根目录运行：
+解压 `P4Desk-0.1.0.zip` 后，进入其中的 `P4Desk-0.1.0/` 目录运行：
+
+```sh
+open ./P4Desk.app
+```
+
+App 已包含字体和字形生成器，使用时无需构建工具链。交付目录中的 `scripts/` 提供备份与刷写工具，构建和测试脚本位于另附的源码归档中。
+
+## 从源码构建与打开
+
+在源码项目根目录运行以下命令。使用交付 ZIP 时，先解压其中的 `P4Desk-0.1.0-source.tar.gz`，进入 `P4Desk-0.1.0-source/`：
 
 ```sh
 ./scripts/build-macos.sh
@@ -37,6 +47,8 @@ open dist/P4Desk.app
 - 每秒心跳。接口重开前保留至少 3.25 秒 OUT 静默，允许设备清除已中断的部分帧；静默结束后才报告连接并开始 HELLO 超时计时。
 
 ## 验证与诊断
+
+以下命令也在源码项目根目录执行：
 
 ```sh
 swift test --package-path desktop/macos
