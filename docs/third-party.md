@@ -26,6 +26,6 @@ ESP-IDF 驱动依赖由 manifest 的 `==` 版本及 `firmware/dependencies.lock`
 
 图标由代码绘制简单几何形状，界面和演示数据由本项目编写。参考项目的 Apple 风格图像、壁纸和商业音乐没有作为本产品资源分发。
 
-桌面的图标绘制组件、图标网格、横向分页、页码圆点与状态栏后台应用入口基于参考项目相应 Rust 模块适配。具体职责与首版重写的纠偏记录见 [Rust UI 移植说明](rust-ui-port.md)。自制图标的 RGB565／alpha8 资源可用 `python3 scripts/generate-desktop-assets.py` 重现，源码和生成资源使用本项目 MIT 许可。
+桌面的图标绘制组件、图标网格、横向分页、页码圆点与状态栏后台应用入口基于参考项目相应 Rust 模块适配。具体职责与首版重写的纠偏记录见 [Rust UI 移植说明](rust-ui-port.md)。自制 SVG 图标及静态 Rust 矢量几何可用 `python3 scripts/generate-vector-icons.py` 重现，源码和生成几何使用本项目 MIT 许可；通用图标的许可同时保存在 `assets/ui_icons/LICENSE`。
 
 项目新代码使用根 MIT 许可；第三方文件与派生板级代码继续遵循其原许可。

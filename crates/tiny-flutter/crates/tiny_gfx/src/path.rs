@@ -29,7 +29,7 @@ impl Path {
         let mut current_poly = Vec::new();
         let mut start_pt = Point::ZERO;
         let mut current_pt = Point::ZERO;
-        let tol_sq = (tolerance.max(0.1)).powi(2);
+        let tol_sq = (tolerance.max(0.01)).powi(2);
 
         for verb in &self.verbs {
             match *verb {

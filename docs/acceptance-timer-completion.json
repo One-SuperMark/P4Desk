@@ -1,0 +1,176 @@
+{
+  "schema": "p4desk.pad.timer_completion.acceptance.v1",
+  "recorded_at": "2026-09-29T14:20:33.362337+08:00",
+  "request": "布局简洁，点击正常。倒计时结束添加一个动画特效",
+  "previous_layout_acceptance": "docs/acceptance-pomodoro.json",
+  "implementation": {
+    "effect": "two expanding, fading antialiased ellipses; gentle digit tint, progress glow and status highlight",
+    "duration_ms": 1800,
+    "local_repaint_gate_ms": 33,
+    "damage_rect_1024": [
+      122,
+      148,
+      780,
+      278
+    ],
+    "triggers": "one actual monotonic deadline completion; countdown and all pomodoro phases",
+    "next_stage": "manual start unchanged",
+    "lifecycle": "reset, restart, app exit, screen off and USB display cancel; background and overdue completions do not replay",
+    "cleanup": "one final settled local repaint, including delayed loop",
+    "scratch": "row-based alpha coverage buffers; no full-frame effect texture",
+    "display_owner": "existing Rust App / C HAL path retained"
+  },
+  "host_verification": {
+    "tests": {
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit_code": 0,
+      "seconds": 6.91,
+      "passed": 149
+    },
+    "new_animation_tests": 4,
+    "test_scope": [
+      "finite trigger and frame gate",
+      "all phases and clock sync",
+      "hidden and action cancellation",
+      "local/full pixel equality, damage containment and final cleanup"
+    ],
+    "accepted_static_previews": {
+      "command": [
+        "cargo",
+        "run",
+        "-p",
+        "app-launcher",
+        "--features",
+        "screenshots",
+        "--example",
+        "pomodoro-preview",
+        "--",
+        ".cache/timer-completion/static"
+      ],
+      "exit_code": 0,
+      "seconds": 0.91,
+      "unchanged_previews": [
+        "pomodoro-countdown.png",
+        "pomodoro-finished.png",
+        "pomodoro-focus.png",
+        "pomodoro-long-break.png",
+        "pomodoro-paused.png",
+        "pomodoro-running.png",
+        "pomodoro-short-break.png"
+      ]
+    },
+    "preview": {
+      "type": "synthetic actual Rust UI via production local repaint path",
+      "source_frames": 101,
+      "encoded_gif_frames": 56,
+      "resolution": [
+        1024,
+        600
+      ],
+      "gif_duration_ms": 3360,
+      "gif_loops": "demonstration only; hardware effect plays once",
+      "file": {
+        "path": "docs/images/pomodoro-completion-v1.gif",
+        "bytes": 505630,
+        "sha256": "52c1c2f0a097c655c0b738e495d0f791609faa50376a729404b635292f860012"
+      }
+    },
+    "device_fps": "not_measured"
+  },
+  "build": {
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 9.42,
+    "idf_version": "v6.0.2",
+    "idf_path": "/Volumes/work/esp/esp-idf-v6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3531408,
+        "sha256": "a0a8079a1f022c0c6d4485b01b4d22f5d4e3396606f026252917b83142f3d6b8"
+      }
+    ],
+    "log": ".cache/timer-completion/build.log"
+  },
+  "flash": {
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 27.39,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "chip": "ESP32-P4 revision v3.2",
+    "nvs_settings_and_tf_not_written": true,
+    "log": ".cache/timer-completion/flash.log"
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/src/timer.rs",
+      "bytes": 8438,
+      "sha256": "af9178b4b48627218024b87542ccd5d3a73d2d00b975fbddee12e808c3a0fea3"
+    },
+    {
+      "path": "apps/app-launcher/src/timer_completion.rs",
+      "bytes": 1734,
+      "sha256": "7fe585fe6f37a29002de6a01b8465c846470929494188aa363815958c2281b7f"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_state.rs",
+      "bytes": 10282,
+      "sha256": "931ca6a92c9e6c6f285e3f2da2262c2f95117890bd3917982e998862d13b87da"
+    },
+    {
+      "path": "apps/app-launcher/src/pomodoro_ui.rs",
+      "bytes": 21402,
+      "sha256": "8e28bc2240d33bedc026f5462f00af6e2f1e119740f269b9d842b9b234ea1cbf"
+    },
+    {
+      "path": "firmware/components/rust_main/src/ffi.rs",
+      "bytes": 9204,
+      "sha256": "5b46a87c22a65cdd7ca6e56c127a92f32ffaae420563410cde31ad91ee63e5eb"
+    },
+    {
+      "path": "apps/app-launcher/tests/timer_completion_tests.rs",
+      "bytes": 6307,
+      "sha256": "762978fef373dd2e03a8eea62f9d8da1f03438ff8ee2fcdfff11b1aaafc09c16"
+    },
+    {
+      "path": "apps/app-launcher/examples/timer-completion-preview.rs",
+      "bytes": 1636,
+      "sha256": "d48aa6ea2b4db8f407d88e94fa4a310623ec64c3384bfadc93aac38bfc9ce489"
+    },
+    {
+      "path": "scripts/make-timer-completion-preview.py",
+      "bytes": 1655,
+      "sha256": "c42f7550095c8fa88a88c86fbf568a395c2833175f5577715a5465170a811b9f"
+    }
+  ],
+  "physical_acceptance": {
+    "status": "needs_revision",
+    "scope": "one-minute real countdown completion effect, smoothness and return to static complete state",
+    "recorded_at": "2026-09-29T14:26:21.491542+08:00",
+    "user_reply": "动画太弱，需要更明显",
+    "followup_request": "全屏一个颜色，然后一个光晕散出去"
+  }
+}

@@ -1,0 +1,298 @@
+{
+  "schema": "p4desk.pad.launch.balanced.acceptance.v1",
+  "recorded_at": "2026-09-29T17:26:38.445431+08:00",
+  "request": "加快展开、放慢收缩，修正计算器主题色，USB 副屏入口添加动画",
+  "source_base_commit": "d81bb7170e8e5073b60a0082f22171379de1ccbb",
+  "source_state": "working-tree changes; not committed",
+  "previous_evidence": [
+    "docs/acceptance-pad-launch-inward-circle.json"
+  ],
+  "implementation": {
+    "duration_ms": 940,
+    "expand_ms": 260,
+    "bridge_ms": 80,
+    "shrink_ms": 600,
+    "frame_interval_ms": 16,
+    "icon": "stationary at clicked source; no resize",
+    "calculator_theme": "#3faa80 (desktop SVG green)",
+    "usb_theme": "#509faf (desktop SVG cyan)",
+    "usb_entry": "transient DisplaySetup Pad page with normal launch overlay; no running-app entry",
+    "usb_request": "once, after final animation frame is scheduled; command processing follows Pad paint",
+    "usb_mode": "original RequestMode/SetMode handshake; only host-approved SetMode changes HAL",
+    "offline": "show connection notice, do not send; reconnect requires explicit retry",
+    "cancel": "back, close, screen off, app switch or lost original connection clears deferred and undrained requests",
+    "pad_return": "mode handoff exits transient page; later Pad return uses desktop",
+    "display_owner": "unchanged single owner with prior PPA and full-width output",
+    "backdrop_bytes": 1228800,
+    "new_fullscreen_allocations": 0,
+    "glass_row_scratch_bytes": 2048
+  },
+  "host_verification": {
+    "rust_workspace": {
+      "status": "passed",
+      "passed": 196,
+      "log": ".cache/pad-feedback/launch-balanced-tests.log"
+    },
+    "covered": [
+      "seven source positions and cached/uncached pixel equivalence",
+      "stationary icon, corner cover, inward reveal and no white rim or final speck",
+      "USB request only after animation and at most once",
+      "hardware mode remains Pad until host SetMode",
+      "cancel and lost connection cannot send late requests",
+      "offline animation and explicit retry after reconnect",
+      "temporary USB page is not retained in running apps",
+      "held-touch guard, timers and calculator instance preservation"
+    ],
+    "previews": {
+      "status": "visually_checked",
+      "apps": [
+        "timer",
+        "calculator",
+        "display"
+      ],
+      "frames_per_app": 120,
+      "total_frames": 360,
+      "step_ms": 16,
+      "stages": "docs/images/pad-app-launch-balanced-stages.png",
+      "main_gif": "docs/images/pad-app-launch.gif",
+      "usb_gif": "docs/images/pad-usb-launch.gif",
+      "scope": "synthetic Rust RGB565 UI; no real Mac content or device video"
+    },
+    "benchmark": {
+      "results": [
+        {
+          "allocated_bytes_per_paint": 58648,
+          "allocations_per_paint": 458,
+          "case": "desktop",
+          "median_us": 1957.166,
+          "p95_us": 2396.958
+        },
+        {
+          "allocated_bytes_per_paint": 16560,
+          "allocations_per_paint": 3,
+          "case": "wallpaper",
+          "median_us": 282.917,
+          "p95_us": 354.458
+        },
+        {
+          "allocated_bytes_per_paint": 7244,
+          "allocations_per_paint": 69,
+          "case": "circle_150ms",
+          "median_us": 421.625,
+          "p95_us": 566.167
+        },
+        {
+          "allocated_bytes_per_paint": 7244,
+          "allocations_per_paint": 69,
+          "case": "circle_220ms",
+          "median_us": 340.333,
+          "p95_us": 506.666
+        },
+        {
+          "allocated_bytes_per_paint": 5196,
+          "allocations_per_paint": 68,
+          "case": "bridge_300ms",
+          "median_us": 205.291,
+          "p95_us": 243.083
+        },
+        {
+          "allocated_bytes_per_paint": 10193,
+          "allocations_per_paint": 83,
+          "case": "reveal_640ms",
+          "median_us": 518.042,
+          "p95_us": 619.416
+        },
+        {
+          "allocated_bytes_per_paint": 8145,
+          "allocations_per_paint": 82,
+          "case": "timer",
+          "median_us": 241.958,
+          "p95_us": 304.417
+        }
+      ],
+      "samples_per_case": 40,
+      "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+    },
+    "diff_check": "passed"
+  },
+  "build": {
+    "exit_code": 0,
+    "seconds": 11.97,
+    "log": ".cache/pad-feedback/launch-balanced-build.log",
+    "idf_version": "6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3209488,
+        "sha256": "8c6d0b4e3fd4c48b6c2d9bf0fb6010688f15dc65f550595cde1244fcd74b7f89"
+      }
+    ],
+    "status": "passed"
+  },
+  "flash": {
+    "exit_code": 0,
+    "seconds": 25.2,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "log": ".cache/pad-feedback/launch-balanced-flash.log",
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "nvs_settings_and_tf_not_written": true,
+    "status": "passed"
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/examples/app-launch-preview.rs",
+      "bytes": 2335,
+      "sha256": "b7b2e9d77fbdcef7e79ed481dd8a402754a08ff95497be9b224500457158700b"
+    },
+    {
+      "path": "apps/app-launcher/examples/pad-render-benchmark.rs",
+      "bytes": 3580,
+      "sha256": "2432805f7571731e0ad60cf509e383fd28d70ffa9361771736ab13e487aabdc3"
+    },
+    {
+      "path": "apps/app-launcher/src/app_launch.rs",
+      "bytes": 28717,
+      "sha256": "d819f6446df0562966f41580d017a87e01c6ce06eaebaaf30cd9c5fc6dae22d1"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_state.rs",
+      "bytes": 15197,
+      "sha256": "f34d900ef716785570277ba2bd16f2d7f1ff3f8dd87107564713d8956599c122"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 29509,
+      "sha256": "2f4d53567122cff45afa17353fd1e970d5503367f8f79eae6b04f99319947832"
+    },
+    {
+      "path": "apps/app-launcher/src/pomodoro_ui.rs",
+      "bytes": 17931,
+      "sha256": "c9359c0418bfbc453c69d381102ee06ded668097dcb8c094c80d7c08c34f3fca"
+    },
+    {
+      "path": "apps/app-launcher/src/timer_completion.rs",
+      "bytes": 10435,
+      "sha256": "68c0142d73399764fa4f8b2f3291002af9fa4d9d319df5d4f924a2c32a934f7a"
+    },
+    {
+      "path": "apps/app-launcher/src/widgets.rs",
+      "bytes": 7518,
+      "sha256": "0a15d504498fa4bcd86e60295ca88f66965ec0ce42255bbb196b0a12d12352f8"
+    },
+    {
+      "path": "apps/app-launcher/tests/app_launch_tests.rs",
+      "bytes": 13627,
+      "sha256": "fd364555ca99c513d4edfb5e8f1b8ce679fa1bb987511eafa79a8f6d166ed10e"
+    },
+    {
+      "path": "apps/app-launcher/tests/launcher_lifecycle_tests.rs",
+      "bytes": 12293,
+      "sha256": "6d34e6fb4eb8474fbf098f440aef99a7fc7eb6011cfc182679f0f96e07654da2"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/color.rs",
+      "bytes": 6908,
+      "sha256": "4db6816cbdd8685efb20194fa90403e2d1d9cc48551768145352e42d063ff109"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/glass.rs",
+      "bytes": 4435,
+      "sha256": "30d07ffce0b7864912644b85edf3a274a6ac5f02a29994b50a4918fcc01e7ee2"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/pixmap.rs",
+      "bytes": 4546,
+      "sha256": "edf65e05d3c001b3a5badad88514a0abed507399d059e3dcb5afb7677bdefbe3"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/raster.rs",
+      "bytes": 32996,
+      "sha256": "2ed4f29fd09845418ef225c29f99379f93ec7691b2fc5216daa9a98275507e60"
+    },
+    {
+      "path": "crates/tiny-flutter/src/app.rs",
+      "bytes": 18890,
+      "sha256": "1de7e439a0f1a1b3408b1b7ac77cd9f10da5a7e472d673bfa9e1e259a9b27e88"
+    },
+    {
+      "path": "crates/tiny-flutter/tests/flush_borrow_tests.rs",
+      "bytes": 2960,
+      "sha256": "be0a66ea1d1198ebfd261395609c0c910d16d59e4945a08de69fec6ac87639d5"
+    },
+    {
+      "path": "firmware/components/rust_main/src/cadence.rs",
+      "bytes": 708,
+      "sha256": "190eead0d49404896b5d29f37086206116c3e2c65fa195475d9b0ca2037c6683"
+    },
+    {
+      "path": "firmware/components/rust_main/src/ffi.rs",
+      "bytes": 10152,
+      "sha256": "9f4f913e749383d51d177a603d965c14d773038b547c7b16958b22728b19072a"
+    },
+    {
+      "path": "firmware/components/rust_main/src/lib.rs",
+      "bytes": 205,
+      "sha256": "7e69ca9a6fdb12848a0a6b623ec3edda16d32ac25660c57e4afbdc1c4107c11a"
+    },
+    {
+      "path": "firmware/components/rust_main/src/runtime.rs",
+      "bytes": 35076,
+      "sha256": "608a7f77145437f8088fbe238da6a3feaa20cbfc1fd68165ba0b1c038cb56757"
+    },
+    {
+      "path": "firmware/main/display_ppa.c",
+      "bytes": 4775,
+      "sha256": "e30de2c3497c8c7052cff858cc439588e5683ab2bb5c68a0e7594b87e4a599fe"
+    },
+    {
+      "path": "firmware/main/p4desk_runtime.c",
+      "bytes": 40326,
+      "sha256": "d3507a4bb2b5d48d66a4fe3aa168b8efa8e13d560878a1d8d8c0eb0fe3d317ac"
+    },
+    {
+      "path": "scripts/make-timer-completion-preview.py",
+      "bytes": 1921,
+      "sha256": "5160386123033a13ae29f4afc56658a8134900bc308b8f5b6a36669a4d9d6c3f"
+    }
+  ],
+  "physical_acceptance": {
+    "timing_and_calculator_color": {
+      "status": "passed_user_feedback",
+      "user_feedback": "节奏和颜色都合适",
+      "scope": "260 ms expansion, 600 ms inward shrink, calculator green startup theme",
+      "confirmed_at": "2026-09-29T17:27:45.671455+08:00"
+    },
+    "usb_entry_animation": {
+      "status": "passed_user_feedback",
+      "user_feedback": "动画正常，也能进入副屏",
+      "scope": "cyan animation from desktop USB display icon and inward shrink",
+      "confirmed_at": "2026-09-29T17:27:45.671455+08:00"
+    },
+    "usb_handoff_on_this_build": {
+      "status": "passed_user_feedback",
+      "user_feedback": "动画正常，也能进入副屏",
+      "scope": "successful entry into USB secondary display following desktop animation",
+      "confirmed_at": "2026-09-29T17:27:45.671455+08:00"
+    },
+    "actual_fps": "not_measured",
+    "current_heap": "not_measured"
+  }
+}

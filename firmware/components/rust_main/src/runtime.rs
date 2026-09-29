@@ -29,6 +29,13 @@ pub trait Hal {
     ) -> bool {
         jpeg_rotation_degrees == 0 && self.set_mode(mode, session)
     }
+    fn arm_display_transition(&mut self, _duration_ms: u32) -> bool {
+        false
+    }
+    fn cancel_display_transition(&mut self) {}
+    fn display_transition_pending(&self) -> bool {
+        false
+    }
     fn heartbeat(&mut self);
     fn unix_ms(&self) -> i64;
     fn set_time(&mut self, unix_ms: i64);
@@ -164,6 +171,13 @@ impl<H: Hal> DeviceRuntime<H> {
                 } else {
                     Err("mode_rejected")
                 };
+                if mode == Mode::Pad && result.is_ok() {
+                    self.hal.cancel_display_transition();
+                    self.state
+                        .lock()
+                        .unwrap()
+                        .fail_display_launch("操作未完成，请重试");
+                }
                 self.ack(id, "set_mode", result, None);
             }
             HostMessage::TimeSync {
@@ -302,6 +316,9 @@ impl<H: Hal> DeviceRuntime<H> {
         }
         let mut state = self.state.lock().unwrap();
         let before = state.revision;
+        if state.mode == Mode::Display && mode == Mode::Pad {
+            state.fail_display_launch("操作未完成，请重试");
+        }
         if state.usb_connected != connected
             || state.connected != (connected && active && self.hello)
             || state.sd_ready != sd_ready
@@ -312,6 +329,9 @@ impl<H: Hal> DeviceRuntime<H> {
             state.sd_ready = sd_ready;
             state.mode = mode;
             state.changed();
+        }
+        if mode == Mode::Display && !self.hal.display_transition_pending() {
+            state.complete_display_launch();
         }
         state.tick(now, self.hal.unix_ms());
         let status = (mode, sd_ready, state.time_valid, state.snapshot.generation);
@@ -405,6 +425,32 @@ impl<H: Hal> DeviceRuntime<H> {
                     }
                 }
                 UiCommand::SetTime(ms, tz) => self.set_time(ms, tz),
+                UiCommand::StartDisplayTransition { duration_ms } => {
+                    if !self.hal.host_active() {
+                        Err("mac_offline")
+                    } else if !self.hal.arm_display_transition(duration_ms) {
+                        Err("mode_rejected")
+                    } else if self.hal.send(
+                        &DeviceMessage::RequestMode {
+                            mode: Mode::Display,
+                        },
+                        0,
+                    ) {
+                        Ok(())
+                    } else {
+                        self.hal.cancel_display_transition();
+                        Err("usb_send")
+                    }
+                }
+                UiCommand::CancelDisplayTransition => {
+                    self.hal.cancel_display_transition();
+                    self.hal.set_mode(Mode::Pad, 0);
+                    if self.hal.host_active() {
+                        self.hal
+                            .send(&DeviceMessage::RequestMode { mode: Mode::Pad }, 0);
+                    }
+                    Ok(())
+                }
                 UiCommand::RequestMode(mode) => {
                     if !self.hal.host_active() {
                         Err("mac_offline")
@@ -417,6 +463,11 @@ impl<H: Hal> DeviceRuntime<H> {
             };
             if let Err(code) = result {
                 let mut state = self.state.lock().unwrap();
+                state.fail_display_launch(if code == "mac_offline" {
+                    "Mac 未连接，请连接 USB 和 Mac 应用"
+                } else {
+                    "操作未完成，请重试"
+                });
                 state.notice = match code {
                     "mac_offline" => "Mac 未连接，请连接 USB 和 Mac 应用",
                     "note_not_found" => "便签已不存在",
@@ -445,6 +496,8 @@ mod tests {
         mode_ready: bool,
         mode_requests: Vec<(Mode, u32, u16)>,
         screen_calls: usize,
+        transition_pending: bool,
+        transition_arms: Vec<u32>,
         send_ready: bool,
         send_attempts: usize,
         messages: Vec<(u16, DeviceMessage)>,
@@ -487,6 +540,17 @@ mod tests {
             self.mode = m;
             true
         }
+        fn arm_display_transition(&mut self, duration: u32) -> bool {
+            self.transition_arms.push(duration);
+            self.transition_pending = true;
+            true
+        }
+        fn cancel_display_transition(&mut self) {
+            self.transition_pending = false;
+        }
+        fn display_transition_pending(&self) -> bool {
+            self.transition_pending
+        }
         fn heartbeat(&mut self) {}
         fn unix_ms(&self) -> i64 {
             self.wall
@@ -523,6 +587,8 @@ mod tests {
                 mode_ready: true,
                 mode_requests: vec![],
                 screen_calls: 0,
+                transition_pending: false,
+                transition_arms: vec![],
                 send_ready: true,
                 send_attempts: 0,
                 messages: vec![],
@@ -801,6 +867,142 @@ mod tests {
         r.tick();
         assert_eq!(r.hal.send_attempts, attempts + 2);
         assert_eq!(r.hal.messages.len(), 1);
+    }
+
+    fn launch_usb(r: &mut DeviceRuntime<Mock>) {
+        r.control(1, br#"{"op":"hello","request_id":1,"version":1}"#);
+        r.tick();
+        r.hal.messages.clear();
+        r.state.lock().unwrap().launch_app(
+            "display",
+            tiny_flutter::Rect::from_ltwh(563.38, 334.38, 137.24, 137.24),
+        );
+    }
+    fn launch_tick(r: &mut DeviceRuntime<Mock>, now: u64) {
+        r.hal.now = now;
+        r.tick();
+        r.state
+            .lock()
+            .unwrap()
+            .take_launch_animation_dirty(tiny_flutter::Size::new(1024.0, 600.0));
+    }
+    #[test]
+    fn desktop_usb_requests_at_full_cover_and_waits_for_lcd_reveal_completion() {
+        let mut r = runtime();
+        launch_usb(&mut r);
+        for now in [0, 130, 260, 339] {
+            launch_tick(&mut r, now);
+            assert!(!r.process_commands());
+        }
+        launch_tick(&mut r, 340);
+        assert!(r.process_commands());
+        assert_eq!(r.hal.transition_arms, [600]);
+        assert!(matches!(
+            r.hal.messages.as_slice(),
+            [(
+                0,
+                DeviceMessage::RequestMode {
+                    mode: Mode::Display
+                }
+            )]
+        ));
+        for now in [940, 5000] {
+            launch_tick(&mut r, now);
+            assert!(!r.process_commands());
+            assert_eq!(
+                r.state
+                    .lock()
+                    .unwrap()
+                    .app_launch
+                    .frame(now)
+                    .unwrap()
+                    .elapsed_ms,
+                340
+            );
+            assert_eq!(r.hal.mode, Mode::Pad);
+        }
+        r.control(
+            2,
+            br#"{"op":"set_mode","request_id":2,"mode":"display","session":99}"#,
+        );
+        r.tick();
+        assert_eq!(r.hal.mode, Mode::Display);
+        assert_eq!(r.state.lock().unwrap().active_app.id(), Some("display"));
+        // HAL becomes not pending only after first valid JPEG + 600 ms reveal + LCD completion.
+        r.hal.transition_pending = false;
+        r.tick();
+        assert!(matches!(
+            r.state.lock().unwrap().active_app,
+            app_launcher::ActiveApp::Launcher
+        ));
+        assert!(!r.process_commands());
+    }
+    #[test]
+    fn host_failure_or_no_first_frame_preserves_intermediate_page_and_releases_hal() {
+        for host_error in [true, false] {
+            let mut r = runtime();
+            launch_usb(&mut r);
+            launch_tick(&mut r, 340);
+            r.process_commands();
+            r.control(
+                2,
+                br#"{"op":"set_mode","request_id":2,"mode":"display","session":99}"#,
+            );
+            r.tick();
+            if host_error {
+                r.control(
+                    3,
+                    br#"{"op":"set_mode","request_id":3,"mode":"pad","session":0}"#,
+                );
+                r.tick();
+            } else {
+                r.hal.now = 10340;
+                r.tick(); // No successful JPEG ever arrived.
+            }
+            assert!(r.process_commands());
+            assert!(!r.hal.transition_pending);
+            assert_eq!(r.hal.mode, Mode::Pad);
+            launch_tick(&mut r, 12000);
+            let mut s = r.state.lock().unwrap();
+            assert_eq!(s.active_app.id(), Some("display"));
+            assert!(!s.notice.is_empty());
+            assert!(s.app_launch.frame(12000).is_none());
+            assert!(s.take_commands().is_empty());
+        }
+    }
+    #[test]
+    fn device_side_pad_return_before_first_frame_keeps_failure_page() {
+        let mut r = runtime();
+        launch_usb(&mut r);
+        launch_tick(&mut r, 340);
+        r.process_commands();
+        r.control(
+            2,
+            br#"{"op":"set_mode","request_id":2,"mode":"display","session":99}"#,
+        );
+        r.tick();
+        r.hal.mode = Mode::Pad; // Watchdog or three-finger exit, without a host command.
+        r.hal.transition_pending = false;
+        r.hal.now = 2000;
+        r.tick();
+        r.process_commands();
+        launch_tick(&mut r, 2700);
+        assert_eq!(r.state.lock().unwrap().active_app.id(), Some("display"));
+        assert!(r.state.lock().unwrap().app_launch.frame(2700).is_none());
+    }
+
+    #[test]
+    fn failed_start_request_reveals_intermediate_page_and_cancels_armed_transition() {
+        let mut r = runtime();
+        launch_usb(&mut r);
+        r.hal.send_ready = false;
+        launch_tick(&mut r, 340);
+        r.process_commands();
+        r.process_commands();
+        assert!(!r.hal.transition_pending);
+        launch_tick(&mut r, 940);
+        assert_eq!(r.state.lock().unwrap().active_app.id(), Some("display"));
+        assert!(r.state.lock().unwrap().notice.contains("操作未完成"));
     }
 
     #[test]

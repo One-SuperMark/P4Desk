@@ -76,9 +76,8 @@ impl Pixmap565 {
         }
     }
 
-    /// Extract a sub-rectangle of RGB565 pixels into `dst` slice.
-    /// Fast slice-copy per row without any pixel format conversion.
-    pub fn extract_rect(&self, rect: Rect, dst: &mut [u16]) -> (i32, i32, i32, i32, usize) {
+    /// Pixel bounds shared by contiguous borrowing and packed extraction.
+    pub fn rect_bounds(&self, rect: Rect) -> (i32, i32, i32, i32) {
         let pix_w = self.width as i32;
         let pix_h = self.height as i32;
 
@@ -86,6 +85,13 @@ impl Pixmap565 {
         let y1 = (rect.y.floor() as i32).clamp(0, pix_h);
         let x2 = (rect.right().ceil() as i32).clamp(x1, pix_w);
         let y2 = (rect.bottom().ceil() as i32).clamp(y1, pix_h);
+        (x1, y1, x2, y2)
+    }
+
+    /// Extract a sub-rectangle of RGB565 pixels into `dst` slice.
+    /// Fast slice-copy per row without any pixel format conversion.
+    pub fn extract_rect(&self, rect: Rect, dst: &mut [u16]) -> (i32, i32, i32, i32, usize) {
+        let (x1, y1, x2, y2) = self.rect_bounds(rect);
 
         let rect_w = (x2 - x1) as usize;
         let rect_h = (y2 - y1) as usize;

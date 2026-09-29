@@ -5,7 +5,7 @@ use app_launcher::headless::HeadlessBackend;
 use app_launcher::{build_launcher_ui, LauncherState};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tiny_flutter::{App, Size};
+use tiny_flutter::{App, Point, Size, TouchEvent};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out = PathBuf::from(
@@ -31,7 +31,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let size = Size::new(1024.0, 600.0);
     let mut backend = HeadlessBackend::new(1024, 600);
-    App::new(build_launcher_ui(state, size), size).step(&mut backend);
+    let mut app = App::new(build_launcher_ui(state.clone(), size), size);
+    app.step(&mut backend);
+    if std::env::args().nth(2).as_deref() == Some("pressed") {
+        backend.event(TouchEvent::Down(Point::new(392.0, 177.0)));
+        app.step_with_builder(&mut backend, |size| build_launcher_ui(state.clone(), size));
+    }
     #[cfg(feature = "screenshots")]
     backend.screenshot(&out)?;
     Ok(())

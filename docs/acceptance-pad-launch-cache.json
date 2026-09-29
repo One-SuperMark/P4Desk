@@ -1,0 +1,277 @@
+{
+  "schema": "p4desk.pad.launch.cache.acceptance.v1",
+  "recorded_at": "2026-09-29T16:32:30.904854+08:00",
+  "request": "改善了，但打开时还有卡顿",
+  "source_base_commit": "d81bb7170e8e5073b60a0082f22171379de1ccbb",
+  "source_state": "task working-tree changes, not yet committed",
+  "previous_evidence": [
+    "docs/acceptance-pad-launch.json",
+    "docs/acceptance-pad-launch-performance.json"
+  ],
+  "implementation": {
+    "backdrop": "one normal full desktop RGB565 frame, prepared before touch, reused during expansion",
+    "pixel_bytes_at_1024x600": 1228800,
+    "capture": "complete normal desktop only; skip clipped paints and active desktop touch; reuse allocation on later full updates",
+    "lifetime": "retain while desktop is idle, transfer over app open, release at natural launch expiry/direct open/back/kill/screen off/display mode",
+    "allocation_failure": "fall back to prior occlusion rendering, no forced allocation",
+    "svg_source": "unchanged vector resources; current splash icon rendered at its actual size each moving frame",
+    "launch_duration_ms": 880,
+    "display_owner": "unchanged single owner",
+    "completion": "accepted 10 second preset and borderless completion retained"
+  },
+  "memory_assessment": {
+    "current_device_heap": "not_measured",
+    "configuration": "CONFIG_SPIRAM_USE_MALLOC=1; allocations above CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=4096 prefer PSRAM",
+    "conclusion": "host/source evidence identifies repeated backdrop rendering; does not establish device out-of-memory",
+    "heap_test_scope": "host cache presence/size/allocation reuse across 20 launch/return cycles, not physical-device long-run heap telemetry"
+  },
+  "host_verification": {
+    "rust_workspace": {
+      "status": "passed",
+      "exit_code": 0,
+      "passed": 187,
+      "log": ".cache/pad-feedback/launch-cached-workspace-tests.log",
+      "app_launch_integration_tests": 9,
+      "new_backdrop_unit_tests": 2,
+      "new_cache_lifecycle_integration_tests": 2
+    },
+    "pixel_compatibility": {
+      "scope": "synthetic RGB565 production renderer; not device FPS",
+      "checks": [
+        {
+          "case": "app-launch-preview",
+          "checked": 59,
+          "mismatches": [],
+          "passed": true
+        },
+        {
+          "case": "timer-completion-preview",
+          "checked": 141,
+          "mismatches": [],
+          "passed": true
+        },
+        {
+          "case": "pomodoro-preview",
+          "checked": 7,
+          "mismatches": [],
+          "passed": true
+        }
+      ],
+      "checked": 207,
+      "passed": true
+    },
+    "benchmark": {
+      "scope": "synthetic arm64 release render only; excludes LCD/USB/touch; not device FPS or resident heap",
+      "preparation": "normal desktop prepares one backdrop before launch; measured expansion excludes preparation; complete desktop update includes recopy",
+      "before": {
+        "results": [
+          {
+            "allocated_bytes_per_paint": 58648,
+            "allocations_per_paint": 458,
+            "case": "desktop",
+            "median_us": 1571.917,
+            "p95_us": 1740.834
+          },
+          {
+            "allocated_bytes_per_paint": 16560,
+            "allocations_per_paint": 3,
+            "case": "wallpaper",
+            "median_us": 299.125,
+            "p95_us": 312.042
+          },
+          {
+            "allocated_bytes_per_paint": 54544,
+            "allocations_per_paint": 247,
+            "case": "expand_150ms",
+            "median_us": 769.5,
+            "p95_us": 906.667
+          },
+          {
+            "allocated_bytes_per_paint": 5600,
+            "allocations_per_paint": 68,
+            "case": "splash_500ms",
+            "median_us": 261.167,
+            "p95_us": 303.667
+          },
+          {
+            "allocated_bytes_per_paint": 13569,
+            "allocations_per_paint": 148,
+            "case": "fade_750ms",
+            "median_us": 985.791,
+            "p95_us": 1081.0
+          },
+          {
+            "allocated_bytes_per_paint": 8145,
+            "allocations_per_paint": 82,
+            "case": "timer",
+            "median_us": 237.375,
+            "p95_us": 318.458
+          }
+        ],
+        "samples_per_case": 40,
+        "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+      },
+      "after": {
+        "results": [
+          {
+            "allocated_bytes_per_paint": 58648,
+            "allocations_per_paint": 458,
+            "case": "desktop",
+            "median_us": 1865.5,
+            "p95_us": 2533.584
+          },
+          {
+            "allocated_bytes_per_paint": 16560,
+            "allocations_per_paint": 3,
+            "case": "wallpaper",
+            "median_us": 289.667,
+            "p95_us": 323.791
+          },
+          {
+            "allocated_bytes_per_paint": 5500,
+            "allocations_per_paint": 68,
+            "case": "expand_150ms",
+            "median_us": 235.417,
+            "p95_us": 300.666
+          },
+          {
+            "allocated_bytes_per_paint": 5600,
+            "allocations_per_paint": 68,
+            "case": "splash_500ms",
+            "median_us": 266.833,
+            "p95_us": 326.375
+          },
+          {
+            "allocated_bytes_per_paint": 13569,
+            "allocations_per_paint": 148,
+            "case": "fade_750ms",
+            "median_us": 1000.167,
+            "p95_us": 1116.042
+          },
+          {
+            "allocated_bytes_per_paint": 8145,
+            "allocations_per_paint": 82,
+            "case": "timer",
+            "median_us": 237.333,
+            "p95_us": 269.083
+          }
+        ],
+        "samples_per_case": 40,
+        "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+      },
+      "before_log": ".cache/pad-feedback/launch-perf-after.json",
+      "after_log": ".cache/pad-feedback/launch-perf-cached.json"
+    },
+    "diff_check": "passed"
+  },
+  "build": {
+    "exit_code": 0,
+    "seconds": 10.87,
+    "log": ".cache/pad-feedback/launch-cached-build.log",
+    "idf_version": "6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3204816,
+        "sha256": "61da467dae0159a1e01fbabd3e97e168bb10ca981f6260934f61a16686e05ef5"
+      }
+    ],
+    "status": "passed"
+  },
+  "flash": {
+    "exit_code": 0,
+    "seconds": 25.31,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "log": ".cache/pad-feedback/launch-cached-flash.log",
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "nvs_settings_and_tf_not_written": true,
+    "status": "passed"
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/src/app_launch.rs",
+      "bytes": 20437,
+      "sha256": "1f6973defd80c405c509fe7019bd5135356ac72129790391d6c3b15d9ccdb6ef"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_state.rs",
+      "bytes": 12349,
+      "sha256": "68a2a7ab6133cc1d5b49b965106ab27b821cb73cff84b165d4576573f0b763e5"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 27711,
+      "sha256": "12527c7a42f7f8178d14bb72e6e7b8fab7366296213e4903e070ddf26eedb601"
+    },
+    {
+      "path": "apps/app-launcher/src/pomodoro_ui.rs",
+      "bytes": 17931,
+      "sha256": "c9359c0418bfbc453c69d381102ee06ded668097dcb8c094c80d7c08c34f3fca"
+    },
+    {
+      "path": "apps/app-launcher/src/widgets.rs",
+      "bytes": 7518,
+      "sha256": "0a15d504498fa4bcd86e60295ca88f66965ec0ce42255bbb196b0a12d12352f8"
+    },
+    {
+      "path": "apps/app-launcher/src/timer_completion.rs",
+      "bytes": 10435,
+      "sha256": "68c0142d73399764fa4f8b2f3291002af9fa4d9d319df5d4f924a2c32a934f7a"
+    },
+    {
+      "path": "crates/tiny-flutter/src/graphics/canvas.rs",
+      "bytes": 9668,
+      "sha256": "ecc2d5c5d84fd72560fcbe37eb566e0ac5c32c6e8cbe2b3ef5533b47b6473126"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/vector.rs",
+      "bytes": 17877,
+      "sha256": "ce46a5a8f2dab40287b35239d9e35a597d488a15f3ebb6853f01fc8072676be8"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/raster.rs",
+      "bytes": 32970,
+      "sha256": "1a6893b89e5b7203c29335edcbda2dec8281c2bf31d6da1b0745a5d2003c5a66"
+    },
+    {
+      "path": "apps/app-launcher/tests/app_launch_tests.rs",
+      "bytes": 10441,
+      "sha256": "5295f1bfc05d555d52868f2f956101322cff503867d689b6e9f05b8ee24f89c3"
+    },
+    {
+      "path": "apps/app-launcher/examples/pad-render-benchmark.rs",
+      "bytes": 3541,
+      "sha256": "0e355c62389a1a5758c6147fed9b667ed52b0ed5a2943dd5e733262df00ed6c5"
+    }
+  ],
+  "physical_acceptance": {
+    "startup_performance": {
+      "status": "needs_revision",
+      "scope": "desktop press feedback, smooth expansion/splash/fade, responsive subsequent app controls",
+      "user_feedback": "有所改善，仍有卡顿"
+    },
+    "countdown_completion": {
+      "status": "passed_user_feedback_on_previous_version",
+      "user_feedback": "10 秒正常，边框已去除，效果合适",
+      "current_regression": "207 synthetic PNGs unchanged; new physical firmware not yet reconfirmed"
+    }
+  }
+}

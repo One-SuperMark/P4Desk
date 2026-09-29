@@ -62,6 +62,20 @@ impl<'a> Canvas<'a> {
     pub fn current_clip(&self) -> Option<Rect> {
         self.current_clip
     }
+    /// Cull local geometry before constructing paths/allocating scanline scratch.
+    pub fn is_rect_visible(&self, rect: Rect) -> bool {
+        let t = self.current_transform;
+        let x1 = t.sx * rect.x + t.tx;
+        let x2 = t.sx * rect.right() + t.tx;
+        let y1 = t.sy * rect.y + t.ty;
+        let y2 = t.sy * rect.bottom() + t.ty;
+        let mapped = Rect::from_ltrb(x1.min(x2), y1.min(y2), x1.max(x2), y1.max(y2));
+        let screen = Rect::from_ltwh(0.0, 0.0, self.width() as f32, self.height() as f32);
+        mapped
+            .intersect(&self.current_clip.unwrap_or(screen))
+            .and_then(|r| r.intersect(&screen))
+            .is_some()
+    }
 
     pub fn translate(&mut self, dx: f32, dy: f32) {
         self.current_transform = self.current_transform.post_translate(dx, dy);
@@ -80,7 +94,10 @@ impl<'a> Canvas<'a> {
             height: self.current_transform.sy * rect.height,
         };
         self.current_clip = match self.current_clip {
-            Some(prev) => prev.intersect(&mapped),
+            Some(prev) => Some(
+                prev.intersect(&mapped)
+                    .unwrap_or(Rect::from_ltwh(0.0, 0.0, 0.0, 0.0)),
+            ),
             None => Some(mapped),
         };
     }
@@ -175,6 +192,73 @@ impl<'a> Canvas<'a> {
         raster::fill_circle(&mut self.pixmap, self.current_clip, mapped, r, color);
     }
 
+    pub fn paint_circle(
+        &mut self,
+        center: Point,
+        radius: f32,
+        paint: &Paint,
+        stroke_width: Option<f32>,
+    ) {
+        let center = self.current_transform.map_point(center);
+        let scale = self.current_transform.sx.abs();
+        let paint = self.mapped_paint(paint);
+        crate::vector::circle(
+            &mut self.pixmap,
+            self.current_clip,
+            center,
+            radius * scale,
+            &paint,
+            stroke_width.map(|w| w * scale),
+        );
+    }
+    /// Tint a circular region (or its outside) through a narrow glass boundary.
+    /// The caller paints its backdrop first. Supports translation/uniform scale.
+    pub fn glass_circle(
+        &mut self,
+        center: Point,
+        radius: f32,
+        tint: Color,
+        fill: crate::GlassFill,
+        rim: f32,
+        strength: f32,
+    ) {
+        let center = self.current_transform.map_point(center);
+        let scale = self.current_transform.sx.abs();
+        crate::glass::composite(
+            &mut self.pixmap,
+            self.current_clip,
+            center,
+            radius * scale,
+            tint,
+            fill,
+            rim * scale,
+            strength,
+        );
+    }
+    pub fn paint_rrect(&mut self, rect: RRect, paint: &Paint, stroke_width: Option<f32>) {
+        let t = self.current_transform;
+        let rect = RRect::from_rect_radius(
+            Rect::from_ltwh(
+                t.sx * rect.rect.x + t.tx,
+                t.sy * rect.rect.y + t.ty,
+                t.sx * rect.rect.width,
+                t.sy * rect.rect.height,
+            ),
+            crate::geometry::Radius {
+                x: t.sx.abs() * rect.radius.x,
+                y: t.sy.abs() * rect.radius.y,
+            },
+        );
+        let paint = self.mapped_paint(paint);
+        crate::vector::rounded_rect(
+            &mut self.pixmap,
+            self.current_clip,
+            rect,
+            &paint,
+            stroke_width.map(|w| w * t.sx.abs()),
+        );
+    }
+
     pub fn blit_mask(&mut self, x: i32, y: i32, w: u32, h: u32, mask: &[u8], color: Color) {
         let tx = x + (self.current_transform.tx.round() as i32);
         let ty = y + (self.current_transform.ty.round() as i32);
@@ -191,43 +275,74 @@ impl<'a> Canvas<'a> {
     }
 
     pub fn stroke_path(&mut self, path: &Path, paint: &Paint, stroke: &Stroke) {
-        let polylines = path.flatten(0.5);
-        for poly in polylines {
-            let transformed_poly: Vec<Point> = poly
-                .iter()
-                .map(|p| self.current_transform.map_point(*p))
-                .collect();
-            let mut s = stroke.clone();
-            s.width *= self.current_transform.sx;
-            raster::stroke_polyline(
-                &mut self.pixmap,
-                self.current_clip,
-                &transformed_poly,
-                paint,
-                &s,
-            );
-        }
+        let polylines = self.flatten_transformed(path);
+        let mut stroke = stroke.clone();
+        stroke.width *= self.current_transform.sx.abs();
+        let paint = self.mapped_paint(paint);
+        crate::vector::stroke(
+            &mut self.pixmap,
+            self.current_clip,
+            &polylines,
+            &paint,
+            &stroke,
+        );
     }
 
-    pub fn fill_path(&mut self, path: &Path, paint: &Paint, _fill_rule: FillRule) {
-        let polylines = path.flatten(0.5);
-        for poly in polylines {
-            let transformed_poly: Vec<Point> = poly
-                .iter()
-                .map(|p| self.current_transform.map_point(*p))
-                .collect();
-            let s = Stroke {
-                width: 1.0,
-                ..Default::default()
-            };
-            raster::stroke_polyline(
-                &mut self.pixmap,
-                self.current_clip,
-                &transformed_poly,
-                paint,
-                &s,
-            );
+    pub fn fill_path(&mut self, path: &Path, paint: &Paint, fill_rule: FillRule) {
+        let polylines = self.flatten_transformed(path);
+        let paint = self.mapped_paint(paint);
+        crate::vector::fill(
+            &mut self.pixmap,
+            self.current_clip,
+            &polylines,
+            &paint,
+            fill_rule,
+        );
+    }
+
+    fn flatten_transformed(&self, path: &Path) -> Vec<Vec<Point>> {
+        let scale = self
+            .current_transform
+            .sx
+            .abs()
+            .max(self.current_transform.sy.abs())
+            .max(0.001);
+        path.flatten(0.10 / scale)
+            .into_iter()
+            .map(|poly| {
+                poly.into_iter()
+                    .map(|p| self.current_transform.map_point(p))
+                    .collect()
+            })
+            .collect()
+    }
+
+    fn mapped_paint<'p>(&self, paint: &Paint<'p>) -> Paint<'p> {
+        let mut paint = paint.clone();
+        if let crate::paint::Shader::Linear(gradient) = &mut paint.shader {
+            let t = self.current_transform;
+            let determinant = t.sx * t.sy - t.kx * t.ky;
+            if determinant.abs() > 0.000001 {
+                let inverse = Transform {
+                    sx: t.sy / determinant,
+                    sy: t.sx / determinant,
+                    kx: -t.kx / determinant,
+                    ky: -t.ky / determinant,
+                    tx: (t.kx * t.ty - t.sy * t.tx) / determinant,
+                    ty: (t.ky * t.tx - t.sx * t.ty) / determinant,
+                };
+                let g = gradient.transform;
+                gradient.transform = Transform {
+                    sx: g.sx * inverse.sx + g.kx * inverse.ky,
+                    kx: g.sx * inverse.kx + g.kx * inverse.sy,
+                    ky: g.ky * inverse.sx + g.sy * inverse.ky,
+                    sy: g.ky * inverse.kx + g.sy * inverse.sy,
+                    tx: g.sx * inverse.tx + g.kx * inverse.ty + g.tx,
+                    ty: g.ky * inverse.tx + g.sy * inverse.ty + g.ty,
+                };
+            }
         }
+        paint
     }
 
     pub fn fill_dithered_horizontal_gradient(&mut self, c0: (u8, u8, u8), c1: (u8, u8, u8)) {

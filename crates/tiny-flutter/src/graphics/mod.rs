@@ -1,5 +1,7 @@
 pub mod baked_font;
 pub mod ui_icons;
+pub mod vector_icon;
+pub mod svg_icons_generated;
 pub mod baked_icons {
     pub use super::ui_icons::*;
 }
@@ -15,3 +17,4 @@ pub use color::Color;
 pub use font::Font;
 pub use geometry::{EdgeInsets, Offset, Point, RRect, Radius, Rect, Size};
 pub use ui_icons::*;
+pub use vector_icon::{VectorCommand, VectorIcon, VectorLayer, VectorPaint, VectorShape};

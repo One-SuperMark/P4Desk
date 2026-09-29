@@ -1,0 +1,193 @@
+{
+  "schema": "p4desk.pad.timer_completion_fullscreen.acceptance.v1",
+  "recorded_at": "2026-09-29T14:56:55.168036+08:00",
+  "request": "全屏一个颜色，中央完成图标，光晕从完成图标向外散开，参考用户截图",
+  "previous_effect": "docs/acceptance-timer-completion.json",
+  "previous_feedback": "动画太弱，需要更明显",
+  "source_base_commit": "d81bb7170e8e5073b60a0082f22171379de1ccbb",
+  "source_state": "task working-tree changes, not yet committed",
+  "implementation": {
+    "duration_ms": 2600,
+    "full_screen_repaint_gate_ms": 33,
+    "damage_rect_1024": [
+      0,
+      0,
+      1024,
+      600
+    ],
+    "effect": "single theme wash, centered white SVG completion circle with theme-colored round tick, one continuous feathered white halo expanding beyond screen corners, fade back to finished timer",
+    "focus_countdown_color": "#963e46",
+    "short_break_color": "#346858",
+    "long_break_color": "#435f87",
+    "icon_nominal_diameter_px": 82,
+    "tap": "dismiss anywhere; release consumed even after effect expiration, no underlying button fall-through",
+    "lifecycle": "one actual monotonic deadline completion; no background or stale replay; reset/restart/app exit/screen off/display mode cancel",
+    "next_stage": "manual start unchanged",
+    "cleanup": "final clean full-screen repaint, including delayed loop",
+    "scratch": "one halo alpha row; vector bounded row coverage and geometry; no full-frame effect texture",
+    "opaque_optimization": "skip child timer UI paint while wash alpha is 1"
+  },
+  "host_verification": {
+    "tests": {
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit_code": 0,
+      "passed": 161,
+      "vector_new_tests": 10,
+      "completion_tests": 9,
+      "log": ".cache/timer-completion-fullscreen/vector-tests-workspace.log"
+    },
+    "completion_test_count": 9,
+    "test_scope": [
+      "finite trigger and frame gate",
+      "all phases and wall-clock sync",
+      "hidden/overdue/reset/restart cancellation",
+      "live/fresh full-screen pixel equality and final cleanup",
+      "wash covers navigation and buttons",
+      "center SVG circle/tick with three phase colors",
+      "one halo expands to all four corners",
+      "tap does not start hidden timer",
+      "held/canceled/drag/pre-deadline gestures cannot fall through"
+    ],
+    "preview": {
+      "type": "synthetic actual Rust UI via production full-screen repaint path",
+      "source_frames": 126,
+      "encoded_gif_frames": 68,
+      "resolution": [
+        1024,
+        600
+      ],
+      "gif_duration_ms": 4200,
+      "gif_loops": "demonstration only; hardware plays once",
+      "file": {
+        "path": "docs/images/pomodoro-completion-v2.gif",
+        "bytes": 1539758,
+        "sha256": "e50661426eff0ee0bf8c44594acee6479d3ee53dfc62d6379164f1a46a55a326"
+      }
+    },
+    "timer_static_body_comparison": {
+      "unchanged_body_previews": [
+        "pomodoro-countdown.png",
+        "pomodoro-finished.png",
+        "pomodoro-focus.png",
+        "pomodoro-long-break.png",
+        "pomodoro-paused.png",
+        "pomodoro-running.png",
+        "pomodoro-short-break.png"
+      ],
+      "changed_area": "header SVG navigation only",
+      "comparison_bounds": [
+        0,
+        60,
+        1024,
+        600
+      ]
+    },
+    "device_fps": "not_measured"
+  },
+  "build": {
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 11.52,
+    "log": ".cache/vector-icons/build.log",
+    "idf_version": "v6.0.2",
+    "idf_path": "/Volumes/work/esp/esp-idf-v6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3191808,
+        "sha256": "3da898a17ae49c7a7a472a28acd4f1e94b448e99949dd0a389b190571a767c4f"
+      }
+    ]
+  },
+  "flash": {
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 25.03,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "log": ".cache/vector-icons/flash.log",
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "chip": "ESP32-P4 revision v3.2",
+    "nvs_settings_and_tf_not_written": true
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/src/timer_completion.rs",
+      "bytes": 11129,
+      "sha256": "c641e345ef63106f184328f160a3bb8fda740a4686573cbb5cb3cc502714b1bf"
+    },
+    {
+      "path": "apps/app-launcher/src/timer.rs",
+      "bytes": 8438,
+      "sha256": "af9178b4b48627218024b87542ccd5d3a73d2d00b975fbddee12e808c3a0fea3"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_state.rs",
+      "bytes": 10156,
+      "sha256": "105ec052cecf616cf37ea497a464f3171fb05e380ab367589066bee34b08ac93"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 27151,
+      "sha256": "51983a2d251aea4c2db09fed8b2877b5a60259ecb9b410cf7cf5e29f2e5b3787"
+    },
+    {
+      "path": "apps/app-launcher/src/pomodoro_ui.rs",
+      "bytes": 16974,
+      "sha256": "f0f5d5e159d4da9a9d5929d9e05297b3666ea4492b7f06280ea4d010bafcfd23"
+    },
+    {
+      "path": "firmware/components/rust_main/src/ffi.rs",
+      "bytes": 9204,
+      "sha256": "5b46a87c22a65cdd7ca6e56c127a92f32ffaae420563410cde31ad91ee63e5eb"
+    },
+    {
+      "path": "apps/app-launcher/tests/timer_completion_tests.rs",
+      "bytes": 12678,
+      "sha256": "e46674bf90ea1078ac42763dee54eeb5b152e160c25b69d02224c96d42ef2dfc"
+    },
+    {
+      "path": "apps/app-launcher/examples/timer-completion-preview.rs",
+      "bytes": 1775,
+      "sha256": "517cc8c1382d5f5762c503697ee1dc8b0f49fefc45c054b9098375166f316cac"
+    },
+    {
+      "path": "scripts/make-timer-completion-preview.py",
+      "bytes": 1655,
+      "sha256": "c42f7550095c8fa88a88c86fbf568a395c2833175f5577715a5465170a811b9f"
+    },
+    {
+      "path": "assets/ui_icons/source/check-circle.svg",
+      "bytes": 447,
+      "sha256": "e257a1abc56a72f90b45f98cff6d3d1be492261e72ed8d46ad54921528f4b0aa"
+    }
+  ],
+  "physical_acceptance": {
+    "status": "needs_revision",
+    "user_feedback": "动画还要调整一下。这个光晕的模糊了。",
+    "required_revision": "make outgoing halo narrower and clearer",
+    "feedback_recorded_at": "2026-09-29T15:15:35.404821+08:00",
+    "retained_parts": "full-screen theme and central vector icon retained"
+  }
+}

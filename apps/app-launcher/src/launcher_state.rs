@@ -1,6 +1,10 @@
+use crate::app_launch::{
+    AppLaunchState, DesktopBackdropCache, APP_LAUNCH_DURATION_MS, REVEAL_START_MS,
+};
 use crate::flip_clock::FlipClockState;
 use crate::storage::LocalSettings;
 use crate::timer::TimerService;
+use crate::timer_completion::TimerCompletionState;
 use calculator::CalcState;
 use p4desk_protocol::{Mode, Snapshot};
 use std::collections::{HashMap, VecDeque};
@@ -17,6 +21,8 @@ pub enum ActiveApp {
     Calculator(Arc<Mutex<CalcState>>),
     MacControls,
     Settings,
+    /// Temporary handoff page, never stored as a background app.
+    DisplaySetup,
 }
 impl ActiveApp {
     pub fn id(&self) -> Option<&'static str> {
@@ -28,6 +34,7 @@ impl ActiveApp {
             Self::Calculator(_) => Some("calculator"),
             Self::MacControls => Some("mac"),
             Self::Settings => Some("settings"),
+            Self::DisplaySetup => Some("display"),
         }
     }
 }
@@ -55,6 +62,8 @@ pub enum UiCommand {
     RequestTimeSync,
     SetTime(i64, i32),
     RequestMode(Mode),
+    StartDisplayTransition { duration_ms: u32 },
+    CancelDisplayTransition,
 }
 
 pub struct LauncherState {
@@ -65,6 +74,9 @@ pub struct LauncherState {
     pub page_controller: PageController,
     pub snapshot: Snapshot,
     pub timer: TimerService,
+    pub timer_completion: TimerCompletionState,
+    pub app_launch: AppLaunchState,
+    pub desktop_backdrop: DesktopBackdropCache,
     pub settings: LocalSettings,
     pub usb_connected: bool,
     pub connected: bool,
@@ -82,6 +94,9 @@ pub struct LauncherState {
     pub manual_time_open: bool,
     pub manual_clock: crate::manual_clock::ManualClock,
     commands: VecDeque<UiCommand>,
+    display_request_pending: bool,
+    display_started_connected: bool,
+    display_wait_since: Option<u64>,
     last_second: u64,
     last_unix_second: Option<i64>,
 }
@@ -100,6 +115,9 @@ impl LauncherState {
             page_controller: PageController::new(),
             snapshot: Snapshot::default(),
             timer: TimerService::default(),
+            timer_completion: TimerCompletionState::default(),
+            app_launch: AppLaunchState::default(),
+            desktop_backdrop: Arc::new(Mutex::new(None)),
             settings: LocalSettings::default(),
             usb_connected: false,
             connected: false,
@@ -117,6 +135,9 @@ impl LauncherState {
             manual_time_open: false,
             manual_clock: crate::manual_clock::ManualClock::default(),
             commands: VecDeque::new(),
+            display_request_pending: false,
+            display_started_connected: false,
+            display_wait_since: None,
             last_second: u64::MAX,
             last_unix_second: None,
         }
@@ -130,13 +151,34 @@ impl LauncherState {
             "calculator" => ActiveApp::Calculator(Arc::new(Mutex::new(CalcState::new()))),
             "mac" => ActiveApp::MacControls,
             "settings" => ActiveApp::Settings,
+            "display" => ActiveApp::DisplaySetup,
             _ => ActiveApp::Launcher,
         });
         self.flip_clock.snap(&self.clock);
         self.changed();
     }
     pub fn background_active_app(&mut self) {
-        if let Some(id) = self.active_app.id() {
+        if matches!(self.active_app, ActiveApp::DisplaySetup) {
+            self.commands.retain(|c| {
+                !matches!(
+                    c,
+                    UiCommand::RequestMode(Mode::Display)
+                        | UiCommand::StartDisplayTransition { .. }
+                )
+            });
+            if self.display_wait_since.take().is_some() && self.mode == Mode::Pad {
+                self.commands.push_back(UiCommand::CancelDisplayTransition);
+            }
+            if self.notice == "等待 Mac 应用" {
+                self.notice.clear();
+            }
+        }
+        self.app_launch.cancel();
+        self.display_request_pending = false;
+        self.display_started_connected = false;
+        self.desktop_backdrop.lock().unwrap().take();
+        self.timer_completion.cancel();
+        if let Some(id) = self.active_app.id().filter(|id| *id != "display") {
             self.running_apps.insert(id.into(), self.active_app.clone());
         }
         self.active_app = ActiveApp::Launcher;
@@ -153,6 +195,26 @@ impl LauncherState {
         }
     }
     pub fn kill_active_app(&mut self) {
+        if matches!(self.active_app, ActiveApp::DisplaySetup) {
+            self.commands.retain(|c| {
+                !matches!(
+                    c,
+                    UiCommand::RequestMode(Mode::Display)
+                        | UiCommand::StartDisplayTransition { .. }
+                )
+            });
+            if self.display_wait_since.take().is_some() && self.mode == Mode::Pad {
+                self.commands.push_back(UiCommand::CancelDisplayTransition);
+            }
+            if self.notice == "等待 Mac 应用" {
+                self.notice.clear();
+            }
+        }
+        self.app_launch.cancel();
+        self.display_request_pending = false;
+        self.display_started_connected = false;
+        self.desktop_backdrop.lock().unwrap().take();
+        self.timer_completion.cancel();
         if let Some(id) = self.active_app.id() {
             self.running_apps.remove(id);
         }
@@ -165,6 +227,110 @@ impl LauncherState {
     }
     pub fn changed(&mut self) {
         self.revision = self.revision.wrapping_add(1);
+    }
+    /// Desktop launches animate; direct opens and status-bar resumes retain
+    /// their existing routing and preserved app instances.
+    pub fn launch_app(&mut self, id: &str, source: Rect) {
+        let backdrop = self.desktop_backdrop.lock().unwrap().take();
+        self.open_app(id);
+        if source.width > 0.0
+            && source.height > 0.0
+            && self.mode == Mode::Pad
+            && self.settings.screen_on
+        {
+            if let Some(id) = self.active_app.id() {
+                *self.desktop_backdrop.lock().unwrap() = backdrop;
+                self.app_launch.start(id, source, self.monotonic_ms);
+                if id == "display" {
+                    self.notice.clear();
+                    self.display_request_pending = true;
+                    self.display_started_connected = self.connected;
+                    if self.connected {
+                        self.app_launch.hold_for_display();
+                    }
+                }
+            }
+        }
+    }
+    pub fn take_launch_animation_dirty(&mut self, size: Size) -> Option<Rect> {
+        if self.mode != Mode::Pad && matches!(self.active_app, ActiveApp::DisplaySetup) {
+            return None;
+        }
+        if self.mode != Mode::Pad || !self.settings.screen_on {
+            self.app_launch.cancel();
+            self.display_request_pending = false;
+            self.desktop_backdrop.lock().unwrap().take();
+            return None;
+        }
+        if self.active_app.id().is_none() {
+            self.app_launch.cancel();
+            // The firmware polls this every loop, including idle desktop loops.
+            // Keep the prepared normal backdrop ready for the next icon tap.
+            return None;
+        }
+        if self.display_request_pending
+            && self.display_started_connected
+            && self.connected
+            && self
+                .app_launch
+                .frame(self.monotonic_ms)
+                .is_some_and(|f| f.elapsed_ms >= REVEAL_START_MS)
+        {
+            self.display_request_pending = false;
+            self.display_wait_since = Some(self.monotonic_ms);
+            self.notice = "等待 Mac 应用".into();
+            // The fully opaque bridge no longer needs the desktop allocation.
+            self.desktop_backdrop.lock().unwrap().take();
+            self.queue(UiCommand::StartDisplayTransition {
+                duration_ms: (APP_LAUNCH_DURATION_MS - REVEAL_START_MS) as u32,
+            });
+        }
+        let dirty = self.app_launch.take_dirty(self.monotonic_ms, size);
+        if dirty.is_some() && self.app_launch.frame(self.monotonic_ms).is_none() {
+            self.desktop_backdrop.lock().unwrap().take();
+            if self.display_request_pending && matches!(self.active_app, ActiveApp::DisplaySetup) {
+                self.display_request_pending = false;
+                self.fail_display_launch("Mac 未连接，请连接 USB 和 Mac 应用");
+            }
+        }
+        dirty
+    }
+    pub fn fail_display_launch(&mut self, notice: &str) {
+        if matches!(self.active_app, ActiveApp::DisplaySetup) {
+            self.app_launch
+                .resume_after_display_failure(self.monotonic_ms);
+            self.display_request_pending = false;
+            self.display_started_connected = false;
+            if self.display_wait_since.take().is_some() {
+                self.commands
+                    .retain(|c| !matches!(c, UiCommand::StartDisplayTransition { .. }));
+                self.queue(UiCommand::CancelDisplayTransition);
+            }
+            self.notice = notice.into();
+            self.changed();
+        }
+    }
+    pub fn complete_display_launch(&mut self) {
+        if matches!(self.active_app, ActiveApp::DisplaySetup) {
+            self.display_wait_since = None;
+            self.background_active_app();
+        }
+    }
+    pub fn request_display_mode(&mut self) {
+        if !matches!(self.active_app, ActiveApp::DisplaySetup)
+            || self.app_launch.frame(self.monotonic_ms).is_some()
+        {
+            return;
+        }
+        if self.connected {
+            self.display_wait_since = Some(self.monotonic_ms);
+            self.display_started_connected = true;
+            self.notice = "等待 Mac 应用".into();
+            self.queue(UiCommand::RequestMode(Mode::Display));
+        } else {
+            self.notice = "Mac 未连接，请连接 USB 和 Mac 应用".into();
+            self.changed();
+        }
     }
     pub fn queue(&mut self, c: UiCommand) {
         if self.commands.len() < 64 {
@@ -191,8 +357,22 @@ impl LauncherState {
     }
     fn clock_visible(&self) -> bool {
         matches!(self.active_app, ActiveApp::Clock)
+            && self.app_launch.frame(self.monotonic_ms).is_none()
             && self.mode == Mode::Pad
             && self.settings.screen_on
+    }
+    fn timer_visible(&self) -> bool {
+        matches!(self.active_app, ActiveApp::Timer)
+            && self.app_launch.frame(self.monotonic_ms).is_none()
+            && self.mode == Mode::Pad
+            && self.settings.screen_on
+    }
+    pub fn take_timer_animation_dirty(&mut self, size: Size) -> Option<Rect> {
+        if !self.timer_visible() || !self.timer.finished {
+            self.timer_completion.cancel();
+            return None;
+        }
+        self.timer_completion.take_dirty(self.monotonic_ms, size)
     }
     pub fn take_clock_animation_dirty(&mut self, size: Size) -> Option<Rect> {
         if !self.clock_visible() {
@@ -207,12 +387,40 @@ impl LauncherState {
     pub fn tick(&mut self, monotonic_ms: u64, unix_ms: i64) -> bool {
         self.monotonic_ms = monotonic_ms;
         self.unix_ms = unix_ms;
+        if self
+            .display_wait_since
+            .is_some_and(|start| monotonic_ms.saturating_sub(start) >= 10_000)
+        {
+            self.fail_display_launch("操作未完成，请重试");
+        }
+        if matches!(self.active_app, ActiveApp::DisplaySetup) {
+            if !self.settings.screen_on {
+                self.background_active_app();
+            } else if self.display_started_connected && !self.connected {
+                self.fail_display_launch("Mac 未连接，请连接 USB 和 Mac 应用");
+            }
+        }
+        if (self.mode != Mode::Pad && !matches!(self.active_app, ActiveApp::DisplaySetup))
+            || !self.settings.screen_on
+        {
+            self.app_launch.cancel();
+            self.display_request_pending = false;
+            self.desktop_backdrop.lock().unwrap().take();
+        }
         // Display mode skips Pad drawing entirely, so cancellation belongs in
         // tick rather than relying on a hidden page consuming animation dirty.
         if !self.clock_visible() {
             self.flip_clock.snap(&self.clock);
         }
+        let previous_finish = self.timer.finished_at_ms();
         let changed = self.timer.tick(monotonic_ms);
+        if !self.timer_visible() || !self.timer.finished {
+            self.timer_completion.cancel();
+        } else if self.timer.finished_at_ms() != previous_finish {
+            if let Some(deadline) = self.timer.finished_at_ms() {
+                self.timer_completion.start(deadline, monotonic_ms);
+            }
+        }
         let second = monotonic_ms / 1000;
         let unix_second = (unix_ms > 0).then(|| unix_ms.div_euclid(1000));
         if second != self.last_second || unix_second != self.last_unix_second || changed {

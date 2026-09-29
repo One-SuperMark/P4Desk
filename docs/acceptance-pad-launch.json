@@ -1,0 +1,256 @@
+{
+  "schema": "p4desk.pad.launch.acceptance.v1",
+  "recorded_at": "2026-09-29T16:00:05.341357+08:00",
+  "request": [
+    "增加 10 秒倒计时预设",
+    "完成动画显示和消失时去掉外面和里面的白色边框",
+    "首页打开应用，从选中图标位置展开全屏，并显示当前应用图标启动屏"
+  ],
+  "source_base_commit": "d81bb7170e8e5073b60a0082f22171379de1ccbb",
+  "source_state": "task working-tree changes, not yet committed",
+  "previous_evidence": [
+    "docs/acceptance-pad-feedback.json",
+    "docs/acceptance-vector-icons.json"
+  ],
+  "countdown": {
+    "presets": [
+      "10 秒",
+      "1 分钟",
+      "5 分钟",
+      "10 分钟",
+      "25 分钟"
+    ],
+    "units": "explicit seconds preset and existing minutes API",
+    "selected_preset_tap": "preserve running countdown",
+    "mode_switch": "retain 10 second choice",
+    "deadline": "monotonic, exact 10000 ms after start"
+  },
+  "completion": {
+    "duration_ms": 3100,
+    "badge_outline": "none; colored circle and white check only",
+    "expansion_and_reveal_outline": "none; no white lip, inner reflection, shadow or extra stroke",
+    "retained": [
+      "bottom pop",
+      "current button theme",
+      "circular full-screen expansion",
+      "center-out transparent reveal",
+      "coverage antialiasing",
+      "bounded source-row refraction"
+    ],
+    "source_scratch_bytes_at_1024": 2048,
+    "final_cleanup": "full frame equals normal finished timer"
+  },
+  "app_launch": {
+    "apps": [
+      "clock",
+      "timer",
+      "notes",
+      "calculator",
+      "mac",
+      "settings"
+    ],
+    "duration_ms": 880,
+    "expand_ms": [
+      0,
+      420
+    ],
+    "splash_ms": [
+      420,
+      640
+    ],
+    "fade_ms": [
+      640,
+      880
+    ],
+    "origin": "actual global painted SVG bounds, including page offset and 94% press scale",
+    "splash": "current app SVG icon only, centered, app background color",
+    "full_screen_repaint_gate_ms": 33,
+    "framebuffer": "existing tiny-flutter framebuffer; no new full-screen texture",
+    "display_submission": "existing single display owner",
+    "app_instances": "existing open/background lifecycle; running calculator/notes restored",
+    "background_timer": "runs during launch",
+    "input": "consume touches during splash and owned release after expiry",
+    "cancellation": [
+      "Back",
+      "Kill",
+      "screen off",
+      "USB display mode"
+    ],
+    "system_actions": "USB display and screen off execute directly",
+    "status_bar_resume": "existing direct resume",
+    "device_fps": "not_measured"
+  },
+  "host_verification": {
+    "rust_workspace": {
+      "status": "passed",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit_code": 0,
+      "passed": 179,
+      "app_launch_tests": 6,
+      "pomodoro_ui_tests": 6,
+      "completion_tests": 10,
+      "glass_compositor_tests": 3,
+      "log": ".cache/pad-feedback/launch-borderless-workspace-tests.log",
+      "warnings": "existing unused variable in calculator-preview example, no new errors"
+    },
+    "previews": {
+      "type": "synthetic actual Rust UI via production drawing and dirty path",
+      "launch_source_frames": 59,
+      "completion_source_frames": 141,
+      "files": [
+        {
+          "path": "docs/images/pad-app-launch.gif",
+          "bytes": 374996,
+          "sha256": "136b60cf9fc80110d1ab9405b3dcb5d003c0924559b0c1ed9dd1eba73f44ebb9"
+        },
+        {
+          "path": "docs/images/pad-app-launch-stages.png",
+          "bytes": 201140,
+          "sha256": "6e9ab53183cc5a3a6de314f1ba47d53ef9a8da08cc89d040b29b93b1b1d61d4b"
+        },
+        {
+          "path": "docs/images/pomodoro-completion.gif",
+          "bytes": 655284,
+          "sha256": "d0db58f1514773c43a63317f786fbba7e5ef04f3a1e07922485d005412176b62"
+        },
+        {
+          "path": "docs/images/pomodoro-glass-stages.png",
+          "bytes": 91210,
+          "sha256": "34cdd53914f8fa19de3085dc3bf66ab17a2616c6e61f459c6856ef72a41b2bf8"
+        },
+        {
+          "path": "docs/images/pomodoro-countdown.png",
+          "bytes": 62184,
+          "sha256": "b0176a0fec5a207ab3c7940393d4a0ad762b0d467ae1401165cfb800e26e7c43"
+        }
+      ],
+      "loops": "preview demonstration only; device animations play once",
+      "visual_review": "source stage images and countdown preset image checked; no white moving border, correct icon origin/splash/fade",
+      "launch_gif": {
+        "encoded_frames": 24,
+        "duration_ms": 1960
+      },
+      "completion_gif": {
+        "encoded_frames": 86,
+        "duration_ms": 4700
+      }
+    },
+    "diff_check": "passed"
+  },
+  "build": {
+    "exit_code": 0,
+    "seconds": 10.02,
+    "log": ".cache/pad-feedback/launch-borderless-build.log",
+    "idf_version": "6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3201152,
+        "sha256": "3374b5c335665f01217a598d8d95f0032b5637245d23dae3ae7673b2477910b5"
+      }
+    ],
+    "status": "passed"
+  },
+  "flash": {
+    "exit_code": 0,
+    "seconds": 25.22,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "log": ".cache/pad-feedback/launch-borderless-flash.log",
+    "status": "passed",
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "nvs_settings_and_tf_not_written": true
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/src/app_launch.rs",
+      "bytes": 9023,
+      "sha256": "7b9c8af356b3e68a85446e747ff2eff8171097e42473531436d5a1ed17247207"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_state.rs",
+      "bytes": 11439,
+      "sha256": "4aad18a916f3921f1fe2f90990f5756050e1739475f8621754aacb0030417106"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 27537,
+      "sha256": "18d14654d13189c735f76160a47cf2db08068ab408dfe2bf9b60a5aa9a33e801"
+    },
+    {
+      "path": "apps/app-launcher/src/widgets.rs",
+      "bytes": 7518,
+      "sha256": "0a15d504498fa4bcd86e60295ca88f66965ec0ce42255bbb196b0a12d12352f8"
+    },
+    {
+      "path": "apps/app-launcher/src/timer.rs",
+      "bytes": 8569,
+      "sha256": "9f93be859598a29946ddc4c382cc81b5f99d99d7c0c62d6bc3c8897df88d3c1b"
+    },
+    {
+      "path": "apps/app-launcher/src/pomodoro_ui.rs",
+      "bytes": 17802,
+      "sha256": "2fc34346c699f85171253712d703c77d3207d2504525e9c2a35b8f1b541c23ad"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/glass.rs",
+      "bytes": 4435,
+      "sha256": "30d07ffce0b7864912644b85edf3a274a6ac5f02a29994b50a4918fcc01e7ee2"
+    },
+    {
+      "path": "firmware/components/rust_main/src/ffi.rs",
+      "bytes": 9948,
+      "sha256": "31c551a7b96a9166d308b5db7a0e5ff22c7ac99da6affd8d23b7ae1279b4e00c"
+    },
+    {
+      "path": "apps/app-launcher/tests/app_launch_tests.rs",
+      "bytes": 7623,
+      "sha256": "3339435527485b1e9f396e8a6d56c0f5db957afe0d41db19c27dbc684c9163f1"
+    },
+    {
+      "path": "apps/app-launcher/tests/pomodoro_ui_tests.rs",
+      "bytes": 8323,
+      "sha256": "7a3c41cb7193828a11288dd1a2074d582caf4836cea9e70fcea3a1a1428a0fb6"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/tests/glass_composite.rs",
+      "bytes": 5475,
+      "sha256": "625b7aa2998a63c5812f5d854aff5d6c5584cc48a68ee683ee95f46ee139b93f"
+    }
+  ],
+  "physical_acceptance": {
+    "launch_animation": {
+      "status": "needs_revision",
+      "scope": "desktop icon expands from selected position, current SVG splash, app opens and subsequent tap works",
+      "user_feedback": "现在系统有点卡顿，帮我处理一下。",
+      "confirmed_at": "2026-09-29T16:01:31.537572+08:00"
+    },
+    "countdown_completion": {
+      "status": "passed_user_feedback",
+      "scope": "10 second preset, finish at zero, borderless expansion and center transparent reveal",
+      "user_feedback": "10 秒正常，边框已去除，效果合适",
+      "confirmed_at": "2026-09-29T16:01:31.537701+08:00"
+    }
+  }
+}

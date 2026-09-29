@@ -58,13 +58,15 @@ flasher_args.json
 
 方向在 `firmware/components/board_p4/include/board_p4.h` 配置：`P4DESK_DISPLAY_ROTATION_DEGREES=180`、`P4DESK_TOUCH_ROTATION_DEGREES=0`。这与本机旧 `waveshare_touch_paint` 的实际编译配置一致：画面旋转 180°，GT911 使用原始坐标。面板扫描固定为 MADCTL `0x01`，写入只作用于 display owner 拥有的 BUILDING 目标。
 
-Pad 从未旋转的 Rust 画布反向拷贝。新版 Mac 在能力协商后，用 GPU 将可见1024×600像素旋转180°再编码 JPEG，P4 直接硬件解码到 LCD 缓冲；旧主机仍走解码暂存、PPA 裁切旋转路径，PPA 提交失败才退回 CPU。灰度 JPEG 先转换成 RGB565，并按本 session 的实际方向处理，避免重复旋转。608行解码填充不会进入画面。
+Pad 从未旋转的 Rust 画布同步输出，全宽帧直接借用连续像素；唯一 display owner 使用 PPA 复制／旋转 180°，提交拒绝时退回 CPU 反向拷贝。新版 Mac 在能力协商后，用 GPU 将可见1024×600像素旋转180°再编码 JPEG，P4 直接硬件解码到 LCD 缓冲；旧主机仍走解码暂存、PPA 裁切旋转路径，PPA 提交失败才退回 CPU。灰度 JPEG 先转换成 RGB565，并按本 session 的实际方向处理，避免重复旋转。608行解码填充不会进入画面。
 
 项目内 `lcd_frame_observer` 组件固定 ESP-IDF 6.0.2 DPI 源码 SHA256，仅在构建目录生成扩展，不修改全局 SDK。三块 LCD 缓冲各预留608行（总增加48KiB），DMA／面板继续扫描600行；精确指针容量查询确认可写范围。显示 owner 依据真实 completed／next 指针及连续 counter 切换缓冲，准备下一帧可与扫描重叠；同缓冲重复扫描、模式变更和迟到事件不会提前释放 DMA 所有权。事件丢失、溢出或期限超时会停止重用。
 
 GT911 保留本次已经调整后的原始坐标，`touch_task` 将每个触点限制到有效像素范围，统一提供给 Pad、原始多点触摸帧和 USB 回传。触摸和面板原生轴向分别校准，不能直接用显示角度替代 GT911 校正值。Mac 侧按 1024×600 逻辑坐标处理输入和画面。
 
 运行 `./scripts/test-display.sh` 检查生产代码的 RGB565／灰度方向、重复帧重建、行填充、完整 600 行和边界保护，使用 ASan／UBSan。
+
+`./scripts/test-pad-touch.sh` 检查 Pad 事件 FIFO 的短点击、运动历史、环形回绕、溢出取消和模式重置，使用 ASan／UBSan；C／Rust 的 12 字节事件 ABI 在固件构建时检查。
 
 `./scripts/test-display-pipeline.sh` 检查三缓冲状态及模式切换。`python3 -m unittest discover -s firmware/components/lcd_frame_observer/tests -v` 检查固定 SDK 扩展、实际 DMA 回调、容量查询和扫描几何；可通过 `IDF_PATH` 指向本机6.0.2。缺 SDK 的局部测试会明确跳过，不视为固件构建成功。
 
@@ -155,11 +157,11 @@ python3 scripts/package-release.py --build-dir /Volumes/work/esp/build/p4desk
 
 ## Rust 桌面预览与字形工具
 
-应用图标采用项目自制的 146×146 RGB565／alpha8 资源，按桌面实际尺寸离线进行 8×8 超采样，已经保存在源码中。修改图标几何定义后，可用 Python 标准库重新生成并校验：
+应用图标采用项目自制 SVG，离线编译为静态 Rust 矢量几何；设备按实际尺寸做覆盖率抗锯齿。修改 SVG 后，可用 Python 标准库及固定工具链 rustfmt 重新生成并校验：
 
 ```sh
-python3 scripts/generate-desktop-assets.py
-python3 scripts/generate-desktop-assets.py --check
+python3 scripts/generate-vector-icons.py
+python3 scripts/generate-vector-icons.py --check
 ```
 
 检查圆角与缩放质量时，可用同一 Rust 桌面与固定演示时间输出预览，包含八个桌面图标与两个状态栏小图标：
@@ -169,7 +171,7 @@ cargo run -p app-launcher --features screenshots --example pad-icons-preview -- 
   artifacts/pad-icons.png
 ```
 
-图标原尺寸绘制与透明边缘缩放说明见 [Pad 图标绘制质量](pad-render-quality.md)。
+当前矢量填充、描边、裁剪与多尺寸绘制说明见 [SVG 矢量图标](vector-icons.md)。
 
 ```sh
 cargo run -p app-launcher --features screenshots --bin p4desk-simulator -- \
@@ -207,3 +209,15 @@ python3 scripts/generate-clock-assets.py --font heavy --check
 检查模式在临时目录生成并逐字节比较图集、元数据和来源说明；不修改已保存资源。源字体、尺寸、校验值、实际等宽字形 ID 与光学居中边界见 [时钟数字图集](../assets/clock/README.md)。
 
 动画由单调时间驱动，持续 640 ms，采用半页透视、正反面交接、软阴影与轻微落稳回弹，以 20 ms 门限提交变化卡片的局部 dirty，结束时补齐完整展开帧。离开时钟、进入副屏或关闭屏幕后取消动画，重新进入直接显示当前时间。局部 dirty 降低 Rust 绘制／提取开销；C 显示 owner 仍沿用既有整屏 180°复制和 LCD 提交路径。实现、参考来源与验证边界见 [翻页时钟动画](flip-clock-animation.md)；重绘门限不代表实测设备帧率。
+
+USB 首帧启动过渡的主机验证：
+
+```sh
+cargo test -p app-launcher --test app_launch_tests
+cargo test -p rust_main
+./scripts/test-display-transition.sh
+./scripts/test-display-pipeline.sh
+./scripts/test-display.sh
+```
+
+`display-transition` 使用 ASan／UBSan 校验首帧之前不计时、epoch 隔离与最终 LCD 完成条件；不替代开发板 JPEG／LCD 实机验收。

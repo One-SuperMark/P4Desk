@@ -32,7 +32,17 @@ struct CTouchFrame {
     reserved: u8,
     points: [CTouchPoint; 5],
 }
+#[repr(C)]
+#[derive(Default)]
+struct CPadTouchEvent {
+    kind: u32,
+    x: i32,
+    y: i32,
+}
 const _: () = {
+    assert!(std::mem::size_of::<CPadTouchEvent>() == 12);
+    assert!(std::mem::offset_of!(CPadTouchEvent, x) == 4);
+    assert!(std::mem::offset_of!(CPadTouchEvent, y) == 8);
     assert!(std::mem::size_of::<CTouchPoint>() == 8);
     assert!(std::mem::size_of::<CTouchFrame>() == 56);
     assert!(std::mem::offset_of!(CTouchFrame, points) == 16);
@@ -40,7 +50,7 @@ const _: () = {
 
 extern "C" {
     fn host_lcd_draw_bitmap(x1: i32, y1: i32, x2: i32, y2: i32, pixels: *const u16);
-    fn host_touch_get_point(x: *mut i32, y: *mut i32) -> bool;
+    fn p4desk_poll_pad_touch(event: *mut CPadTouchEvent) -> bool;
     fn host_lcd_set_power(on: bool);
     fn p4desk_pad_frame_begin();
     fn p4desk_pad_frame_end();
@@ -52,6 +62,9 @@ extern "C" {
         session: u32,
         jpeg_rotation_degrees: u32,
     ) -> bool;
+    fn p4desk_arm_display_transition(duration_ms: u32) -> bool;
+    fn p4desk_cancel_display_transition();
+    fn p4desk_display_transition_pending() -> bool;
     fn p4desk_set_brightness(percent: u8);
     fn p4desk_monotonic_us() -> i64;
     fn p4desk_delay_ms(ms: u32);
@@ -103,6 +116,15 @@ impl Hal for EspHal {
     fn set_mode_with_jpeg_rotation(&mut self, m: Mode, s: u32, degrees: u16) -> bool {
         unsafe { p4desk_set_mode_with_jpeg_rotation(m.as_u32(), s, u32::from(degrees)) }
     }
+    fn arm_display_transition(&mut self, duration_ms: u32) -> bool {
+        unsafe { p4desk_arm_display_transition(duration_ms) }
+    }
+    fn display_transition_pending(&self) -> bool {
+        unsafe { p4desk_display_transition_pending() }
+    }
+    fn cancel_display_transition(&mut self) {
+        unsafe { p4desk_cancel_display_transition() }
+    }
     fn heartbeat(&mut self) {
         unsafe { p4desk_heartbeat_received() }
     }
@@ -135,7 +157,7 @@ impl Hal for EspHal {
     }
 }
 struct P4Backend {
-    last: Option<Point>,
+    touch_polled_this_step: bool,
     last_raw_stamp: Option<u64>,
 }
 impl PlatformBackend for P4Backend {
@@ -189,17 +211,23 @@ impl PlatformBackend for P4Backend {
         unsafe { host_lcd_draw_bitmap(x1, y1, x2, y2, data.as_ptr()) }
     }
     fn poll_touch(&mut self) -> Option<TouchEvent> {
-        let (mut x, mut y) = (0, 0);
-        let active = unsafe { host_touch_get_point(&mut x, &mut y) };
-        let point = Point::new(x.clamp(0, 1023) as f32, y.clamp(0, 599) as f32);
-        let event = match (self.last, active) {
-            (None, true) => Some(TouchEvent::Down(point)),
-            (Some(last), true) if last != point => Some(TouchEvent::Move(point)),
-            (Some(last), false) => Some(TouchEvent::Up(last)),
-            _ => None,
-        };
-        self.last = if active { Some(point) } else { None };
-        event
+        // Present Down feedback before consuming a queued Up. Also rebuild an
+        // app switch before routing the next gesture to its new widget tree.
+        if self.touch_polled_this_step {
+            return None;
+        }
+        let mut raw = CPadTouchEvent::default();
+        if !unsafe { p4desk_poll_pad_touch(&mut raw) } {
+            return None;
+        }
+        self.touch_polled_this_step = true;
+        let point = Point::new(raw.x.clamp(0, 1023) as f32, raw.y.clamp(0, 599) as f32);
+        Some(match raw.kind {
+            1 => TouchEvent::Down(point),
+            2 => TouchEvent::Move(point),
+            3 => TouchEvent::Up(point),
+            _ => TouchEvent::Cancel,
+        })
     }
 }
 
@@ -211,13 +239,14 @@ pub extern "C" fn rust_main_entry() {
     let size = Size::new(1024.0, 600.0);
     let mut app = App::new(app_launcher::build_launcher_ui(state.clone(), size), size);
     let mut backend = P4Backend {
-        last: None,
+        touch_polled_this_step: false,
         last_raw_stamp: None,
     };
     let mut buffer = vec![0u8; MAX_CONTROL];
     let mut mode = Mode::Pad;
     let mut revision = 0;
     loop {
+        let iteration_started_us = unsafe { p4desk_monotonic_us() };
         for _ in 0..8 {
             let (mut kind, mut sequence) = (0u8, 0u16);
             let n = unsafe {
@@ -239,7 +268,7 @@ pub extern "C" fn rust_main_entry() {
         let next_mode = runtime.hal.mode();
         if next_mode != mode {
             app.cancel_touch();
-            backend.last = None;
+            backend.touch_polled_this_step = false;
             mode = next_mode;
             if mode == Mode::Pad {
                 app.set_screen_power(&mut backend, true);
@@ -255,9 +284,20 @@ pub extern "C" fn rust_main_entry() {
         if mode == Mode::Pad {
             let screen_on = state.lock().unwrap().settings.screen_on;
             app.set_screen_power(&mut backend, screen_on);
+            if let Some(rect) = state
+                .lock()
+                .unwrap()
+                .take_launch_animation_dirty(app.size())
+            {
+                app.mark_dirty(rect);
+            }
             if let Some(rect) = state.lock().unwrap().take_clock_animation_dirty(app.size()) {
                 app.mark_dirty(rect);
             }
+            if let Some(rect) = state.lock().unwrap().take_timer_animation_dirty(app.size()) {
+                app.mark_dirty(rect);
+            }
+            backend.touch_polled_this_step = false;
             app.step_with_builder(&mut backend, |size| {
                 app_launcher::build_launcher_ui(state.clone(), size)
             });
@@ -266,6 +306,35 @@ pub extern "C" fn rust_main_entry() {
         if runtime.process_commands() {
             app.request_rebuild();
         }
-        unsafe { p4desk_delay_ms(16) };
+        let elapsed_us = unsafe { p4desk_monotonic_us() }.saturating_sub(iteration_started_us);
+        unsafe { p4desk_delay_ms(crate::cadence::idle_delay_ms(elapsed_us)) };
     }
+}
+
+/// The C display owner holds this buffer in BUILDING until the function returns.
+#[no_mangle]
+pub unsafe extern "C" fn rust_p4desk_display_reveal(
+    pixels: *mut u16,
+    count: usize,
+    elapsed_ms: u32,
+    duration_ms: u32,
+) -> bool {
+    if pixels.is_null()
+        || (pixels as usize) % std::mem::align_of::<u16>() != 0
+        || count != 1024 * 600
+        || duration_ms == 0
+        || duration_ms > 2000
+    {
+        return false;
+    }
+    let data = std::slice::from_raw_parts_mut(pixels, count);
+    let mut canvas =
+        tiny_flutter::Canvas::new(tiny_flutter::tiny_gfx::Pixmap565Mut::new(data, 1024, 600));
+    app_launcher::app_launch::paint_usb_display_reveal(
+        &mut canvas,
+        Size::new(1024.0, 600.0),
+        elapsed_ms,
+        duration_ms,
+    );
+    true
 }

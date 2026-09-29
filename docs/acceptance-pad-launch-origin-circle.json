@@ -1,0 +1,301 @@
+{
+  "schema": "p4desk.pad.launch.origin-circle.acceptance.v1",
+  "recorded_at": "2026-09-29T17:06:38.870968+08:00",
+  "request": "图标就不用移动了。直接从图标这个位置开始扩散。然后从中心点开始消失。",
+  "source_base_commit": "d81bb7170e8e5073b60a0082f22171379de1ccbb",
+  "source_state": "task working-tree changes; not yet committed",
+  "previous_evidence": [
+    "docs/acceptance-pad-launch-pipeline.json"
+  ],
+  "implementation": {
+    "duration_ms": 880,
+    "launch_interval_ms": 16,
+    "icon": "fixed pressed SVG source rectangle; no movement or resizing",
+    "expand": {
+      "time_ms": [
+        0,
+        420
+      ],
+      "center": "clicked icon center",
+      "radius": "farthest screen corner plus margin"
+    },
+    "bridge": {
+      "time_ms": [
+        420,
+        500
+      ],
+      "effect": "full theme; stationary SVG fades"
+    },
+    "reveal": {
+      "time_ms": [
+        500,
+        880
+      ],
+      "center": "screen center",
+      "effect": "expanding transparent aperture revealing live app; no SVG drawn"
+    },
+    "theme_colors": {
+      "clock": "#626bd8",
+      "timer": "#f18b77",
+      "notes": "#edb247",
+      "calculator": "#ff9f0a",
+      "mac": "#409bdb",
+      "settings": "#687c9c"
+    },
+    "borders": "existing borderless timer glass compositor; no white inner/outer rims",
+    "backdrop_bytes": 1228800,
+    "backdrop_patch": "reuse allocation; patch source once; no additional full-screen cache",
+    "compositor_scratch_bytes_at_1024": 2048,
+    "display": "retains prior single owner, full-width borrowing, PPA and 16ms loop budget"
+  },
+  "host_verification": {
+    "rust_workspace": {
+      "status": "passed",
+      "passed": 192,
+      "log": ".cache/pad-feedback/launch-origin-circle-tests.log"
+    },
+    "pixel_regression": {
+      "scope": "same Rust RGB565 renderer; not measured device FPS",
+      "checks": [
+        {
+          "baseline": "artifacts/timer-completion-borderless",
+          "current": "artifacts/timer-completion-origin-circle-regression",
+          "checked": 141,
+          "mismatches": [],
+          "passed": true
+        },
+        {
+          "baseline": "artifacts/pomodoro-launch",
+          "current": "artifacts/pomodoro-origin-circle-regression",
+          "checked": 7,
+          "mismatches": [],
+          "passed": true
+        }
+      ],
+      "checked": 148,
+      "passed": true
+    },
+    "preview": {
+      "status": "visually_checked",
+      "frames": 120,
+      "step_ms": 16,
+      "directory": "artifacts/app-launch-origin-circle",
+      "gif": "docs/images/pad-app-launch.gif",
+      "stages": "docs/images/pad-app-launch-stages.png",
+      "scope": "synthetic RGB565 UI path; not physical LCD recording"
+    },
+    "benchmark": {
+      "results": [
+        {
+          "allocated_bytes_per_paint": 58648,
+          "allocations_per_paint": 458,
+          "case": "desktop",
+          "median_us": 1840.292,
+          "p95_us": 3206.042
+        },
+        {
+          "allocated_bytes_per_paint": 16560,
+          "allocations_per_paint": 3,
+          "case": "wallpaper",
+          "median_us": 264.541,
+          "p95_us": 284.583
+        },
+        {
+          "allocated_bytes_per_paint": 7244,
+          "allocations_per_paint": 69,
+          "case": "circle_150ms",
+          "median_us": 370.458,
+          "p95_us": 402.667
+        },
+        {
+          "allocated_bytes_per_paint": 7244,
+          "allocations_per_paint": 69,
+          "case": "circle_300ms",
+          "median_us": 377.541,
+          "p95_us": 385.041
+        },
+        {
+          "allocated_bytes_per_paint": 5196,
+          "allocations_per_paint": 68,
+          "case": "bridge_460ms",
+          "median_us": 200.583,
+          "p95_us": 253.375
+        },
+        {
+          "allocated_bytes_per_paint": 10193,
+          "allocations_per_paint": 83,
+          "case": "reveal_690ms",
+          "median_us": 516.75,
+          "p95_us": 554.958
+        },
+        {
+          "allocated_bytes_per_paint": 8145,
+          "allocations_per_paint": 82,
+          "case": "timer",
+          "median_us": 234.875,
+          "p95_us": 268.416
+        }
+      ],
+      "samples_per_case": 40,
+      "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+    },
+    "diff_check": "passed"
+  },
+  "build": {
+    "exit_code": 0,
+    "seconds": 8.84,
+    "log": ".cache/pad-feedback/launch-origin-circle-build.log",
+    "idf_version": "6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3206464,
+        "sha256": "26ad993216cdd77ef08daa14bc1fa23ba94b0e8202204395cf46b9042b80efd2"
+      }
+    ],
+    "status": "passed"
+  },
+  "flash": {
+    "exit_code": 0,
+    "seconds": 25.25,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "log": ".cache/pad-feedback/launch-origin-circle-flash.log",
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "nvs_settings_and_tf_not_written": true,
+    "status": "passed"
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/examples/app-launch-preview.rs",
+      "bytes": 1904,
+      "sha256": "4851acdedb86e8d5fa10a4732a6d86e8b128aab5e0758aa6004b872c650865ed"
+    },
+    {
+      "path": "apps/app-launcher/examples/pad-render-benchmark.rs",
+      "bytes": 3580,
+      "sha256": "238ff76a4a59a17667ceccebf285fa4ca01afe3e500118ac4c309fade50a91bc"
+    },
+    {
+      "path": "apps/app-launcher/src/app_launch.rs",
+      "bytes": 28334,
+      "sha256": "a3f0cae67a724b1a8c3aaf39806086d12a3c3975643e966f0428bbb06d97ea50"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_state.rs",
+      "bytes": 12349,
+      "sha256": "68a2a7ab6133cc1d5b49b965106ab27b821cb73cff84b165d4576573f0b763e5"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 27711,
+      "sha256": "12527c7a42f7f8178d14bb72e6e7b8fab7366296213e4903e070ddf26eedb601"
+    },
+    {
+      "path": "apps/app-launcher/src/pomodoro_ui.rs",
+      "bytes": 17931,
+      "sha256": "c9359c0418bfbc453c69d381102ee06ded668097dcb8c094c80d7c08c34f3fca"
+    },
+    {
+      "path": "apps/app-launcher/src/timer_completion.rs",
+      "bytes": 10435,
+      "sha256": "68c0142d73399764fa4f8b2f3291002af9fa4d9d319df5d4f924a2c32a934f7a"
+    },
+    {
+      "path": "apps/app-launcher/src/widgets.rs",
+      "bytes": 7518,
+      "sha256": "0a15d504498fa4bcd86e60295ca88f66965ec0ce42255bbb196b0a12d12352f8"
+    },
+    {
+      "path": "apps/app-launcher/tests/app_launch_tests.rs",
+      "bytes": 10364,
+      "sha256": "ee01781814a853f1707276ead8215104efafc68283c8d9d89ae82f6791969ada"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/color.rs",
+      "bytes": 6908,
+      "sha256": "4db6816cbdd8685efb20194fa90403e2d1d9cc48551768145352e42d063ff109"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/glass.rs",
+      "bytes": 4435,
+      "sha256": "30d07ffce0b7864912644b85edf3a274a6ac5f02a29994b50a4918fcc01e7ee2"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/pixmap.rs",
+      "bytes": 4546,
+      "sha256": "edf65e05d3c001b3a5badad88514a0abed507399d059e3dcb5afb7677bdefbe3"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/raster.rs",
+      "bytes": 32996,
+      "sha256": "2ed4f29fd09845418ef225c29f99379f93ec7691b2fc5216daa9a98275507e60"
+    },
+    {
+      "path": "crates/tiny-flutter/src/app.rs",
+      "bytes": 18890,
+      "sha256": "1de7e439a0f1a1b3408b1b7ac77cd9f10da5a7e472d673bfa9e1e259a9b27e88"
+    },
+    {
+      "path": "crates/tiny-flutter/tests/flush_borrow_tests.rs",
+      "bytes": 2960,
+      "sha256": "be0a66ea1d1198ebfd261395609c0c910d16d59e4945a08de69fec6ac87639d5"
+    },
+    {
+      "path": "firmware/components/rust_main/src/cadence.rs",
+      "bytes": 708,
+      "sha256": "190eead0d49404896b5d29f37086206116c3e2c65fa195475d9b0ca2037c6683"
+    },
+    {
+      "path": "firmware/components/rust_main/src/ffi.rs",
+      "bytes": 10152,
+      "sha256": "9f4f913e749383d51d177a603d965c14d773038b547c7b16958b22728b19072a"
+    },
+    {
+      "path": "firmware/components/rust_main/src/lib.rs",
+      "bytes": 205,
+      "sha256": "7e69ca9a6fdb12848a0a6b623ec3edda16d32ac25660c57e4afbdc1c4107c11a"
+    },
+    {
+      "path": "firmware/main/display_ppa.c",
+      "bytes": 4775,
+      "sha256": "e30de2c3497c8c7052cff858cc439588e5683ab2bb5c68a0e7594b87e4a599fe"
+    },
+    {
+      "path": "firmware/main/p4desk_runtime.c",
+      "bytes": 40326,
+      "sha256": "d3507a4bb2b5d48d66a4fe3aa168b8efa8e13d560878a1d8d8c0eb0fe3d317ac"
+    },
+    {
+      "path": "scripts/make-timer-completion-preview.py",
+      "bytes": 1921,
+      "sha256": "5160386123033a13ae29f4afc56658a8134900bc308b8f5b6a36669a4d9d6c3f"
+    }
+  ],
+  "physical_acceptance": {
+    "visual_sequence": "needs_adjustment",
+    "startup_and_touch": "pending_user_feedback",
+    "actual_fps": "not_measured",
+    "current_heap": "not_measured",
+    "previous_firmware_feedback": "启动顺畅，点击正常；方向、颜色和触摸都正常。该反馈属于上一版，当前动画待确认。",
+    "user_feedback": "消失动画修改成从外部往中间缩吧。",
+    "feedback_at": "2026-09-29T17:08:03.328479+08:00"
+  }
+}

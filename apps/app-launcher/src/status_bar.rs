@@ -56,6 +56,7 @@ pub fn build_status_bar(state: Arc<Mutex<LauncherState>>, width: f32) -> impl Wi
                     CustomPaint::new(AppIconPainter {
                         asset,
                         target_size: 28.0,
+                        pressed: None,
                     })
                     .size(Size::new(28.0, 28.0)),
                 )),

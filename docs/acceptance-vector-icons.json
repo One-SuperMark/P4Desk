@@ -1,0 +1,226 @@
+{
+  "schema": "p4desk.pad.vector_icons.acceptance.v1",
+  "recorded_at": "2026-09-29T14:56:55.168036+08:00",
+  "request": "图标不够细腻，使用 SVG 等矢量图标，把项目中的所有图标都更换成矢量",
+  "source_base_commit": "d81bb7170e8e5073b60a0082f22171379de1ccbb",
+  "source_state": "task working-tree changes, not yet committed",
+  "implementation": {
+    "svg_catalog_count": 34,
+    "desktop_svgs": 8,
+    "ui_svgs": 26,
+    "scope": [
+      "desktop 8 icons",
+      "status bar app icons",
+      "Home / Close",
+      "calculator backspace",
+      "completion circle and check",
+      "all named tiny-flutter UiIcon APIs"
+    ],
+    "backend": "original tiny-flutter / tiny_gfx Rust, original ESP-IDF C display owner",
+    "path_fills": "actual polygon interior, nonzero/even-odd rules",
+    "stroke_coverage": "8 vertical subpixel samples and analytic horizontal overlap, union before alpha blending",
+    "curves": "flattened at output pixel precision",
+    "gradient": "coordinate-attached shader with RGB565 ordered dither",
+    "runtime_svg_xml_parser": false,
+    "bitmap_icon_bytes_embedded": 0,
+    "removed_desktop_bitmap_bytes": 511584,
+    "previous_firmware_bytes": 3531408,
+    "firmware_size_change_bytes": -339600
+  },
+  "mac_icons": {
+    "status": "already_vector",
+    "file": "desktop/macos/Sources/P4Desk/App.swift",
+    "icon_provider": "SwiftUI SF Symbols",
+    "icon_call_sites": 13,
+    "bitmap_ui_icon_uses": 0
+  },
+  "host_verification": {
+    "tests": {
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit_code": 0,
+      "passed": 161,
+      "vector_new_tests": 10,
+      "completion_tests": 9,
+      "log": ".cache/timer-completion-fullscreen/vector-tests-workspace.log"
+    },
+    "generator": {
+      "valid": true,
+      "mode": "check",
+      "icons": 34,
+      "generated_bytes": 60695,
+      "bitmap_bytes_embedded": 0
+    },
+    "previews": [
+      {
+        "path": "docs/images/pad-vector-home.png",
+        "bytes": 822176,
+        "sha256": "26775e3229661bced9c84b05e44534239ba1dcb95422d4056f0aea776f51831b"
+      },
+      {
+        "path": "docs/images/vector-icons-catalog.png",
+        "bytes": 239382,
+        "sha256": "a8a0c475899410cce72c36f8720984591063cb5218ca0fd0eb764ccdc83c6127"
+      },
+      {
+        "path": "docs/images/completion-vector-detail.png",
+        "bytes": 4932,
+        "sha256": "683f26a8aa53c93895d44dbfa07717a7f8d905c58359032d4c6a2b7561d523d3"
+      }
+    ],
+    "timer_static_body_comparison": {
+      "unchanged_body_previews": [
+        "pomodoro-countdown.png",
+        "pomodoro-finished.png",
+        "pomodoro-focus.png",
+        "pomodoro-long-break.png",
+        "pomodoro-paused.png",
+        "pomodoro-running.png",
+        "pomodoro-short-break.png"
+      ],
+      "changed_area": "header SVG navigation only",
+      "comparison_bounds": [
+        0,
+        60,
+        1024,
+        600
+      ]
+    },
+    "device_render_fps": "not_measured"
+  },
+  "build": {
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 11.52,
+    "log": ".cache/vector-icons/build.log",
+    "idf_version": "v6.0.2",
+    "idf_path": "/Volumes/work/esp/esp-idf-v6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3191808,
+        "sha256": "3da898a17ae49c7a7a472a28acd4f1e94b448e99949dd0a389b190571a767c4f"
+      }
+    ]
+  },
+  "flash": {
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 25.03,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "log": ".cache/vector-icons/flash.log",
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "chip": "ESP32-P4 revision v3.2",
+    "nvs_settings_and_tf_not_written": true
+  },
+  "source": [
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/vector.rs",
+      "bytes": 11788,
+      "sha256": "87a0d1d295375aa73924ff7e720f20b8191203f869a46ca780ccc0481ecb1212"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/canvas.rs",
+      "bytes": 10706,
+      "sha256": "8002aba4ef9b89ae3292817e16086470c8653a67cd7f7488123eb7054b3c597c"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/path.rs",
+      "bytes": 5698,
+      "sha256": "d3041f07eef0b569eaaed3430464cd8e6b1acfe6ea5f9e2aac3cad859f2dbd6c"
+    },
+    {
+      "path": "crates/tiny-flutter/src/graphics/vector_icon.rs",
+      "bytes": 7931,
+      "sha256": "879eec7ec1e3040e734f6fda018471216e6346b105680cc937dd81e3cae8fc4f"
+    },
+    {
+      "path": "crates/tiny-flutter/src/graphics/svg_icons_generated.rs",
+      "bytes": 60695,
+      "sha256": "7385acfbe1282fe7de55137d4fe6ef643eac74fa28d2e172a894cafa0990d589"
+    },
+    {
+      "path": "crates/tiny-flutter/src/graphics/ui_icons.rs",
+      "bytes": 1747,
+      "sha256": "4b141affa11281c2fad85aa794bf79c971d55305372924daca0db6a39d29b17a"
+    },
+    {
+      "path": "crates/tiny-flutter/src/graphics/canvas.rs",
+      "bytes": 7924,
+      "sha256": "48287cb4eeedf3955c9482585883d9dd683d6e7dd6b047dee28bef2862ada669"
+    },
+    {
+      "path": "crates/tiny-flutter/src/widgets/icon.rs",
+      "bytes": 1920,
+      "sha256": "41d0a72122a6ec213e0c06ee2df70c16b5f209c6143696d9f0317477bd3fe957"
+    },
+    {
+      "path": "apps/app-launcher/src/app_icons.rs",
+      "bytes": 700,
+      "sha256": "7dd304d89f6248b18ca71e7508cf5e2f1f77d751d9dd206611dfa57fd78f40f7"
+    },
+    {
+      "path": "apps/app-launcher/src/widgets.rs",
+      "bytes": 3052,
+      "sha256": "9ccef9ae6d9a010ca6336cec17df7dec43a386d8b8e8b5929d33af501eff52a3"
+    },
+    {
+      "path": "apps/app-launcher/src/flip_clock.rs",
+      "bytes": 21674,
+      "sha256": "da72b4c33abd32744ad85c5172e138d3718e4499c17876cf64ac4019bd8598f1"
+    },
+    {
+      "path": "apps/calculator/src/ui.rs",
+      "bytes": 25092,
+      "sha256": "620531d337b528903131fde13f907251d1ff369788647e9aafa8ff7b37fc80e5"
+    },
+    {
+      "path": "scripts/generate-vector-icons.py",
+      "bytes": 8382,
+      "sha256": "3e6143cd001f58953480c632268f547a890039a98cb06f08de85a40ace7883bd"
+    },
+    {
+      "path": "assets/vector-icons.json",
+      "bytes": 7420,
+      "sha256": "fcbbc177640b3378b3309b5cdcf4d500eb4689e3eb144469fab687aba53dfea1"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/tests/vector_coverage.rs",
+      "bytes": 5481,
+      "sha256": "4904e915345ce0490146262b602cf686ee6c6698c8fdaa6217d8b4daa19e1cb8"
+    },
+    {
+      "path": "apps/app-launcher/tests/vector_icons_tests.rs",
+      "bytes": 3207,
+      "sha256": "923140b478da05c3baab9b39168c9998f8fe5db422d9336a8a2350f0313579f2"
+    }
+  ],
+  "physical_acceptance": {
+    "status": "interaction_needs_revision",
+    "icon_visuals": "accepted",
+    "user_feedback": "显示更细腻了，但是桌面点击好像有异常，不知道是卡顿了还是什么的。给桌面图标的点击添加点击效果",
+    "required_revision": "desktop press feedback and touch responsiveness",
+    "feedback_recorded_at": "2026-09-29T15:15:35.405585+08:00"
+  }
+}

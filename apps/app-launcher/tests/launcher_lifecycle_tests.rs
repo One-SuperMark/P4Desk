@@ -17,6 +17,24 @@ fn tap(
     step_ui(app, backend, state);
     backend.event(TouchEvent::Up(point));
     step_ui(app, backend, state);
+    // Lifecycle assertions interact with the app after its real splash ends.
+    let dirty = {
+        let mut s = state.lock().unwrap();
+        if s.app_launch.frame(s.monotonic_ms).is_some() {
+            let now = s.monotonic_ms + app_launcher::app_launch::APP_LAUNCH_DURATION_MS;
+            let unix = s.unix_ms;
+            if s.tick(now, unix) {
+                app.request_rebuild();
+            }
+            s.take_launch_animation_dirty(app.size())
+        } else {
+            None
+        }
+    };
+    if let Some(rect) = dirty {
+        app.mark_dirty(rect);
+        step_ui(app, backend, state);
+    }
 }
 
 #[test]
@@ -117,6 +135,9 @@ fn eight_desktop_icons_route_to_apps_and_system_commands() {
         ("screen", 873.0, 403.0),
     ] {
         let state = Arc::new(Mutex::new(LauncherState::new()));
+        if id == "display" {
+            state.lock().unwrap().connected = true;
+        }
         let mut backend = HeadlessBackend::new(1024, 600);
         let mut app = App::new(build_launcher_ui(state.clone(), size), size);
         app.step(&mut backend);
@@ -125,10 +146,17 @@ fn eight_desktop_icons_route_to_apps_and_system_commands() {
         assert_eq!(s.page_controller.page(), 0);
         assert_eq!(s.total_pages, 1);
         match id {
-            "display" => assert!(matches!(
-                s.take_commands().as_slice(),
-                [UiCommand::RequestMode(p4desk_protocol::Mode::Display)]
-            )),
+            "display" => {
+                assert_eq!(s.active_app.id(), Some("display"));
+                assert!(
+                    s.app_launch.frame(s.monotonic_ms).is_some(),
+                    "USB holds the full-color bridge while Mac prepares"
+                );
+                assert!(matches!(
+                    s.take_commands().as_slice(),
+                    [UiCommand::StartDisplayTransition { duration_ms: 600 }]
+                ));
+            }
             "screen" => assert!(matches!(
                 s.take_commands().as_slice(),
                 [UiCommand::Screen(false)]

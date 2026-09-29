@@ -1,0 +1,215 @@
+{
+  "schema": "p4desk.vector-icons.v1",
+  "license": "MIT",
+  "runtime": "static SVG geometry to tiny_gfx coverage rasterizer",
+  "vertical_coverage_samples": 8,
+  "bitmap_bytes_embedded": 0,
+  "generated_file": "crates/tiny-flutter/src/graphics/svg_icons_generated.rs",
+  "generated_sha256": "fc51c76c07f8dee3b79a90e960d21e7a05874380446e404f059baebc6b2d1880",
+  "icons": [
+    {
+      "name": "DESKTOP_CALCULATOR",
+      "source": "assets/app_icons/source/calculator.svg",
+      "source_sha256": "4814d522d6ffa6d893a9a05ad6898ae31a17d3ef37d8f7a4123a13d9f5769004",
+      "layers": 11
+    },
+    {
+      "name": "DESKTOP_CLOCK",
+      "source": "assets/app_icons/source/clock.svg",
+      "source_sha256": "d979cd5fd3df7cc28ef4c63db464cba18c49fdee490b8d9ddb145828edf541ff",
+      "layers": 9
+    },
+    {
+      "name": "DESKTOP_DISPLAY",
+      "source": "assets/app_icons/source/display.svg",
+      "source_sha256": "4e37401a99dda5770ff2329aa790f31dc10d073dcbdf3f2919be1c4f46800ddd",
+      "layers": 9
+    },
+    {
+      "name": "DESKTOP_MAC",
+      "source": "assets/app_icons/source/mac.svg",
+      "source_sha256": "31b99026a2ad7cc601cd992e061270de3e5e2de178dd6bb0e30c5d4ddeaad72f",
+      "layers": 5
+    },
+    {
+      "name": "DESKTOP_NOTES",
+      "source": "assets/app_icons/source/notes.svg",
+      "source_sha256": "6c3c5a9715ca4294e092be3a840698910504d55be6e4ad24089aecc1fb2a760f",
+      "layers": 6
+    },
+    {
+      "name": "DESKTOP_SCREEN",
+      "source": "assets/app_icons/source/screen.svg",
+      "source_sha256": "750952e31eda20c0ae60f50227bad8470ec757d1f7afb139ccb18a83e6ab5115",
+      "layers": 7
+    },
+    {
+      "name": "DESKTOP_SETTINGS",
+      "source": "assets/app_icons/source/settings.svg",
+      "source_sha256": "68e4ca85aea757297f1a6563be800f7a1dff91be078b2d59f2f1464d9684ce3d",
+      "layers": 3
+    },
+    {
+      "name": "DESKTOP_TIMER",
+      "source": "assets/app_icons/source/timer.svg",
+      "source_sha256": "b7524b56f3111944158b23d9ced79bfea6512c39a65c20cc5aa838c80e6cbea5",
+      "layers": 8
+    },
+    {
+      "name": "UI_BACKSPACE",
+      "source": "assets/ui_icons/source/backspace.svg",
+      "source_sha256": "65ed532b84182ac0a5787572f3d907c5ae1de0473c625fba4fdf3cbc175d8690",
+      "layers": 1
+    },
+    {
+      "name": "UI_BACKWARD_FILL",
+      "source": "assets/ui_icons/source/backward-fill.svg",
+      "source_sha256": "b89cab179bbc12671bb1ac9156d5176ff705dee75bbc1f9d46c0362208508546",
+      "layers": 2
+    },
+    {
+      "name": "UI_BATTERY_0",
+      "source": "assets/ui_icons/source/battery-0.svg",
+      "source_sha256": "45165bc81a0907499fe563f5f842dad5beada66b0696de958e9bfaed29bf3c70",
+      "layers": 2
+    },
+    {
+      "name": "UI_BATTERY_100",
+      "source": "assets/ui_icons/source/battery-100.svg",
+      "source_sha256": "ba039c284b052f7d915b97b9f7ac19936155c46e162f3d893082e3474c7ebb0f",
+      "layers": 3
+    },
+    {
+      "name": "UI_BATTERY_25",
+      "source": "assets/ui_icons/source/battery-25.svg",
+      "source_sha256": "c11318bf465fc91b90f1c3b4b1447d92d386e4b8beb439a0c806781309186de3",
+      "layers": 3
+    },
+    {
+      "name": "UI_BATTERY_50",
+      "source": "assets/ui_icons/source/battery-50.svg",
+      "source_sha256": "32bc23a5e4fad2a73b89fd2c57c765020aa1f5d12b9c5c65775381fd066a99ed",
+      "layers": 3
+    },
+    {
+      "name": "UI_BATTERY_75",
+      "source": "assets/ui_icons/source/battery-75.svg",
+      "source_sha256": "84874973d5367d23d7611a20865111a7e3480797de27109b7b99d729895fcdde",
+      "layers": 3
+    },
+    {
+      "name": "UI_BATTERY_BOLT",
+      "source": "assets/ui_icons/source/battery-bolt.svg",
+      "source_sha256": "af0f6949e242be05ea9d653600fa67a0819ce88cacbb5b87d24a570c2a60e2f0",
+      "layers": 3
+    },
+    {
+      "name": "UI_CAPSLOCK",
+      "source": "assets/ui_icons/source/capslock.svg",
+      "source_sha256": "29d68302a6279bf80e4e9a57f80cb8c2107799546f6d18a3ad65e406ef97967c",
+      "layers": 2
+    },
+    {
+      "name": "UI_CHECK_CIRCLE",
+      "source": "assets/ui_icons/source/check-circle.svg",
+      "source_sha256": "38024df9abc594ff1b79800338bca88048471be87316d267021615d0211ca39c",
+      "layers": 2
+    },
+    {
+      "name": "UI_CLOSE",
+      "source": "assets/ui_icons/source/close.svg",
+      "source_sha256": "e0e765f753f85f1c94eebcb58f79223c3c0791f4df57797279aaedf7ce9c3d9b",
+      "layers": 1
+    },
+    {
+      "name": "UI_COUNTER",
+      "source": "assets/ui_icons/source/counter.svg",
+      "source_sha256": "84681537d49a6deb326d4ce5d61643967405752ac2fe90fb4a3a1a63b191322f",
+      "layers": 2
+    },
+    {
+      "name": "UI_FORWARD_FILL",
+      "source": "assets/ui_icons/source/forward-fill.svg",
+      "source_sha256": "fe23d7c9e622c12bffbaba7d7f1b0d6ce10ab62a6d0649b93ea408b769e9b553",
+      "layers": 2
+    },
+    {
+      "name": "UI_HELLO",
+      "source": "assets/ui_icons/source/hello.svg",
+      "source_sha256": "cc76cd96ae49f7b0e9ec7779fac71e2c975ac91254c924f0cfaa886c929f9a72",
+      "layers": 3
+    },
+    {
+      "name": "UI_HOME",
+      "source": "assets/ui_icons/source/home.svg",
+      "source_sha256": "280d7ac62fdaa96136e91a45a2edc9ad549cc4182deafc1bbf8792a7e1a4b8fc",
+      "layers": 1
+    },
+    {
+      "name": "UI_PALETTE",
+      "source": "assets/ui_icons/source/palette.svg",
+      "source_sha256": "91303acf513cbb023ed296f4dbabdb67f24cb3c1ceadb32c4635119e9fe73b1c",
+      "layers": 4
+    },
+    {
+      "name": "UI_PAUSE_CIRCLE",
+      "source": "assets/ui_icons/source/pause-circle.svg",
+      "source_sha256": "b7a32b0c8bd2ce997c4a78c5ae21cccad5c0522533f05d37d71a4e948310196f",
+      "layers": 3
+    },
+    {
+      "name": "UI_PLAY_CIRCLE",
+      "source": "assets/ui_icons/source/play-circle.svg",
+      "source_sha256": "c02ec63463c0c07eb00b9327933599747237a06c7d673b1763ba5712e538d8a9",
+      "layers": 2
+    },
+    {
+      "name": "UI_SHIFT",
+      "source": "assets/ui_icons/source/shift.svg",
+      "source_sha256": "916108afe23b7c684b2c2063bccc05a45a1e975431868aa2532e741f1cfcb76c",
+      "layers": 1
+    },
+    {
+      "name": "UI_STORAGE",
+      "source": "assets/ui_icons/source/storage.svg",
+      "source_sha256": "747224836afe72748597c73e140c4211606b66b02424ea78877ef6cf7d7677e0",
+      "layers": 3
+    },
+    {
+      "name": "UI_SYSTEM",
+      "source": "assets/ui_icons/source/system.svg",
+      "source_sha256": "d8bd174e6b57d5dd904e0ab74a3cf2dba8fd66f23e8b192822c0a45fb0904bac",
+      "layers": 2
+    },
+    {
+      "name": "UI_TERMINAL",
+      "source": "assets/ui_icons/source/terminal.svg",
+      "source_sha256": "313f6a2109b35b7fb253076238c080f831e9d981b389c80be1c612b46ffbb364",
+      "layers": 2
+    },
+    {
+      "name": "UI_WIFI_0",
+      "source": "assets/ui_icons/source/wifi-0.svg",
+      "source_sha256": "51833fbc82eaef7aac463e09d68b9266f575dd64963fe6e78418aa65fb11b3a4",
+      "layers": 1
+    },
+    {
+      "name": "UI_WIFI_1",
+      "source": "assets/ui_icons/source/wifi-1.svg",
+      "source_sha256": "ce19c32013d048ab83b791aba7a770d054ab33f9eda57c612e321d751ed2f92b",
+      "layers": 2
+    },
+    {
+      "name": "UI_WIFI_2",
+      "source": "assets/ui_icons/source/wifi-2.svg",
+      "source_sha256": "2204ed9c09a8c449f819d9b9f215700731e34c1280607cc84cce9937b3d358bb",
+      "layers": 3
+    },
+    {
+      "name": "UI_WIFI_3",
+      "source": "assets/ui_icons/source/wifi-3.svg",
+      "source_sha256": "3226d9b17bd184ceec49d080f525be14e178cd053a2433709ddfe3a9a3cedd4b",
+      "layers": 4
+    }
+  ]
+}

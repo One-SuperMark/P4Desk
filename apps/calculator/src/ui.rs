@@ -526,34 +526,10 @@ impl CustomPainter for LabelPainter {
             let side = self.size.min(size.height * 0.68);
             let x = (size.width - side) * 0.5;
             let y = (size.height - side) * 0.5;
-            let scale = side / 32.0;
-            let mut path = tiny_gfx::PathBuilder::new();
-            path.move_to(x + 2.0 * scale, y + 16.0 * scale);
-            for (x, y) in [
-                (10.0, 6.0),
-                (29.0, 6.0),
-                (29.0, 26.0),
-                (10.0, 26.0),
-                (2.0, 16.0),
-            ] {
-                path.line_to(
-                    (size.width - side) * 0.5 + x * scale,
-                    (size.height - side) * 0.5 + y * scale,
-                );
-            }
-            path.move_to(x + 14.0 * scale, y + 11.0 * scale);
-            path.line_to(x + 24.0 * scale, y + 21.0 * scale);
-            path.move_to(x + 24.0 * scale, y + 11.0 * scale);
-            path.line_to(x + 14.0 * scale, y + 21.0 * scale);
-            canvas.stroke_path(
-                &path.finish().unwrap(),
-                &tiny_gfx::Paint::new(self.color.to_gfx()),
-                &tiny_gfx::Stroke {
-                    width: 1.8 * scale,
-                    line_cap: tiny_gfx::LineCap::Round,
-                    line_join: tiny_gfx::LineJoin::Round,
-                    ..Default::default()
-                },
+            tiny_flutter::graphics::svg_icons_generated::UI_BACKSPACE.paint(
+                canvas,
+                Rect::from_ltwh(x, y, side, side),
+                self.color,
             );
             return;
         }

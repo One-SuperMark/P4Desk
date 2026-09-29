@@ -162,6 +162,7 @@ impl Widget for PageView {
             current_page: self.controller.page(),
             drag_offset: self.controller.drag_offset(),
             touch_active: false,
+            child_touch_canceled: false,
             is_swiping: false,
             gesture_handled: false,
             touch_start_x: 0.0,
@@ -180,6 +181,7 @@ pub struct RenderPageView {
     current_page: usize,
     drag_offset: f32,
     touch_active: bool,
+    child_touch_canceled: bool,
     is_swiping: bool,
     gesture_handled: bool,
     touch_start_x: f32,
@@ -314,6 +316,7 @@ impl RenderBox for RenderPageView {
         match event {
             TouchEvent::Down(pt) if inside => {
                 self.touch_active = true;
+                self.child_touch_canceled = false;
                 self.touch_start_x = pt.x;
                 self.touch_start_y = pt.y;
                 self.is_swiping = false;
@@ -336,13 +339,19 @@ impl RenderBox for RenderPageView {
                 if self.transition == PageTransition::None
                     || self.transition == PageTransition::Fade
                 {
+                    if !self.child_touch_canceled && (dx.abs() > 12.0 || dy.abs() > 12.0) {
+                        // The page owns movement through release, including a
+                        // move into another row. Cancel the original button even
+                        // when Flex hit testing would route Move to another child.
+                        self.children[current_page].dispatch_touch(&TouchEvent::Cancel);
+                        self.child_touch_canceled = true;
+                    }
                     if !self.gesture_handled {
                         // Gesture threshold: > 32px horizontally and predominantly horizontal
                         if dx.abs() > 32.0 && dx.abs() > dy.abs() * 1.2 {
                             self.is_swiping = true;
                             self.gesture_handled = true;
-                            // Cancel active button tap on child
-                            self.children[current_page].dispatch_touch(&TouchEvent::Cancel);
+                            // The 12px movement gate already canceled the button.
 
                             let mut page_changed = false;
                             if dx < -32.0 && current_page + 1 < self.children.len() {
@@ -365,6 +374,10 @@ impl RenderBox for RenderPageView {
                     }
 
                     if self.is_swiping {
+                        return true;
+                    }
+
+                    if self.child_touch_canceled {
                         return true;
                     }
 
@@ -416,7 +429,10 @@ impl RenderBox for RenderPageView {
                         // Up can be the first sample reaching the swipe
                         // threshold. Cancel the original child before switching
                         // pages, even when already at the first/last page.
-                        self.children[current_page].dispatch_touch(&TouchEvent::Cancel);
+                        if !self.child_touch_canceled {
+                            self.children[current_page].dispatch_touch(&TouchEvent::Cancel);
+                            self.child_touch_canceled = true;
+                        }
                         self.gesture_handled = true;
                         let mut page_changed = false;
                         if dx < -28.0 && current_page + 1 < self.children.len() {
@@ -437,9 +453,9 @@ impl RenderBox for RenderPageView {
                         return true;
                     }
 
-                    if was_swiping {
-                        // User was performing a swipe; swallow tap so app does not launch
-                        self.children[current_page].dispatch_touch(&TouchEvent::Cancel);
+                    if was_swiping || self.child_touch_canceled {
+                        // Its original button was already canceled. Swallow the
+                        // release without delivering Cancel to a newly shown page.
                         true
                     } else {
                         self.children[current_page].dispatch_touch(event)
@@ -490,6 +506,7 @@ impl RenderBox for RenderPageView {
             }
             TouchEvent::Cancel => {
                 self.touch_active = false;
+                self.child_touch_canceled = false;
                 self.is_swiping = false;
                 self.gesture_handled = false;
                 if self.transition == PageTransition::Slide {
@@ -516,6 +533,19 @@ impl RenderBox for RenderPageView {
     }
 
     fn hit_rect(&self, point: Point) -> Option<Rect> {
+        if self.transition == PageTransition::None && !self.is_swiping && !self.children.is_empty()
+        {
+            let child = &self.children[self.current_page.min(self.children.len() - 1)];
+            let current = child.hit_rect(point);
+            if self.touch_active {
+                let origin = child.hit_rect(Point::new(self.touch_start_x, self.touch_start_y));
+                return match (origin, current) {
+                    (Some(a), Some(b)) => Some(a.union(&b)),
+                    (a, b) => a.or(b),
+                };
+            }
+            return current;
+        }
         if self.hit_test(point) {
             Some(Rect::from_ltwh(0.0, 0.0, self.size.width, self.size.height))
         } else {

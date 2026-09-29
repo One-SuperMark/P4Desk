@@ -1,0 +1,354 @@
+{
+  "schema": "p4desk.pad.launch.pipeline.acceptance.v1",
+  "recorded_at": "2026-09-29T16:48:40.225927+08:00",
+  "request": "有所改善，仍有卡顿",
+  "source_base_commit": "d81bb7170e8e5073b60a0082f22171379de1ccbb",
+  "source_state": "task working-tree changes, not yet committed",
+  "previous_evidence": [
+    "docs/acceptance-pad-launch-cache.json"
+  ],
+  "implementation": {
+    "full_width_flush": "borrow tightly packed framebuffer rows synchronously; skip full-screen extraction copy; clipped columns pack on demand",
+    "initial_scratch_bytes": 0,
+    "removed_initial_scratch_bytes_at_1024x600": 1228800,
+    "partial_scratch": "reused and grown for cropped rectangles; not a measurement of device peak heap",
+    "first_frame": "consume existing dirty when forcing initial full repaint",
+    "solid_alpha_blend": "128 RGB565 channel lookup entries, 256 bytes on stack, exact original rounding; unchanged AA edge coverage",
+    "pad_rotation": "display owner uses existing PPA SRM client for 1024x600, RGB565, 180 degrees, scale 1; source immutable until completion",
+    "ppa_fallback": "CPU only for rejected submissions; abort on timeout/invalid state with uncertain DMA ownership",
+    "ppa_observed_success": "not_measured; hardware execution not confirmed by host tests",
+    "display_ownership": "unchanged single display owner; PPA output only to reserved BUILDING buffer",
+    "loop_budget_us": 16000,
+    "minimum_yield_ms": 1,
+    "configured_freertos_hz": 1000,
+    "launch_interval_ms": 16,
+    "launch_target": "about 60 FPS scheduling, not a measured device rate",
+    "launch_duration_ms": 880,
+    "completion": "accepted 10-second preset and borderless completion preserved"
+  },
+  "memory_assessment": {
+    "current_device_heap": "not_measured",
+    "conclusion": "removed redundant initial full-screen scratch and copy; no evidence to diagnose device out-of-memory",
+    "backdrop_pixel_bytes": 1228800,
+    "backdrop_lifetime": "normal desktop/launch only; released at finish/cancellation"
+  },
+  "host_verification": {
+    "rust_workspace": {
+      "exit_code": 0,
+      "status": "passed",
+      "passed": 190,
+      "log": ".cache/pad-feedback/launch-pipeline-final-tests.log",
+      "new_tests": [
+        "all RGB565 channels and alpha compared to original formula plus mixed RGB words",
+        "borrowed full-width/packed crop equivalence, clipping, resize and begin-flush-end order",
+        "loop work budget and minimum yield"
+      ]
+    },
+    "c_sanitizers": [
+      {
+        "command": "./scripts/test-display.sh",
+        "status": "passed",
+        "scope": "production CPU fallback pixel conversion, rotation, row boundaries and guards; not PPA DMA"
+      },
+      {
+        "command": "./scripts/test-display-pipeline.sh",
+        "status": "passed",
+        "scope": "production ownership state machine and mode transitions; not PPA DMA"
+      }
+    ],
+    "pixel_compatibility": {
+      "scope": "same sampled production RGB565 renderer; does not measure device FPS",
+      "checks": [
+        {
+          "case": "app-launch-preview",
+          "checked": 59,
+          "mismatches": [],
+          "passed": true
+        },
+        {
+          "case": "timer-completion-preview",
+          "checked": 141,
+          "mismatches": [],
+          "passed": true
+        },
+        {
+          "case": "pomodoro-preview",
+          "checked": 7,
+          "mismatches": [],
+          "passed": true
+        }
+      ],
+      "checked": 207,
+      "passed": true
+    },
+    "16ms_preview": {
+      "status": "passed",
+      "exit_code": 0,
+      "frames": 120,
+      "directory": "artifacts/app-launch-16ms",
+      "scope": "synthetic production UI path, not physical LCD FPS"
+    },
+    "benchmark": {
+      "scope": "synthetic arm64 release paint only, excludes HAL flush, LCD/PPA, touch; not device FPS or resident heap",
+      "before": {
+        "results": [
+          {
+            "allocated_bytes_per_paint": 58648,
+            "allocations_per_paint": 458,
+            "case": "desktop",
+            "median_us": 1865.5,
+            "p95_us": 2533.584
+          },
+          {
+            "allocated_bytes_per_paint": 16560,
+            "allocations_per_paint": 3,
+            "case": "wallpaper",
+            "median_us": 289.667,
+            "p95_us": 323.791
+          },
+          {
+            "allocated_bytes_per_paint": 5500,
+            "allocations_per_paint": 68,
+            "case": "expand_150ms",
+            "median_us": 235.417,
+            "p95_us": 300.666
+          },
+          {
+            "allocated_bytes_per_paint": 5600,
+            "allocations_per_paint": 68,
+            "case": "splash_500ms",
+            "median_us": 266.833,
+            "p95_us": 326.375
+          },
+          {
+            "allocated_bytes_per_paint": 13569,
+            "allocations_per_paint": 148,
+            "case": "fade_750ms",
+            "median_us": 1000.167,
+            "p95_us": 1116.042
+          },
+          {
+            "allocated_bytes_per_paint": 8145,
+            "allocations_per_paint": 82,
+            "case": "timer",
+            "median_us": 237.333,
+            "p95_us": 269.083
+          }
+        ],
+        "samples_per_case": 40,
+        "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+      },
+      "after": {
+        "results": [
+          {
+            "allocated_bytes_per_paint": 58648,
+            "allocations_per_paint": 458,
+            "case": "desktop",
+            "median_us": 1928.291,
+            "p95_us": 3153.833
+          },
+          {
+            "allocated_bytes_per_paint": 16560,
+            "allocations_per_paint": 3,
+            "case": "wallpaper",
+            "median_us": 284.292,
+            "p95_us": 342.792
+          },
+          {
+            "allocated_bytes_per_paint": 5500,
+            "allocations_per_paint": 68,
+            "case": "expand_150ms",
+            "median_us": 269.042,
+            "p95_us": 386.5
+          },
+          {
+            "allocated_bytes_per_paint": 5600,
+            "allocations_per_paint": 68,
+            "case": "splash_500ms",
+            "median_us": 308.166,
+            "p95_us": 484.791
+          },
+          {
+            "allocated_bytes_per_paint": 13569,
+            "allocations_per_paint": 148,
+            "case": "fade_750ms",
+            "median_us": 705.834,
+            "p95_us": 864.584
+          },
+          {
+            "allocated_bytes_per_paint": 8145,
+            "allocations_per_paint": 82,
+            "case": "timer",
+            "median_us": 267.333,
+            "p95_us": 322.958
+          }
+        ],
+        "samples_per_case": 40,
+        "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+      },
+      "before_log": ".cache/pad-feedback/launch-perf-cached.json",
+      "after_log": ".cache/pad-feedback/launch-perf-pipeline.json"
+    },
+    "diff_check": "passed"
+  },
+  "build": {
+    "exit_code": 0,
+    "seconds": 9.63,
+    "log": ".cache/pad-feedback/launch-pipeline-build.log",
+    "idf_version": "6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3205856,
+        "sha256": "293fd67baf32b7439effad69807f35088a9b7203f329094f20a3b44de573a5c4"
+      }
+    ],
+    "status": "passed"
+  },
+  "flash": {
+    "exit_code": 0,
+    "seconds": 25.15,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "log": ".cache/pad-feedback/launch-pipeline-flash.log",
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "nvs_settings_and_tf_not_written": true,
+    "status": "passed"
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/src/app_launch.rs",
+      "bytes": 20463,
+      "sha256": "8540779b1e7e9031f4f694bf0aa5097af0288e2ddf074d41006cd40d1995537a"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_state.rs",
+      "bytes": 12349,
+      "sha256": "68a2a7ab6133cc1d5b49b965106ab27b821cb73cff84b165d4576573f0b763e5"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 27711,
+      "sha256": "12527c7a42f7f8178d14bb72e6e7b8fab7366296213e4903e070ddf26eedb601"
+    },
+    {
+      "path": "apps/app-launcher/src/pomodoro_ui.rs",
+      "bytes": 17931,
+      "sha256": "c9359c0418bfbc453c69d381102ee06ded668097dcb8c094c80d7c08c34f3fca"
+    },
+    {
+      "path": "apps/app-launcher/src/timer_completion.rs",
+      "bytes": 10435,
+      "sha256": "68c0142d73399764fa4f8b2f3291002af9fa4d9d319df5d4f924a2c32a934f7a"
+    },
+    {
+      "path": "crates/tiny-flutter/src/app.rs",
+      "bytes": 18890,
+      "sha256": "1de7e439a0f1a1b3408b1b7ac77cd9f10da5a7e472d673bfa9e1e259a9b27e88"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/color.rs",
+      "bytes": 6908,
+      "sha256": "4db6816cbdd8685efb20194fa90403e2d1d9cc48551768145352e42d063ff109"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/raster.rs",
+      "bytes": 32996,
+      "sha256": "2ed4f29fd09845418ef225c29f99379f93ec7691b2fc5216daa9a98275507e60"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/pixmap.rs",
+      "bytes": 4546,
+      "sha256": "edf65e05d3c001b3a5badad88514a0abed507399d059e3dcb5afb7677bdefbe3"
+    },
+    {
+      "path": "firmware/main/p4desk_runtime.c",
+      "bytes": 40326,
+      "sha256": "d3507a4bb2b5d48d66a4fe3aa168b8efa8e13d560878a1d8d8c0eb0fe3d317ac"
+    },
+    {
+      "path": "firmware/main/display_ppa.c",
+      "bytes": 4775,
+      "sha256": "e30de2c3497c8c7052cff858cc439588e5683ab2bb5c68a0e7594b87e4a599fe"
+    },
+    {
+      "path": "firmware/components/rust_main/src/cadence.rs",
+      "bytes": 708,
+      "sha256": "190eead0d49404896b5d29f37086206116c3e2c65fa195475d9b0ca2037c6683"
+    },
+    {
+      "path": "firmware/components/rust_main/src/lib.rs",
+      "bytes": 205,
+      "sha256": "7e69ca9a6fdb12848a0a6b623ec3edda16d32ac25660c57e4afbdc1c4107c11a"
+    },
+    {
+      "path": "firmware/components/rust_main/src/ffi.rs",
+      "bytes": 10152,
+      "sha256": "9f4f913e749383d51d177a603d965c14d773038b547c7b16958b22728b19072a"
+    },
+    {
+      "path": "crates/tiny-flutter/tests/flush_borrow_tests.rs",
+      "bytes": 2960,
+      "sha256": "be0a66ea1d1198ebfd261395609c0c910d16d59e4945a08de69fec6ac87639d5"
+    },
+    {
+      "path": "apps/app-launcher/tests/app_launch_tests.rs",
+      "bytes": 10529,
+      "sha256": "ff701d37c3f5bbe2a991e0395f38a596a6b0a52514d704602c4d697e58e41b30"
+    },
+    {
+      "path": "apps/app-launcher/examples/app-launch-preview.rs",
+      "bytes": 1904,
+      "sha256": "4851acdedb86e8d5fa10a4732a6d86e8b128aab5e0758aa6004b872c650865ed"
+    }
+  ],
+  "references": [
+    {
+      "title": "ESP-IDF 6.0.2 PPA",
+      "url": "https://docs.espressif.com/projects/esp-idf/en/v6.0.2/esp32p4/api-reference/peripherals/ppa.html",
+      "scope": "RGB565 SRM capability, separate input/output and cache alignment rules"
+    }
+  ],
+  "physical_acceptance": {
+    "startup_performance": {
+      "status": "passed_user_feedback",
+      "scope": "smooth icon expansion/splash/fade and responsive app controls",
+      "user_feedback": "启动顺畅，点击正常",
+      "confirmed_at": "2026-09-29T16:50:35.016306+08:00",
+      "confirmed_apps": [
+        "timer",
+        "clock",
+        "calculator"
+      ]
+    },
+    "pad_rotation": {
+      "status": "passed_user_feedback",
+      "scope": "orientation, colors and touch positions after Pad uses PPA",
+      "user_feedback": "方向、颜色和触摸都正常",
+      "confirmed_at": "2026-09-29T16:50:35.016306+08:00"
+    },
+    "actual_startup_fps": "not_measured",
+    "countdown_completion": {
+      "status": "passed_user_feedback_on_previous_version",
+      "user_feedback": "10 秒正常，边框已去除，效果合适",
+      "current_regression": "same 207 sampled PNGs unchanged; new device not yet reconfirmed"
+    }
+  }
+}

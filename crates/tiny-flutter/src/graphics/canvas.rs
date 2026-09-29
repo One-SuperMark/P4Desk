@@ -79,6 +79,14 @@ impl<'a> Canvas<'a> {
             .current_clip()
             .map(|r| Rect::from_ltwh(r.x, r.y, r.width, r.height))
     }
+    pub fn is_rect_visible(&self, rect: Rect) -> bool {
+        self.inner.is_rect_visible(tiny_gfx::Rect::from_ltwh(
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height,
+        ))
+    }
 
     /// Clear entire canvas with a single color.
     #[inline(always)]
@@ -90,6 +98,10 @@ impl<'a> Canvas<'a> {
     #[inline(always)]
     pub fn copy_pixels_from(&mut self, src: &[u16]) {
         self.inner.copy_pixels_from(src);
+    }
+    /// Read-only pixels for a bounded, in-memory repaint cache.
+    pub fn pixels_rgb565(&self) -> &[u16] {
+        self.inner.data()
     }
 
     /// Fill the entire canvas with a high-fidelity dithered horizontal gradient (eliminates banding).
@@ -202,13 +214,64 @@ impl<'a> Canvas<'a> {
         );
     }
 
+    /// Analytic SVG circle fill or centered outline with coverage antialiasing.
+    pub fn paint_circle(
+        &mut self,
+        center: Point,
+        radius: f32,
+        paint: &Paint,
+        stroke_width: Option<f32>,
+    ) {
+        self.inner.paint_circle(
+            tiny_gfx::Point::new(center.x, center.y),
+            radius,
+            paint,
+            stroke_width,
+        );
+    }
+    pub fn glass_circle(
+        &mut self,
+        center: Point,
+        radius: f32,
+        tint: Color,
+        fill: tiny_gfx::GlassFill,
+        rim: f32,
+        strength: f32,
+    ) {
+        self.inner.glass_circle(
+            tiny_gfx::Point::new(center.x, center.y),
+            radius,
+            tint.to_gfx(),
+            fill,
+            rim,
+            strength,
+        );
+    }
+    /// Analytic SVG rounded rectangle fill or centered outline.
+    pub fn paint_rrect(&mut self, rect: RRect, paint: &Paint, stroke_width: Option<f32>) {
+        self.inner.paint_rrect(
+            tiny_gfx::RRect::from_rect_xy(
+                tiny_gfx::Rect::from_ltwh(
+                    rect.rect.x,
+                    rect.rect.y,
+                    rect.rect.width,
+                    rect.rect.height,
+                ),
+                rect.radius.x,
+                rect.radius.y,
+            ),
+            paint,
+            stroke_width,
+        );
+    }
+
     /// Blit an 8-bit alpha mask at the specified coordinates with given color.
     #[inline(always)]
     pub fn blit_mask(&mut self, x: i32, y: i32, w: u32, h: u32, mask: &[u8], color: Color) {
         self.inner.blit_mask(x, y, w, h, mask, color.to_gfx());
     }
 
-    /// Draw a pre-baked static icon at the specified position.
+    /// Draw the icon's SVG geometry at its default size.
     #[inline(always)]
     pub fn draw_icon(
         &mut self,
@@ -216,12 +279,9 @@ impl<'a> Canvas<'a> {
         icon: &crate::graphics::ui_icons::UiIcon,
         color: Color,
     ) {
-        self.blit_mask(
-            origin.x.round() as i32,
-            origin.y.round() as i32,
-            icon.width as u32,
-            icon.height as u32,
-            icon.bitmap,
+        icon.vector.paint(
+            self,
+            Rect::from_ltwh(origin.x, origin.y, icon.width as f32, icon.height as f32),
             color,
         );
     }

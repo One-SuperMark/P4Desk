@@ -2,6 +2,16 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+enum {
+    P4DESK_PAD_TOUCH_DOWN = 1,
+    P4DESK_PAD_TOUCH_MOVE = 2,
+    P4DESK_PAD_TOUCH_UP = 3,
+    P4DESK_PAD_TOUCH_CANCEL = 4,
+};
+typedef struct {
+    uint32_t kind;
+    int32_t x, y;
+} p4desk_pad_touch_event_t;
 typedef struct {
     uint16_t x, y;
     uint8_t id;
@@ -15,10 +25,16 @@ typedef struct {
     p4desk_touch_point_t points[5];
 } p4desk_touch_frame_t;
 #ifdef __cplusplus
+static_assert(sizeof(p4desk_pad_touch_event_t) == 12, "Pad touch event ABI");
+static_assert(offsetof(p4desk_pad_touch_event_t, x) == 4, "Pad touch event layout");
+static_assert(offsetof(p4desk_pad_touch_event_t, y) == 8, "Pad touch event layout");
 static_assert(sizeof(p4desk_touch_point_t) == 8, "touch point ABI");
 static_assert(sizeof(p4desk_touch_frame_t) == 56, "touch frame ABI");
 static_assert(offsetof(p4desk_touch_frame_t, points) == 16, "touch frame layout");
 #else
+_Static_assert(sizeof(p4desk_pad_touch_event_t) == 12, "Pad touch event ABI");
+_Static_assert(offsetof(p4desk_pad_touch_event_t, x) == 4, "Pad touch event layout");
+_Static_assert(offsetof(p4desk_pad_touch_event_t, y) == 8, "Pad touch event layout");
 _Static_assert(sizeof(p4desk_touch_point_t) == 8, "touch point ABI");
 _Static_assert(sizeof(p4desk_touch_frame_t) == 56, "touch frame ABI");
 _Static_assert(offsetof(p4desk_touch_frame_t, points) == 16, "touch frame layout");
@@ -29,6 +45,7 @@ extern "C" {
 void rust_main_entry(void);
 void host_lcd_draw_bitmap(int32_t x1, int32_t y1, int32_t x2, int32_t y2, const uint16_t *pixels);
 bool host_touch_get_point(int32_t *x, int32_t *y);
+bool p4desk_poll_pad_touch(p4desk_pad_touch_event_t *event);
 bool p4desk_get_raw_touch(p4desk_touch_frame_t *frame);
 void host_lcd_set_power(bool on);
 void p4desk_pad_frame_begin(void);
@@ -37,6 +54,10 @@ uint32_t p4desk_get_mode(void);
 bool p4desk_set_mode(uint32_t mode, uint32_t session);
 uint32_t p4desk_direct_jpeg_rotation_degrees(void);
 bool p4desk_set_mode_with_jpeg_rotation(uint32_t mode, uint32_t session, uint32_t jpeg_rotation_degrees);
+bool p4desk_arm_display_transition(uint32_t duration_ms);
+void p4desk_cancel_display_transition(void);
+bool p4desk_display_transition_pending(void);
+bool rust_p4desk_display_reveal(uint16_t *pixels, size_t count, uint32_t elapsed_ms, uint32_t duration_ms);
 void p4desk_set_brightness(uint8_t percent);
 int64_t p4desk_monotonic_us(void);
 void p4desk_delay_ms(uint32_t milliseconds);

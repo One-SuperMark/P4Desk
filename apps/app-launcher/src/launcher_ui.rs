@@ -5,12 +5,14 @@
 //! contains four columns and two rows; system shortcuts share the original slots.
 
 use crate::app_icons::{get_app_icon_asset, DESKTOP_ICON_SIDE};
+use crate::app_launch::AppLaunchOverlay;
 use crate::flip_clock::{
     ClockControl, ClockControlPainter, FlipClockPainter, CLOCK_CONTENT_ORIGIN,
 };
 use crate::launcher_state::{ActiveApp, LauncherState, UiCommand};
+use crate::pomodoro_ui::{build_timer_navigation, build_timer_ui, TIMER_BG};
 use crate::status_bar::{build_status_bar, STATUS_BAR_HEIGHT};
-use crate::timer::{Phase, TimerKind};
+use crate::timer_completion::TimerCompletionOverlay;
 use crate::widgets::{build_app_icon, make_dot, WallpaperPainter};
 use p4desk_protocol::Mode;
 use std::sync::{Arc, Mutex};
@@ -193,6 +195,7 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             ActiveApp::Calculator(_) => "计算器",
             ActiveApp::MacControls => "Mac 控制",
             ActiveApp::Settings => "设置",
+            ActiveApp::DisplaySetup => "USB 副屏",
             ActiveApp::Launcher => unreachable!(),
         };
         let content_w = (w - 48.0).max(1.0);
@@ -203,7 +206,10 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
                 Size::new(content_w, content_h),
                 date,
             )),
-            ActiveApp::Timer => Box::new(timer_page(state.clone(), content_w)),
+            ActiveApp::Timer => Box::new(build_timer_ui(
+                state.clone(),
+                Size::new(content_w, content_h),
+            )),
             ActiveApp::Notes(view) => Box::new(notes_page(state.clone(), view, content_w)),
             ActiveApp::Calculator(calc) => Box::new(calculator::build_calculator_ui(
                 calc,
@@ -211,14 +217,20 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             )),
             ActiveApp::MacControls => Box::new(mac_page(state.clone(), content_w)),
             ActiveApp::Settings => Box::new(settings_page(state.clone(), content_w)),
+            ActiveApp::DisplaySetup => Box::new(display_setup_page(
+                state.clone(),
+                Size::new(content_w, content_h),
+            )),
             ActiveApp::Launcher => unreachable!(),
         };
         let back = state.clone();
         let kill = state.clone();
-        let bar = if matches!(active, ActiveApp::Clock) {
+        let bar = if matches!(active, ActiveApp::Clock | ActiveApp::DisplaySetup) {
             clock_navigation(state.clone(), w)
         } else if matches!(active, ActiveApp::Calculator(_)) {
             calculator_navigation(state.clone(), w)
+        } else if matches!(active, ActiveApp::Timer) {
+            build_timer_navigation(state.clone(), w)
         } else {
             Stack::new()
                 .push(
@@ -254,10 +266,12 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
         Box::new(
             Stack::new()
                 .push(Container::new().width(w).height(h).color(
-                    if matches!(active, ActiveApp::Clock) {
+                    if matches!(active, ActiveApp::Clock | ActiveApp::DisplaySetup) {
                         Color::BLACK
                     } else if matches!(active, ActiveApp::Calculator(_)) {
                         calculator::CALCULATOR_BG
+                    } else if matches!(active, ActiveApp::Timer) {
+                        TIMER_BG
                     } else {
                         BG
                     },
@@ -273,7 +287,15 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
                 )),
         )
     };
-    if !notice.is_empty() && !matches!(active, ActiveApp::Clock | ActiveApp::Calculator(_)) {
+    if !notice.is_empty()
+        && !matches!(
+            active,
+            ActiveApp::Clock
+                | ActiveApp::Calculator(_)
+                | ActiveApp::Timer
+                | ActiveApp::DisplaySetup
+        )
+    {
         // Desktop notices occupy the left of the footer, leaving page dots visible.
         let on_desktop = matches!(active, ActiveApp::Launcher);
         let notice_width = if on_desktop { w * 0.38 } else { w - 48.0 };
@@ -296,6 +318,23 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             )),
         );
     }
+    if matches!(active, ActiveApp::Timer) {
+        root = Box::new(TimerCompletionOverlay::new(state.clone(), root));
+    }
+    let launching = {
+        let state = state.lock().unwrap();
+        state.app_launch.frame(state.monotonic_ms).is_some()
+    };
+    let desktop = launching
+        .then(|| Box::new(build_desktop(state.clone(), Size::new(w, h))) as Box<dyn Widget>);
+    let backdrop = state.lock().unwrap().desktop_backdrop.clone();
+    root = Box::new(AppLaunchOverlay::new(
+        state.clone(),
+        root,
+        desktop,
+        backdrop,
+        matches!(active, ActiveApp::Launcher),
+    ));
     let back = state.clone();
     let kill = state.clone();
     Box::new(
@@ -333,7 +372,7 @@ fn build_app_grid_page(mut icons: Vec<Box<dyn Widget>>, icon_size: f32) -> impl 
     grid
 }
 
-fn build_desktop(state: Arc<Mutex<LauncherState>>, size: Size) -> impl Widget {
+pub(crate) fn build_desktop(state: Arc<Mutex<LauncherState>>, size: Size) -> impl Widget {
     let (controller, current_page, total_pages) = {
         let mut s = state.lock().unwrap();
         s.total_pages = DESKTOP_ENTRIES.len().div_ceil(DESKTOP_PAGE_CAPACITY).max(1);
@@ -353,11 +392,10 @@ fn build_desktop(state: Arc<Mutex<LauncherState>>, size: Size) -> impl Widget {
             label,
             get_app_icon_asset(id).expect("missing built-in app icon"),
             icon_size,
-            move || {
+            move |source| {
                 edit(&launch, |s| match id {
-                    "display" => s.queue(UiCommand::RequestMode(Mode::Display)),
                     "screen" => s.queue(UiCommand::Screen(false)),
-                    _ => s.open_app(id),
+                    _ => s.launch_app(id, source),
                 })
             },
         ))
@@ -444,76 +482,6 @@ fn clock_page(state: Arc<Mutex<LauncherState>>, size: Size, date: String) -> Sta
             0.0,
             size.height - 106.0,
         ))
-}
-fn timer_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
-    let t = state.lock().unwrap().timer.clone();
-    let kind = match t.kind {
-        TimerKind::Pomodoro => "番茄钟",
-        TimerKind::Countdown => "倒计时",
-    };
-    let phase = match (t.kind, t.phase) {
-        (TimerKind::Countdown, _) => "自由计时",
-        (_, Phase::Focus) => "专注 25 分钟",
-        (_, Phase::Break) => "休息 5 分钟",
-    };
-    let mut p = Stack::new()
-        .push(panel(w, 308.0))
-        .push(at(text(kind, 22.0, MINT), 28.0, 22.0))
-        .push(at(text(phase, 22.0, MUTED), w - 232.0, 22.0))
-        .push(at(text(t.display(), 100.0, INK), 28.0, 82.0))
-        .push(at(
-            text(format!("已完成 {} 次专注", t.completed_cycles), 18.0, MUTED),
-            28.0,
-            237.0,
-        ));
-    if t.finished {
-        p = p.push(at(text("计时完成", 28.0, WARM), w - 180.0, 147.0));
-    }
-    let s = state.clone();
-    p = p.push(at(
-        button(
-            if t.is_running() {
-                "暂停"
-            } else if t.finished {
-                "开始下一段"
-            } else {
-                "开始"
-            },
-            220.0,
-            58.0,
-            true,
-            move || edit(&s, |s| s.timer.toggle(s.monotonic_ms)),
-        ),
-        0.0,
-        328.0,
-    ));
-    let s = state.clone();
-    p = p.push(at(
-        button("重置", 150.0, 58.0, false, move || {
-            edit(&s, |s| s.timer.reset())
-        }),
-        236.0,
-        328.0,
-    ));
-    let s = state.clone();
-    p = p.push(at(
-        button("番茄钟", 150.0, 54.0, false, move || {
-            edit(&s, |s| s.timer.set_pomodoro())
-        }),
-        0.0,
-        406.0,
-    ));
-    for (i, m) in [1u64, 5, 10, 25].into_iter().enumerate() {
-        let s = state.clone();
-        p = p.push(at(
-            button(format!("{m} 分钟"), 132.0, 54.0, false, move || {
-                edit(&s, |s| s.timer.set_countdown(m))
-            }),
-            166.0 + i as f32 * 148.0,
-            406.0,
-        ));
-    }
-    p
 }
 fn notes_page(
     state: Arc<Mutex<LauncherState>>,
@@ -868,4 +836,56 @@ fn manual_time_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
         0.0,
         438.0,
     ))
+}
+
+fn display_setup_page(state: Arc<Mutex<LauncherState>>, size: Size) -> Stack {
+    let (connected, notice) = {
+        let s = state.lock().unwrap();
+        (s.connected, s.notice.clone())
+    };
+    let cx = size.width * 0.5;
+    let cy = size.height * 0.5;
+    let status = if notice.is_empty() {
+        if connected {
+            "等待 Mac 应用".to_owned()
+        } else {
+            "Mac 未连接，请连接 USB 和 Mac 应用".to_owned()
+        }
+    } else {
+        notice
+    };
+    Stack::new()
+        .push(at(
+            CustomPaint::new(crate::widgets::AppIconPainter {
+                asset: get_app_icon_asset("display").unwrap(),
+                target_size: 112.0,
+                pressed: None,
+            })
+            .size(Size::new(112.0, 112.0)),
+            cx - 56.0,
+            cy - 164.0,
+        ))
+        .push(at(
+            Container::new()
+                .width(size.width)
+                .height(40.0)
+                .child(Center::new(text("USB 副屏", 28.0, INK))),
+            0.0,
+            cy - 24.0,
+        ))
+        .push(at(
+            Container::new()
+                .width(size.width)
+                .height(40.0)
+                .child(Center::new(text(status, 22.0, MUTED))),
+            0.0,
+            cy + 26.0,
+        ))
+        .push(at(
+            button("进入副屏", 180.0, 48.0, true, move || {
+                edit(&state, |s| s.request_display_mode())
+            }),
+            cx - 90.0,
+            cy + 86.0,
+        ))
 }

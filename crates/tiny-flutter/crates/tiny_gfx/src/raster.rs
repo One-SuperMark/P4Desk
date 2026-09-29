@@ -1,4 +1,4 @@
-use crate::color::{blend_rgb565, rgb888_to_rgb565, Color};
+use crate::color::{blend_rgb565, rgb888_to_rgb565, Color, SolidBlend565};
 use crate::geometry::{Point, RRect, Rect};
 use crate::paint::{LineCap, Paint, Shader, Stroke};
 use crate::pixmap::Pixmap565Mut;
@@ -75,6 +75,7 @@ pub fn fill_rect(pixmap: &mut Pixmap565Mut<'_>, clip: Option<Rect>, rect: Rect, 
 
     let col565 = color.to_rgb565();
     let is_opaque = color.a == 255;
+    let blend = (!is_opaque).then(|| SolidBlend565::new(col565, color.a));
 
     // Ultra-fast path: full pixmap fill using native hardware memset (0.5ms)
     if is_opaque && col565 == 0 && x1 == 0 && y1 == 0 && x2 == pix_w && y2 == pix_h {
@@ -94,10 +95,7 @@ pub fn fill_rect(pixmap: &mut Pixmap565Mut<'_>, clip: Option<Rect>, rect: Rect, 
         if is_opaque {
             fill_u16_slice(slice, col565);
         } else {
-            let a = color.a;
-            for px in slice.iter_mut() {
-                *px = blend_rgb565(*px, col565, a);
-            }
+            blend.as_ref().unwrap().apply(slice);
         }
     }
 }
@@ -129,6 +127,7 @@ pub fn fill_rrect(pixmap: &mut Pixmap565Mut<'_>, clip: Option<Rect>, rrect: RRec
     let col565 = color.to_rgb565();
     let is_opaque = color.a == 255;
     let a = color.a;
+    let blend = (!is_opaque).then(|| SolidBlend565::new(col565, a));
 
     let y_start = (bounds.y.floor() as i32).clamp(0, pix_h);
     let y_end = (bounds.bottom().ceil() as i32).clamp(y_start, pix_h);
@@ -175,9 +174,7 @@ pub fn fill_rrect(pixmap: &mut Pixmap565Mut<'_>, clip: Option<Rect>, rrect: RRec
             if is_opaque {
                 fill_u16_slice(slice, col565);
             } else {
-                for px in slice.iter_mut() {
-                    *px = blend_rgb565(*px, col565, a);
-                }
+                blend.as_ref().unwrap().apply(slice);
             }
         }
     }
@@ -215,6 +212,7 @@ pub fn fill_rrect_aa(
     let y0 = (bounds.y.floor() as i32).clamp(0, height);
     let y1 = (bounds.bottom().ceil() as i32).clamp(y0, height);
     let rgb = color.to_rgb565();
+    let blend = (color.a != 255).then(|| SolidBlend565::new(rgb, color.a));
     let top = rect.y + radius;
     let bottom = rect.bottom() - radius;
     for y in y0..y1 {
@@ -270,9 +268,7 @@ pub fn fill_rrect_aa(
         if color.a == 255 {
             fill_u16_slice(interior, rgb);
         } else {
-            for pixel in interior {
-                *pixel = blend_rgb565(*pixel, rgb, color.a);
-            }
+            blend.as_ref().unwrap().apply(interior);
         }
         for range in [begin..inside_begin, inside_end..end] {
             for x in range {
@@ -1017,9 +1013,16 @@ pub fn fill_dithered_horizontal_gradient(
     let (r0, g0, b0) = (c0.0 as f32, c0.1 as f32, c0.2 as f32);
     let (dr, dg, db) = (c1.0 as f32 - r0, c1.1 as f32 - g0, c1.2 as f32 - b0);
 
-    for y in y1..y2 {
-        let by = (y & 7) << 3;
-        let row = pixmap.row_mut(y as u32);
+    if x2 <= x1 || y2 <= y1 {
+        return;
+    }
+    // Bayer dithering repeats every eight rows. Quantize only one 8-row strip
+    // instead of repeating all float operations for 600 identical row phases.
+    // Scratch is at most 16 KiB on the 1024-wide panel, never a full wallpaper.
+    let strip_width = x2 - x1;
+    let mut strip = vec![0u16; strip_width * 8];
+    for phase in 0..8 {
+        let by = phase << 3;
         for x in x1..x2 {
             let bx = x & 7;
             let d = BAYER8[by + bx] * 6.0;
@@ -1027,7 +1030,11 @@ pub fn fill_dithered_horizontal_gradient(
             let r = (r0 + dr * t + d + 0.5).clamp(0.0, 255.0) as u8;
             let g = (g0 + dg * t + d + 0.5).clamp(0.0, 255.0) as u8;
             let b = (b0 + db * t + d + 0.5).clamp(0.0, 255.0) as u8;
-            row[x] = rgb888_to_rgb565(r, g, b);
+            strip[phase * strip_width + x - x1] = rgb888_to_rgb565(r, g, b);
         }
+    }
+    for y in y1..y2 {
+        let start = (y & 7) * strip_width;
+        pixmap.row_mut(y as u32)[x1..x2].copy_from_slice(&strip[start..start + strip_width]);
     }
 }

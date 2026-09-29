@@ -1,0 +1,180 @@
+{
+  "schema": "p4desk.pad.launch.direct-usb.acceptance.v1",
+  "recorded_at": "2026-09-29T17:49:03.902571+08:00",
+  "request": "USB 展开动画保留；等 Mac 创建副屏、首张 JPEG 解码后才收缩。未连接或创建失败时收起并停在中间页。",
+  "source_base_commit": "d81bb7170e8e5073b60a0082f22171379de1ccbb",
+  "source_state": "working tree, not committed",
+  "previous_evidence": [
+    "docs/acceptance-pad-launch-balanced.json"
+  ],
+  "implementation": {
+    "expand_ms": 260,
+    "icon_fade_ms": 80,
+    "success_wait": "full theme at 340 ms; request_mode then host set_mode; reveal starts only after valid JPEG decode",
+    "reveal_ms": 600,
+    "success_target": "real decoded JPEG, no intermediate UI",
+    "failure_target": "DisplaySetup with Home, close, status and manual retry; retains full opening animation",
+    "wait_timeout_ms": 10000,
+    "wire_changes": false,
+    "display_owner": "existing single owner; Rust overlay only on completed decode in BUILDING buffer",
+    "static_frame_replay": "retain one encoded JPEG during reveal, re-decode when no newer frame; never duplicate wire presentation ACK",
+    "encoded_cache_limit_bytes": 1048576,
+    "new_fullscreen_pixel_buffers": 0,
+    "row_scratch_bytes": 2048,
+    "desktop_cache_release": "at full cover before requesting Mac display",
+    "input_guard": "until final unmasked LCD frame completes and all contacts release; three-finger exit retained"
+  },
+  "host_verification": {
+    "rust_workspace": {
+      "status": "passed",
+      "passed": 201,
+      "log": ".cache/pad-feedback/launch-direct-usb-tests.log"
+    },
+    "final_ui_layout_tests": {
+      "status": "passed",
+      "passed": 14,
+      "log": ".cache/pad-feedback/launch-direct-usb-ui-final-tests.log"
+    },
+    "c_sanitizers": {
+      "status": "passed",
+      "suites": [
+        "display-transition",
+        "display-pipeline",
+        "display-pixels"
+      ],
+      "transition_cycles": 10000,
+      "log": ".cache/pad-feedback/launch-direct-usb-c-tests.log"
+    },
+    "previews": {
+      "timer_regression_pngs_identical": 120,
+      "usb_success_synthetic_frames": 180,
+      "usb_offline_frames": 120,
+      "visual_scope": "synthetic Rust renderer; no device capture or actual macOS screen data"
+    },
+    "preview_visual_check": "passed, including offline page full-size; docs/images/pad-usb-direct-stages.png",
+    "diff_check": "passed"
+  },
+  "build": {
+    "exit_code": 0,
+    "seconds": 16.22,
+    "idf_version": "6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "source_unchanged": true,
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3213072,
+        "sha256": "0edb09b5a3a270132b7667cffa2c4a111f5a54146d289232423218b4f5264b44"
+      }
+    ],
+    "status": "passed",
+    "log": ".cache/pad-feedback/launch-direct-usb-build.log"
+  },
+  "flash": {
+    "exit_code": 0,
+    "seconds": 25.02,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "log": ".cache/pad-feedback/launch-direct-usb-flash.log",
+    "status": "passed",
+    "backup_reverified": true,
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "nvs_settings_and_tf_not_written": true
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/examples/usb-launch-preview.rs",
+      "bytes": 2982,
+      "sha256": "3888a2c6b71d614d433b0c22105897f283f992dce0d96cf2739434f8361d5732"
+    },
+    {
+      "path": "apps/app-launcher/src/app_launch.rs",
+      "bytes": 30465,
+      "sha256": "285d27cce9208bfd4e608d864b34a8a113d4434987268d76461619887de317c1"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_state.rs",
+      "bytes": 18013,
+      "sha256": "a3c9c005f3220418ed326acebe1769ddbbf0d7667adb017aa983f1f5fa7e7af4"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 29490,
+      "sha256": "b676b3a339bf1985249e918e9b898669970daa14e61cc5092d924003e17a53dd"
+    },
+    {
+      "path": "apps/app-launcher/tests/app_launch_tests.rs",
+      "bytes": 16035,
+      "sha256": "5eec96493aa565c50949870b36446c0ccb475a1e6ceadc3f666cc8ffea1efa64"
+    },
+    {
+      "path": "apps/app-launcher/tests/launcher_lifecycle_tests.rs",
+      "bytes": 12314,
+      "sha256": "c95991fb46b54e3c7ca140360ac0f6f24ae35c986a790bbedc166ecba438bd19"
+    },
+    {
+      "path": "firmware/components/rust_main/src/ffi.rs",
+      "bytes": 11469,
+      "sha256": "5b1f2361b58c2705d2d057e758dc27b7654dd5d85a38dd5eae0c8c2359dd22e6"
+    },
+    {
+      "path": "firmware/components/rust_main/src/runtime.rs",
+      "bytes": 40817,
+      "sha256": "8f9b6cd5bc3da2b83fd2e9e133e79699bf5386b903cab87ed1d1a5767d818102"
+    },
+    {
+      "path": "firmware/main/CMakeLists.txt",
+      "bytes": 804,
+      "sha256": "1532617f33819e48c6070a883ec6e997b19ca6eb3e588e4414f9240221f863b2"
+    },
+    {
+      "path": "firmware/main/display_transition.c",
+      "bytes": 1391,
+      "sha256": "bee07ce192473333374fa5313e469dc244bffbc54342d24a220591d449714c3c"
+    },
+    {
+      "path": "firmware/main/display_transition.h",
+      "bytes": 986,
+      "sha256": "8b8968ce0ed9dc4d65905081435f238b429d6589daa16e19ec88e511fa43f9e2"
+    },
+    {
+      "path": "firmware/main/p4desk_runtime.c",
+      "bytes": 44078,
+      "sha256": "802e9a9d67ca4ea28dc1219e10bd0a7252c7b8a4dd02608e3e14a9598b756ad0"
+    },
+    {
+      "path": "include/p4desk_hal.h",
+      "bytes": 3118,
+      "sha256": "6a9613d8545429f9b4b1b8c29eb31bb48d21aa80a300990058cc9cda4a76f6fe"
+    },
+    {
+      "path": "scripts/test-display-transition.sh",
+      "bytes": 401,
+      "sha256": "5493e0bff9e5a3dad6d44f5b3a4ef358901959abf02e9a557a79da403abcd836"
+    }
+  ],
+  "all_build_input_hash_count": 196,
+  "physical_acceptance": {
+    "successful_first_frame_handoff": "pending_user_check",
+    "offline_or_failed_creation_middle_page": "pending_user_check",
+    "static_scene_reveal": "pending_user_check",
+    "orientation_color_touch": "pending_user_check",
+    "actual_fps": "not_measured",
+    "current_heap": "not_measured"
+  }
+}

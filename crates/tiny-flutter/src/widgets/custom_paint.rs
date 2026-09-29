@@ -1,5 +1,5 @@
 use crate::graphics::canvas::Canvas;
-use crate::graphics::geometry::{Offset, Size};
+use crate::graphics::geometry::{Offset, Point, Rect, Size};
 use crate::rendering::constraints::BoxConstraints;
 use crate::rendering::render_box::{RenderBox, TouchEvent};
 use crate::widgets::widget::Widget;
@@ -131,5 +131,21 @@ impl RenderBox for RenderCustomPaint {
             }
         }
         false
+    }
+
+    fn set_pressed_at(&mut self, point: Point, pressed: bool) {
+        if let Some(child) = &mut self.child {
+            child.set_pressed_at(point - child.offset(), pressed);
+        }
+    }
+    fn hit_rect(&self, point: Point) -> Option<Rect> {
+        let child = self.child.as_ref()?;
+        let offset = child.offset();
+        child.hit_rect(point - offset).map(|r| r.shift(offset))
+    }
+    fn needs_rebuild(&self) -> bool {
+        self.child
+            .as_ref()
+            .is_some_and(|child| child.needs_rebuild())
     }
 }

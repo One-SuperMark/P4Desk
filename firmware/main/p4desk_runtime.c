@@ -1,9 +1,11 @@
 #include "p4desk_runtime.h"
 #include "p4desk_hal.h"
 #include "touch_exit_notice.h"
+#include "pad_touch_queue.h"
 #include "display_pixels.h"
 #include "display_ppa.h"
 #include "display_pipeline.h"
+#include "display_transition.h"
 #include "p4desk_lcd_frame_observer.h"
 
 #include <inttypes.h>
@@ -60,6 +62,7 @@ typedef struct {
 
 typedef struct {
     bool valid, started, acknowledged;
+    bool replayed, transition_unmasked;
     uint32_t mode, epoch, session, jpeg_bytes;
     uint16_t sequence;
     int64_t submitted_us;
@@ -86,11 +89,13 @@ static portMUX_TYPE s_state_lock = portMUX_INITIALIZER_UNLOCKED;
 static uint32_t s_mode = MODE_PAD, s_epoch = 1, s_session, s_jpeg_rotation_degrees;
 static bool s_connected, s_invalidated = true, s_time_valid;
 static int64_t s_heartbeat_us;
+static p4desk_display_transition_t s_display_transition;
 static atomic_uchar s_brightness = 75;
 static atomic_bool s_backlight_on = true;
 static bool s_pad_touch_active, s_pad_touch_blocked;
 static uint8_t s_pad_touch_id;
 static int32_t s_pad_touch_x, s_pad_touch_y;
+static p4desk_pad_touch_queue_t s_pad_touch_queue;
 static p4desk_touch_frame_t s_raw_touch;
 static bool s_raw_touch_valid;
 
@@ -136,6 +141,39 @@ static void discard_packets(QueueHandle_t queue)
     while (xQueueReceive(queue, &packet, 0) == pdTRUE) free(packet.payload);
 }
 
+bool p4desk_arm_display_transition(uint32_t duration_ms)
+{
+    portENTER_CRITICAL(&s_state_lock);
+    bool armed = s_mode == MODE_PAD && s_connected &&
+                 p4dt_arm(&s_display_transition, duration_ms);
+    portEXIT_CRITICAL(&s_state_lock);
+    return armed;
+}
+
+void p4desk_cancel_display_transition(void)
+{
+    portENTER_CRITICAL(&s_state_lock);
+    p4dt_cancel(&s_display_transition);
+    portEXIT_CRITICAL(&s_state_lock);
+    display_wake();
+}
+
+bool p4desk_display_transition_pending(void)
+{
+    portENTER_CRITICAL(&s_state_lock);
+    bool pending = p4dt_pending(&s_display_transition);
+    portEXIT_CRITICAL(&s_state_lock);
+    return pending;
+}
+
+static bool display_transition_active(uint32_t epoch)
+{
+    portENTER_CRITICAL(&s_state_lock);
+    bool active = p4dt_active(&s_display_transition, epoch);
+    portEXIT_CRITICAL(&s_state_lock);
+    return active;
+}
+
 bool p4desk_set_mode(uint32_t mode, uint32_t session)
 {
     return p4desk_set_mode_with_jpeg_rotation(mode, session, 0);
@@ -163,11 +201,14 @@ bool p4desk_set_mode_with_jpeg_rotation(uint32_t mode, uint32_t session, uint32_
         s_session = session;
         s_jpeg_rotation_degrees = jpeg_rotation_degrees;
         ++s_epoch;
+        if (mode == MODE_DISPLAY) p4dt_bind(&s_display_transition, s_epoch);
         s_invalidated = true;
         s_pad_touch_active = false;
         s_pad_touch_blocked = true; // Re-arm after all contacts are released.
+        p4desk_pad_touch_queue_reset(&s_pad_touch_queue);
         changed = true;
     }
+    if (mode == MODE_PAD) p4dt_cancel(&s_display_transition);
     if (mode == MODE_DISPLAY) s_heartbeat_us = esp_timer_get_time();
     portEXIT_CRITICAL(&s_state_lock);
     if (changed) {
@@ -345,6 +386,15 @@ bool host_touch_get_point(int32_t *x, int32_t *y)
     *y = s_pad_touch_y;
     portEXIT_CRITICAL(&s_state_lock);
     return active;
+}
+
+bool p4desk_poll_pad_touch(p4desk_pad_touch_event_t *event)
+{
+    if (!event) return false;
+    portENTER_CRITICAL(&s_state_lock);
+    bool ready = s_mode == MODE_PAD && p4desk_pad_touch_queue_pop(&s_pad_touch_queue, event);
+    portEXIT_CRITICAL(&s_state_lock);
+    return ready;
 }
 
 bool p4desk_get_raw_touch(p4desk_touch_frame_t *frame)
@@ -562,6 +612,12 @@ static void acknowledge_job(display_job_t *job, int64_t completed_us)
     atomic_fetch_add_explicit(&s_presented_frames, 1, memory_order_relaxed);
     if (!job_current(job)) return;
     if (job->mode == MODE_PAD) { apply_backlight(); return; }
+    portENTER_CRITICAL(&s_state_lock);
+    p4dt_presented(&s_display_transition, job->epoch, job->transition_unmasked);
+    portEXIT_CRITICAL(&s_state_lock);
+    // Re-decoding a retained JPEG advances animation on static captures. Its
+    // original wire sequence is acknowledged only for the real received frame.
+    if (job->replayed) return;
     job->timings.present_us = completed_us - job->submitted_us;
     char message[384];
     int length = snprintf(message, sizeof(message),
@@ -580,6 +636,7 @@ typedef struct {
     uint32_t last_counter;
     int64_t last_boundary_us;
     bool counter_valid;
+    owned_packet_t retained_jpeg; // One encoded frame, at most MAX_JPEG, never an extra pixel buffer.
 } display_pipeline_t;
 
 static void consume_boundary(display_pipeline_t *pipeline, const lcd_boundary_t *boundary)
@@ -652,6 +709,12 @@ static bool take_latest_jpeg(owned_packet_t *packet)
 
 static bool prepare_buffer(display_pipeline_t *pipeline)
 {
+    if (pipeline->retained_jpeg.payload &&
+        (!frame_current(&pipeline->retained_jpeg) ||
+         !display_transition_active(pipeline->retained_jpeg.epoch))) {
+        free(pipeline->retained_jpeg.payload);
+        memset(&pipeline->retained_jpeg, 0, sizeof(pipeline->retained_jpeg));
+    }
     int index = p4dp_reserve(&pipeline->owner);
     if (index < 0) return false;
     display_job_t *job = &pipeline->jobs[index];
@@ -661,20 +724,65 @@ static bool prepare_buffer(display_pipeline_t *pipeline)
     if (job->mode == MODE_PAD) {
         if (atomic_exchange(&s_pad_dirty, false)) {
             xSemaphoreTake(s_pad_lock, portMAX_DELAY);
-            p4desk_pixels_copy_rgb565(s_board->framebuffers[index], s_pad_pixels,
-                                     P4DESK_WIDTH, P4DESK_HEIGHT, P4DESK_WIDTH,
-                                     P4DESK_DISPLAY_ROTATION_DEGREES == 180);
+            // Same owner/client as JPEG: hold immutable Pad source until SRM
+            // completes, and only write this reserved BUILDING LCD buffer.
+            const int64_t copy_started_us = esp_timer_get_time();
+            esp_err_t copied = s_ppa ? p4desk_ppa_copy_rgb565(s_ppa,
+                s_board->framebuffers[index], P4DESK_FB_BYTES, s_pad_pixels,
+                P4DESK_FB_BYTES, P4DESK_WIDTH, P4DESK_HEIGHT,
+                P4DESK_DISPLAY_ROTATION_DEGREES == 180, 1000) : ESP_ERR_NOT_SUPPORTED;
+            if (copied == ESP_ERR_TIMEOUT || copied == ESP_ERR_INVALID_STATE) {
+                ESP_LOGE(TAG, "Pad PPA completion deadline missed; buffers remain owned");
+                abort();
+            }
+            if (copied != ESP_OK) {
+                static bool fallback_logged;
+                if (!fallback_logged) {
+                    ESP_LOGW(TAG, "Pad PPA rejected copy (%s); CPU fallback active", esp_err_to_name(copied));
+                    fallback_logged = true;
+                }
+                p4desk_pixels_copy_rgb565(s_board->framebuffers[index], s_pad_pixels,
+                                         P4DESK_WIDTH, P4DESK_HEIGHT, P4DESK_WIDTH,
+                                         P4DESK_DISPLAY_ROTATION_DEGREES == 180);
+            }
+            job->timings.copy_us = esp_timer_get_time() - copy_started_us;
             xSemaphoreGive(s_pad_lock);
             prepared = true;
         }
     } else {
-        owned_packet_t packet;
-        if (take_latest_jpeg(&packet)) {
+        owned_packet_t packet = {0};
+        const bool received = take_latest_jpeg(&packet);
+        if (!received && pipeline->retained_jpeg.payload) {
+            packet = pipeline->retained_jpeg;
+            job->replayed = true;
+        }
+        if (packet.payload) {
             job->epoch = packet.epoch; job->session = packet.session;
             job->sequence = packet.header.sequence; job->jpeg_bytes = packet.header.payload_length;
             prepared = frame_current(&packet) &&
                 decode_frame(&packet, s_board->framebuffers[index], s_lcd_capacity[index], &job->timings);
-            free(packet.payload);
+            if (prepared) {
+                uint32_t elapsed_ms = 0, duration_ms = 0;
+                portENTER_CRITICAL(&s_state_lock);
+                bool reveal = p4dt_sample(&s_display_transition, packet.epoch,
+                    esp_timer_get_time(), &elapsed_ms, &duration_ms);
+                portEXIT_CRITICAL(&s_state_lock);
+                if (reveal) {
+                    const int64_t paint_started_us = esp_timer_get_time();
+                    // Rust reuses the Pad glass compositor. This buffer is
+                    // exclusively BUILDING and both hardware decoders are done.
+                    prepared = rust_p4desk_display_reveal(s_board->framebuffers[index],
+                        P4DESK_WIDTH * P4DESK_HEIGHT, elapsed_ms, duration_ms);
+                    job->timings.copy_us += esp_timer_get_time() - paint_started_us;
+                    job->transition_unmasked = elapsed_ms >= duration_ms;
+                    if (prepared && received) {
+                        free(pipeline->retained_jpeg.payload);
+                        pipeline->retained_jpeg = packet;
+                        packet.payload = NULL; // Transfer, not a JPEG copy.
+                    }
+                }
+            }
+            if (received) free(packet.payload);
         }
     }
     job->valid = prepared;
@@ -745,6 +853,7 @@ static void touch_task(void *argument)
     uint32_t old_session = 0;
     int64_t three_since = 0;
     uint16_t raw_sequence = 0;
+    bool display_touch_blocked = true;
     p4desk_exit_notice_t exit_notice = {0};
     for (;;) {
         esp_lcd_touch_point_data_t points[5] = {0};
@@ -777,12 +886,16 @@ static void touch_task(void *argument)
         s_raw_touch = raw;
         s_raw_touch_valid = true;
         portEXIT_CRITICAL(&s_state_lock);
-        uint32_t mode, session;
-        state_snapshot(&mode, NULL, &session);
+        uint32_t mode, epoch, session;
+        state_snapshot(&mode, &epoch, &session);
         if (mode == MODE_DISPLAY) {
-            if (count || old_count || session != old_session)
-                send_touch(points, count, session, sequence++);
-            old_count = count;
+            bool transitioning = display_transition_active(epoch);
+            if (transitioning || session != old_session) display_touch_blocked = true;
+            if (!transitioning && !count) display_touch_blocked = false;
+            uint8_t reported_count = display_touch_blocked ? 0 : count;
+            if (reported_count || old_count || session != old_session)
+                send_touch(points, reported_count, session, sequence++);
+            old_count = reported_count;
             old_session = session;
             if (count >= 3) {
                 if (!three_since) three_since = esp_timer_get_time();
@@ -797,24 +910,41 @@ static void touch_task(void *argument)
             } else three_since = 0;
         } else {
             old_count = 0;
+            display_touch_blocked = true;
             three_since = 0;
             portENTER_CRITICAL(&s_state_lock);
-            if (!count) {
-                s_pad_touch_active = false;
-                s_pad_touch_blocked = false;
-            } else if (!s_pad_touch_blocked) {
-                if (!s_pad_touch_active) s_pad_touch_id = points[0].track_id;
-                bool found = false;
-                for (uint8_t n = 0; n < count; n++) {
-                    if (points[n].track_id == s_pad_touch_id) {
-                        s_pad_touch_x = points[n].x;
-                        s_pad_touch_y = points[n].y;
-                        found = true;
-                        break;
+            // Mode can change after state_snapshot; never enqueue stale Pad input.
+            if (s_mode == MODE_PAD) {
+                bool was_active = s_pad_touch_active;
+                int32_t old_x = s_pad_touch_x, old_y = s_pad_touch_y;
+                if (!count) {
+                    s_pad_touch_active = false;
+                    s_pad_touch_blocked = false;
+                } else if (!s_pad_touch_blocked) {
+                    if (!s_pad_touch_active) s_pad_touch_id = points[0].track_id;
+                    bool found = false;
+                    for (uint8_t n = 0; n < count; n++) {
+                        if (points[n].track_id == s_pad_touch_id) {
+                            s_pad_touch_x = points[n].x;
+                            s_pad_touch_y = points[n].y;
+                            found = true;
+                            break;
+                        }
                     }
+                    s_pad_touch_active = found;
+                    if (!found) s_pad_touch_blocked = true;
                 }
-                s_pad_touch_active = found;
-                if (!found) s_pad_touch_blocked = true;
+                uint32_t kind = 0;
+                if (!was_active && s_pad_touch_active) kind = P4DESK_PAD_TOUCH_DOWN;
+                else if (was_active && !s_pad_touch_active)
+                    kind = count ? P4DESK_PAD_TOUCH_CANCEL : P4DESK_PAD_TOUCH_UP;
+                else if (was_active && (old_x != s_pad_touch_x || old_y != s_pad_touch_y))
+                    kind = P4DESK_PAD_TOUCH_MOVE;
+                if (kind && !p4desk_pad_touch_queue_push(&s_pad_touch_queue,
+                    (p4desk_pad_touch_event_t){.kind = kind, .x = s_pad_touch_x, .y = s_pad_touch_y})) {
+                    s_pad_touch_active = false;
+                    s_pad_touch_blocked = true;
+                }
             }
             portEXIT_CRITICAL(&s_state_lock);
         }

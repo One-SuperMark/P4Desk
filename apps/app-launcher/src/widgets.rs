@@ -3,33 +3,52 @@
 //! actual screen size; the wallpaper below is an original geometric drawing.
 
 use crate::app_icons::AppIconAsset;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 use tiny_flutter::prelude::*;
 
 pub struct AppIconPainter {
     pub asset: &'static AppIconAsset,
     pub target_size: f32,
+    pub pressed: Option<Arc<AtomicBool>>,
 }
 impl CustomPainter for AppIconPainter {
     fn paint(&self, canvas: &mut Canvas, size: Size) {
-        let rgb = self.asset.get_rgb565_slice();
-        let target = self.target_size.min(size.width).min(size.height).max(1.0);
-        let scale = target / self.asset.width.max(self.asset.height) as f32;
-        let w = (self.asset.width as f32 * scale).round().max(1.0) as u32;
-        let h = (self.asset.height as f32 * scale).round().max(1.0) as u32;
-        let x = ((size.width - w as f32) * 0.5).round() as i32;
-        let y = ((size.height - h as f32) * 0.5).round() as i32;
-        if w == self.asset.width && h == self.asset.height {
-            canvas.blit_image_565_with_alpha(x, y, w, h, rgb, self.asset.alpha);
-        } else {
-            canvas.blit_image_565_with_alpha_scaled(
-                x,
-                y,
-                w,
-                h,
-                self.asset.width,
-                self.asset.height,
-                rgb,
-                self.asset.alpha,
+        let pressed = self
+            .pressed
+            .as_ref()
+            .is_some_and(|p| p.load(Ordering::Relaxed));
+        let target = self.target_size.min(size.width).min(size.height).max(1.0)
+            * if pressed { 0.94 } else { 1.0 };
+        self.asset.paint(
+            canvas,
+            Rect::from_ltwh(
+                (size.width - target) * 0.5,
+                (size.height - target) * 0.5,
+                target,
+                target,
+            ),
+            Color::WHITE,
+        );
+        if pressed {
+            // Follow the SVG's 8..120 tile silhouette, preserving the vector edge.
+            let tile = target * 112.0 / 128.0;
+            let rect = RRect::from_rect_circular(
+                Rect::from_ltwh(
+                    (size.width - tile) * 0.5,
+                    (size.height - tile) * 0.5,
+                    tile,
+                    tile,
+                ),
+                target * 27.0 / 128.0,
+            );
+            canvas.draw_rrect_aa(rect, Color::WHITE.with_opacity(0.14));
+            canvas.paint_rrect(
+                rect,
+                &tiny_gfx::Paint::new(Color::WHITE.with_opacity(0.7).to_gfx()),
+                Some(1.3),
             );
         }
     }
@@ -40,9 +59,12 @@ pub fn build_app_icon(
     label: &'static str,
     asset: &'static AppIconAsset,
     icon_size: f32,
-    on_tap: impl Fn() + Send + Sync + 'static,
+    on_tap: impl Fn(Rect) + Send + Sync + 'static,
 ) -> impl Widget {
-    GestureDetector::new(
+    let pressed = Arc::new(AtomicBool::new(false));
+    let bounds = Arc::new(Mutex::new(Rect::ZERO));
+    let tapped_bounds = bounds.clone();
+    let button = GestureDetector::new(
         Container::new()
             .width((icon_size + 32.0).max(160.0))
             .height(icon_size + 44.0)
@@ -54,6 +76,7 @@ pub fn build_app_icon(
                         CustomPaint::new(AppIconPainter {
                             asset,
                             target_size: icon_size,
+                            pressed: Some(pressed.clone()),
                         })
                         .size(Size::new(icon_size, icon_size)),
                     )
@@ -61,7 +84,109 @@ pub fn build_app_icon(
                     .push(Text::new(label).font_size(22.0).color(Color::WHITE)),
             ),
     )
-    .on_tap(on_tap)
+    .on_tap(move || on_tap(*tapped_bounds.lock().unwrap()));
+    IconPressFeedback {
+        child: Box::new(button),
+        pressed,
+        bounds,
+        icon_size,
+    }
+}
+
+struct IconPressFeedback {
+    child: Box<dyn Widget>,
+    pressed: Arc<AtomicBool>,
+    bounds: Arc<Mutex<Rect>>,
+    icon_size: f32,
+}
+impl Widget for IconPressFeedback {
+    fn create_render_object(&self) -> Box<dyn RenderBox> {
+        Box::new(RenderIconPressFeedback {
+            child: self.child.create_render_object(),
+            pressed: self.pressed.clone(),
+            bounds: self.bounds.clone(),
+            icon_size: self.icon_size,
+            origin: None,
+            size: Size::ZERO,
+            offset: Offset::ZERO,
+        })
+    }
+}
+struct RenderIconPressFeedback {
+    child: Box<dyn RenderBox>,
+    pressed: Arc<AtomicBool>,
+    bounds: Arc<Mutex<Rect>>,
+    icon_size: f32,
+    origin: Option<Point>,
+    size: Size,
+    offset: Offset,
+}
+impl RenderBox for RenderIconPressFeedback {
+    fn layout(&mut self, c: &BoxConstraints) -> Size {
+        self.size = self.child.layout(c);
+        self.child.set_offset(Offset::ZERO);
+        self.size
+    }
+    fn size(&self) -> Size {
+        self.size
+    }
+    fn offset(&self) -> Offset {
+        self.offset
+    }
+    fn set_offset(&mut self, o: Offset) {
+        self.offset = o;
+    }
+    fn paint(&self, canvas: &mut Canvas, o: Offset) {
+        let target = self.icon_size
+            * if self.pressed.load(Ordering::Relaxed) {
+                0.94
+            } else {
+                1.0
+            };
+        // `o` is the global painted slot origin, including the current page.
+        // Record the visible SVG box, so launch animation starts at this icon.
+        *self.bounds.lock().unwrap() = Rect::from_ltwh(
+            o.dx + (self.size.width - target) * 0.5,
+            o.dy + (self.icon_size - target) * 0.5,
+            target,
+            target,
+        );
+        self.child.paint(canvas, o);
+    }
+    fn hit_rect(&self, p: Point) -> Option<Rect> {
+        self.child.hit_rect(p)
+    }
+    fn set_pressed_at(&mut self, p: Point, pressed: bool) {
+        self.origin = pressed.then_some(p);
+        self.pressed
+            .store(pressed && self.hit_test(p), Ordering::Relaxed);
+        self.child.set_pressed_at(p, pressed);
+    }
+    fn dispatch_touch(&mut self, event: &TouchEvent) -> bool {
+        let handled = self.child.dispatch_touch(event);
+        let was_pressed = self.pressed.load(Ordering::Relaxed);
+        match *event {
+            TouchEvent::Down(p) if handled => {
+                self.origin = Some(p);
+                self.pressed.store(true, Ordering::Relaxed);
+            }
+            TouchEvent::Move(p) => {
+                if !self.hit_test(p)
+                    || self
+                        .origin
+                        .is_some_and(|o| (p.x - o.x).abs() > 12.0 || (p.y - o.y).abs() > 12.0)
+                {
+                    self.pressed.store(false, Ordering::Relaxed);
+                }
+            }
+            TouchEvent::Up(_) | TouchEvent::Cancel => {
+                self.origin = None;
+                self.pressed.store(false, Ordering::Relaxed);
+            }
+            _ => (),
+        }
+        handled || was_pressed
+    }
 }
 
 /// Original WallpaperPainter role, without the upstream Sierra photograph.

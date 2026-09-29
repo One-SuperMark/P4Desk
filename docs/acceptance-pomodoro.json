@@ -1,0 +1,212 @@
+{
+  "schema": "p4desk.pad.pomodoro.acceptance.v1",
+  "recorded_at": "2026-09-29T14:07:37.589475+08:00",
+  "request": "参考成熟的番茄钟案例，适合横屏且简洁",
+  "references": [
+    {
+      "name": "Pomofocus",
+      "url": "https://pomofocus.io/",
+      "used_for": "阶段切换、中央倒计时、单一主操作"
+    },
+    {
+      "name": "Flocus",
+      "url": "https://help.flocus.com/en/articles/10246933-customizing-your-focus-timer",
+      "used_for": "四次专注后的长休息与单段倒计时"
+    }
+  ],
+  "implementation": {
+    "rust_ui": "tiny-flutter / tiny_gfx",
+    "resolution": [
+      1024,
+      600
+    ],
+    "navigation": "Home at left; pomodoro, countdown, close at right",
+    "durations_minutes": {
+      "focus": 25,
+      "short_break": 5,
+      "long_break": 15
+    },
+    "long_break_interval": 4,
+    "automatic_start": false,
+    "countdown_presets_minutes": [
+      1,
+      5,
+      10,
+      25
+    ],
+    "digits": "HarmonyOS Sans Regular, fixed-width cells, 180 px at native layout",
+    "antialias": "opt-in rounded coverage for timer buttons, progress and cycle dots",
+    "timebase": "hardware monotonic milliseconds, independent of UI and USB time_sync",
+    "skip": "stops and prepares next stage; unfinished focus is not counted",
+    "background": "continues on Home, app switch and USB display mode; shared service preserves previous close behavior",
+    "persistence": "session only, resets on cold boot"
+  },
+  "host_verification": {
+    "tests": {
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit_code": 0,
+      "seconds": 8.02,
+      "passed": 145
+    },
+    "new_tests": {
+      "timer_service": 3,
+      "real_ui_touch": 5
+    },
+    "font_reproducibility": {
+      "command": [
+        "python3",
+        "scripts/generate-ui-fonts.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 5.19
+    },
+    "ui_font": {
+      "schema": "p4desk.ui-typeface.v1",
+      "family": "HarmonyOS Sans SC Regular",
+      "source_path": "assets/fonts/HarmonyOS_Sans_SC_Regular.ttf",
+      "source_sha256": "8b193c486e7fd959598d209e3974b5f3838f07384239a9f4d05d45d06e6116ae",
+      "source_commit": "4d96c1c7158103732b687e9ea47f4454f6df3ea4",
+      "license": "HarmonyOS Sans Fonts License Agreement",
+      "outlines_modified": false,
+      "rasterizer": "fontdue 0.9.4",
+      "pixel_format": "alpha8",
+      "sizes": [
+        14,
+        16,
+        18,
+        22,
+        24,
+        26,
+        28,
+        34,
+        36
+      ],
+      "glyph_count": 3078,
+      "text_path": "assets/generated/ui-text.txt",
+      "text_sha256": "4cb8831ca24f23d1ec80aaaccca11a7cb451c79ba43f0fa91dab2d16e322c89e",
+      "bytes": 1473981,
+      "sha256": "5a29ccf75aaedf899ee8b9a873468fdf51c229325096d897bbbb98c3ed44b4cc"
+    },
+    "previews": "actual Rust launcher rendered to RGB565 with synthetic state, all seven states inspected",
+    "images": [
+      {
+        "path": "docs/images/pomodoro-focus.png",
+        "bytes": 60839,
+        "sha256": "523a2886e1c499525ae6eb660a4287d6c3005f1514bb781339eb8d3c6df424cf"
+      },
+      {
+        "path": "docs/images/pomodoro-running.png",
+        "bytes": 58770,
+        "sha256": "0dc03a2f13c8ad4be878977b4e893f1d10fd9537af12f456d77f92a1a9956d5a"
+      },
+      {
+        "path": "docs/images/pomodoro-paused.png",
+        "bytes": 58419,
+        "sha256": "09040402bf251fc857420db222f120f1b69c32aa9369895996e25616a274167f"
+      },
+      {
+        "path": "docs/images/pomodoro-short-break.png",
+        "bytes": 63207,
+        "sha256": "41b5b79d3c3cf0345ba0a91f444e502174cbd803e105dc92f9d56358edaa8174"
+      },
+      {
+        "path": "docs/images/pomodoro-long-break.png",
+        "bytes": 61284,
+        "sha256": "30a3f551d00799b1d5f37e3d812786e64a4bc9bf5a00dd14fbf2878cde95b427"
+      },
+      {
+        "path": "docs/images/pomodoro-finished.png",
+        "bytes": 71411,
+        "sha256": "3c9c5b0f5360f92907e7247c105f040b731a6333e74e107ddc0153c2eb1fe21e"
+      },
+      {
+        "path": "docs/images/pomodoro-countdown.png",
+        "bytes": 58583,
+        "sha256": "7587d4a3afa07534e9df97f08561e8042aee90a545e8c2e49aa509ceb7e28593"
+      }
+    ]
+  },
+  "build": {
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 10.95,
+    "idf_version": "v6.0.2",
+    "idf_path": "/Volumes/work/esp/esp-idf-v6.0.2",
+    "target": "riscv32imafc-esp-espidf",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3528160,
+        "sha256": "1457e25f43b7d3a4d825a772e6a4a8edb181b456df72c212d8ca25c6a29d0600"
+      }
+    ],
+    "rust_toolchain": "nightly-2026-09-27",
+    "log": ".cache/pomodoro/build.log"
+  },
+  "flash": {
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 27.45,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "chip": "ESP32-P4 revision v3.2",
+    "nvs_settings_and_tf_not_written": true,
+    "log": ".cache/pomodoro/flash.log"
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/src/pomodoro_ui.rs",
+      "bytes": 16874,
+      "sha256": "ff8715c0dd18e1f821dc7a3f5c5c081fa79f1cad2b8fd02048427a5be1601aae"
+    },
+    {
+      "path": "apps/app-launcher/src/timer.rs",
+      "bytes": 8161,
+      "sha256": "92c0fef2ca22e421530fd7f0d92ced6aeeba52fb2f742ff6974409014279258b"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 26973,
+      "sha256": "ca188f0400ada7c24ccd63cccb64ce9072831639d48168f127acabe4a797aeab"
+    },
+    {
+      "path": "apps/app-launcher/tests/pomodoro_ui_tests.rs",
+      "bytes": 6955,
+      "sha256": "480018f4a5d4bd8fc98ef01cd847eb8547f4503f1b96b9f76ff63fb0f5b17028"
+    },
+    {
+      "path": "apps/app-launcher/examples/pomodoro-preview.rs",
+      "bytes": 1924,
+      "sha256": "cd9a8406347de62ce488a3cb5bed2d11f36ceb1dc94f72f60f264be4d23102d9"
+    }
+  ],
+  "physical_acceptance": {
+    "status": "passed_for_layout_and_requested_touch_scope",
+    "scope": "real panel layout; start/pause and focus/short-break/long-break selection",
+    "full_cycle_and_long_run": "not_separately_confirmed",
+    "recorded_at": "2026-09-29T14:13:03.998855+08:00",
+    "user_reply": "布局简洁，点击正常。倒计时结束添加一个动画特效",
+    "completion_animation": "requested_as_followup_not_yet_verified"
+  }
+}

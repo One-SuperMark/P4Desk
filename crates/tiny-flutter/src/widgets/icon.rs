@@ -1,12 +1,12 @@
 use crate::graphics::baked_icons::BakedIcon;
 use crate::graphics::canvas::Canvas;
 use crate::graphics::color::Color;
-use crate::graphics::geometry::{Offset, Point, Size};
+use crate::graphics::geometry::{Offset, Rect, Size};
 use crate::rendering::constraints::BoxConstraints;
 use crate::rendering::render_box::RenderBox;
 use crate::widgets::widget::Widget;
 
-/// A graphical icon widget drawn from a baked alpha bitmap mask.
+/// A scalable SVG icon, rasterized at the widget's actual size.
 pub struct Icon {
     pub icon: BakedIcon,
     pub color: Color,
@@ -73,8 +73,10 @@ impl RenderBox for RenderIcon {
     }
 
     fn paint(&self, canvas: &mut Canvas, offset: Offset) {
-        let px = offset.dx + (self.size.width - self.icon.width as f32) * 0.5;
-        let py = offset.dy + (self.size.height - self.icon.height as f32) * 0.5;
-        canvas.draw_icon(Point::new(px, py), &self.icon, self.color);
+        self.icon.vector.paint(
+            canvas,
+            Rect::from_ltwh(offset.dx, offset.dy, self.size.width, self.size.height),
+            self.color,
+        );
     }
 }

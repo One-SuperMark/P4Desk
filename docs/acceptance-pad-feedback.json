@@ -1,0 +1,294 @@
+{
+  "schema": "p4desk.pad.feedback.acceptance.v1",
+  "recorded_at": "2026-09-29T15:39:33.213899+08:00",
+  "request": {
+    "desktop": "桌面点击好像有异常，给桌面图标的点击添加点击效果",
+    "completion": "从底部跳出当前按钮主题色的完成圆形图标，圆形边框慢慢扩散到全屏，然后从屏幕中心扩散透明圆形直到消除全屏，实现苹果液态玻璃风格；后续要求完成圆形图标去掉白色外边框"
+  },
+  "previous_evidence": [
+    "docs/acceptance-vector-icons.json",
+    "docs/acceptance-timer-completion-fullscreen.json",
+    "docs/acceptance-pad-feedback-glass-v1.json"
+  ],
+  "source_base_commit": "d81bb7170e8e5073b60a0082f22171379de1ccbb",
+  "source_state": "task working-tree changes, not yet committed",
+  "desktop_implementation": {
+    "pressed_icon_scale": 0.94,
+    "white_tint_alpha": 0.14,
+    "outline_width_px": 1.3,
+    "down_damage": "actual launcher icon slot; never the entire page for a button press",
+    "drag_damage": "union of original and current hit slots",
+    "cancel_slop_px": 12,
+    "activation": "Up only, no activation after drag or Cancel",
+    "vector_primitives": "analytic circle and rounded rectangle fill/outline, same eight-sample coverage",
+    "hardware_input": "64-item FIFO, preserve Down/Move/Up/Cancel in order",
+    "queue_bytes": 776,
+    "ffi_event_bytes": 12,
+    "ffi_x_offset": 4,
+    "ffi_y_offset": 8,
+    "ffi_abi": "C and Rust compile-time assertions in ESP target build",
+    "overflow": "discard queued events, enqueue Cancel; re-arm only after all contacts lift",
+    "mode_change": "clear FIFO and wait for all releases",
+    "events_per_ui_step": 1,
+    "device_touch_response_ms": "not_measured"
+  },
+  "completion_implementation": {
+    "duration_ms": 3100,
+    "full_screen_repaint_gate_ms": 33,
+    "pop_ms": [
+      0,
+      560
+    ],
+    "expand_ms": [
+      560,
+      1520
+    ],
+    "full_color_hold_ms": [
+      1520,
+      1800
+    ],
+    "transparent_circle_ms": [
+      1800,
+      3050
+    ],
+    "badge_nominal_diameter_px": 102,
+    "colors": "exact same function as current main timer button",
+    "focus_countdown": "#f18b77",
+    "short_break": "#8ed4b5",
+    "long_break": "#9dbded",
+    "glass": "thin directional specular lip, faint inner reflection, outer shadow and horizontal row refraction; no broad halo blur",
+    "refraction_max_px": 5,
+    "glass_source_scratch_bytes_at_1024": 2048,
+    "backdrop": "fresh timer UI, exactly preserved inside the transparent aperture",
+    "opaque_hold": "skip child UI drawing",
+    "vector_icon": "SVG themed circle with white round check",
+    "one_shot": "real monotonic deadline; background/old completions do not replay",
+    "tap": "dismiss anywhere, consume release after expiry and prevent underlying action",
+    "cleanup": "final full-screen clean repaint",
+    "device_animation_fps": "not_measured",
+    "badge_outline": "none; theme-colored SVG face and white round check"
+  },
+  "host_verification": {
+    "rust_tests": {
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit_code": 0,
+      "passed": 171,
+      "desktop_tests": 4,
+      "completion_tests": 10,
+      "glass_compositor_tests": 2,
+      "vector_tests": 13,
+      "log": ".cache/pad-feedback/glass-workspace-tests.log",
+      "source_scope": "full workspace before the final removal of the small badge rim; final timer source additionally verified by the targeted regression below"
+    },
+    "c_touch_queue": {
+      "command": [
+        "./scripts/test-pad-touch.sh"
+      ],
+      "exit_code": 0,
+      "sanitizers": [
+        "address",
+        "undefined"
+      ],
+      "scope": [
+        "quick tap through long redraw",
+        "out-and-back movement history",
+        "ring wraparound",
+        "overflow cancel",
+        "mode reset",
+        "null pointers"
+      ],
+      "log": ".cache/pad-feedback/touch-queue-tests.log"
+    },
+    "svg_generator": {
+      "check": "byte-identical regeneration",
+      "icons": 34,
+      "generated_bytes": 60695
+    },
+    "previews": {
+      "type": "synthetic actual Rust UI via production painting path",
+      "source_frames": 141,
+      "gif_frames": 87,
+      "gif_duration_ms": 4700,
+      "gif_loops": "demonstration only; device plays once",
+      "files": [
+        {
+          "path": "docs/images/pomodoro-completion.gif",
+          "bytes": 879584,
+          "sha256": "d616b31ec00617af18b8a31aea681a48157eaa6d3ffe1bb21f8e1af71aeb066f"
+        },
+        {
+          "path": "docs/images/pomodoro-glass-stages.png",
+          "bytes": 104019,
+          "sha256": "2225f027abd032664b04c0de05c325da425e2bc288b9bbf87f82f92a91d8ba76"
+        },
+        {
+          "path": "docs/images/pad-press-normal.png",
+          "bytes": 822168,
+          "sha256": "849d40c8b79d8aaebacd550301aba3ba5560f8d3c81c9c5a78a2576364e3bd67"
+        },
+        {
+          "path": "docs/images/pad-press-feedback.png",
+          "bytes": 822444,
+          "sha256": "b1c14a27f09969ec43f907433dc9ead7f13c82ae24e8990f9210cb895564857b"
+        }
+      ]
+    },
+    "badge_outline_regression": {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "app-launcher",
+        "--test",
+        "timer_completion_tests"
+      ],
+      "exit_code": 0,
+      "passed": 10,
+      "log": ".cache/pad-feedback/glass-no-outline-tests.log"
+    }
+  },
+  "build": {
+    "exit_code": 0,
+    "seconds": 9.98,
+    "status": "passed",
+    "log": ".cache/pad-feedback/glass-no-outline-build.log",
+    "idf_version": "v6.0.2",
+    "idf_path": "/Volumes/work/esp/esp-idf-v6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3197712,
+        "sha256": "7ec547bbc1062f8d6e8555891b48b681b4c27e238cbaa995013ca944139336ed"
+      }
+    ]
+  },
+  "flash": {
+    "exit_code": 0,
+    "seconds": 25.06,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "status": "passed",
+    "log": ".cache/pad-feedback/glass-no-outline-flash.log",
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "chip": "ESP32-P4 revision v3.2",
+    "nvs_settings_and_tf_not_written": true
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/src/timer_completion.rs",
+      "bytes": 10435,
+      "sha256": "68c0142d73399764fa4f8b2f3291002af9fa4d9d319df5d4f924a2c32a934f7a"
+    },
+    {
+      "path": "apps/app-launcher/src/widgets.rs",
+      "bytes": 6622,
+      "sha256": "71db57a6e9f792ed1f3c01613455955cfcc2f59fe574bd729b123ded70d2a966"
+    },
+    {
+      "path": "apps/app-launcher/tests/timer_completion_tests.rs",
+      "bytes": 14114,
+      "sha256": "3eef1393a321af0ebcefc11ecc03b53364f05ce6263ac4d8e0ce614c67578471"
+    },
+    {
+      "path": "apps/app-launcher/tests/desktop_press_tests.rs",
+      "bytes": 5712,
+      "sha256": "3a4a3d311fa277ad499848aa8ffaa079374d0a1a159d4004d033134d63137126"
+    },
+    {
+      "path": "crates/tiny-flutter/src/widgets/custom_paint.rs",
+      "bytes": 4867,
+      "sha256": "148a51b992225d0f0648042959c9719656255cbcd857ab0dbb80ae514a8efb0e"
+    },
+    {
+      "path": "crates/tiny-flutter/src/widgets/page_view.rs",
+      "bytes": 21046,
+      "sha256": "660d0670f257973f7817057ebd2377bd7b876a054b25aac92761369e83e673c8"
+    },
+    {
+      "path": "crates/tiny-flutter/src/graphics/vector_icon.rs",
+      "bytes": 8979,
+      "sha256": "ca1761f349724deda13856ffb56a2c8fc104b341afab452250243e4bcae94c22"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/vector.rs",
+      "bytes": 15675,
+      "sha256": "d0c416486fcec94a8e271c5162a31cbd523c83542668f27ce1c072e33c2dac0e"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/glass.rs",
+      "bytes": 5056,
+      "sha256": "4d39e298bd2fbefdb436e299ccccf9c618fd4c8de54da754dfaf75e924cf702b"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/tests/glass_composite.rs",
+      "bytes": 4049,
+      "sha256": "ffa2505ec7a067824031299b15be778d85c38a74c799d1bfcfcb4f09cdbdbebf"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/tests/vector_coverage.rs",
+      "bytes": 9404,
+      "sha256": "c15ef8b27f802bf8e5935f7d8842fb86e9e285031205df643fed34095247a68a"
+    },
+    {
+      "path": "firmware/main/pad_touch_queue.c",
+      "bytes": 1234,
+      "sha256": "3a0403b5f48842519c3105f1f7ffe2faa26ee9e4afc74abb621c559a715b900e"
+    },
+    {
+      "path": "firmware/main/pad_touch_queue.h",
+      "bytes": 751,
+      "sha256": "51d1d3d3ccc4efcddf335e38f05925d24b2679fad9c045edabccf3ef922a8b6c"
+    },
+    {
+      "path": "firmware/main/p4desk_runtime.c",
+      "bytes": 39206,
+      "sha256": "8492f9414c7ce5f817b66a98e6f0650635b8f6b007a678c6e3400dee4aff5800"
+    },
+    {
+      "path": "firmware/components/rust_main/src/ffi.rs",
+      "bytes": 9737,
+      "sha256": "0c8159405b6d5192a0893de9feda9bbe5e0975b9387a47a29f9a1dce47bcc2d6"
+    },
+    {
+      "path": "include/p4desk_hal.h",
+      "bytes": 2861,
+      "sha256": "8177b9c5fa45ae5a9a5db211652e2508e8f017c1605ac3586f074d2cd0f3e95e"
+    },
+    {
+      "path": "assets/ui_icons/source/check-circle.svg",
+      "bytes": 469,
+      "sha256": "38024df9abc594ff1b79800338bca88048471be87316d267021615d0211ca39c"
+    }
+  ],
+  "physical_acceptance": {
+    "desktop_press_feedback": {
+      "status": "pending_user_feedback",
+      "scope": "visible Down effect, short tap opens correctly, drag cancels without residual highlight"
+    },
+    "timer_completion": {
+      "status": "pending_user_feedback",
+      "scope": "bottom pop, current button color, circular full-screen expansion, center-out transparent reveal, glass edge and smoothness"
+    }
+  }
+}

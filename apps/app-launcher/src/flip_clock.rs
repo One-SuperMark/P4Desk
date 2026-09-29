@@ -32,60 +32,33 @@ pub enum ClockControl {
     Close,
 }
 
-/// Original outline icons, with geometry independent of text/font resources.
+/// Shared SVG navigation icons, independent of text/font resources.
 pub struct ClockControlPainter {
-    path: tiny_gfx::Path,
+    icon: &'static VectorIcon,
 }
-
 impl ClockControlPainter {
     pub fn new(control: ClockControl) -> Self {
-        let mut path = tiny_gfx::PathBuilder::new();
-        match control {
-            ClockControl::Home => {
-                path.move_to(3.0, 14.0);
-                path.line_to(16.0, 3.0);
-                path.line_to(29.0, 14.0);
-                path.move_to(7.0, 12.0);
-                for (x, y) in [
-                    (7.0, 28.0),
-                    (12.0, 28.0),
-                    (12.0, 20.0),
-                    (20.0, 20.0),
-                    (20.0, 28.0),
-                    (25.0, 28.0),
-                    (25.0, 12.0),
-                ] {
-                    path.line_to(x, y);
-                }
-            }
-            ClockControl::Close => {
-                path.move_to(7.0, 7.0);
-                path.line_to(25.0, 25.0);
-                path.move_to(25.0, 7.0);
-                path.line_to(7.0, 25.0);
-            }
-        }
+        use tiny_flutter::graphics::svg_icons_generated::{UI_CLOSE, UI_HOME};
         Self {
-            path: path.finish().expect("nonempty clock control"),
+            icon: match control {
+                ClockControl::Home => &UI_HOME,
+                ClockControl::Close => &UI_CLOSE,
+            },
         }
     }
 }
-
 impl CustomPainter for ClockControlPainter {
     fn paint(&self, canvas: &mut Canvas, size: Size) {
-        canvas.save();
-        canvas.translate((size.width - 32.0) * 0.5, (size.height - 32.0) * 0.5);
-        canvas.stroke_path(
-            &self.path,
-            &tiny_gfx::Paint::new(Color::WHITE.to_gfx()),
-            &tiny_gfx::Stroke {
-                width: 2.4,
-                line_cap: tiny_gfx::LineCap::Round,
-                line_join: tiny_gfx::LineJoin::Round,
-                ..Default::default()
-            },
+        self.icon.paint(
+            canvas,
+            Rect::from_ltwh(
+                (size.width - 32.0) * 0.5,
+                (size.height - 32.0) * 0.5,
+                32.0,
+                32.0,
+            ),
+            Color::WHITE,
         );
-        canvas.restore();
     }
 }
 

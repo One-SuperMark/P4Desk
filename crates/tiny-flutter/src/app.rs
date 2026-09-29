@@ -28,7 +28,7 @@ impl App {
         let height = size.height as u32;
 
         let pixmap = Pixmap565::new(width, height).expect("Failed to allocate Pixmap565");
-        let scratch_rgb565 = vec![0u16; (width * height) as usize];
+        let scratch_rgb565 = Vec::new();
         let mut root = root_widget.create_render_object();
         root.layout(&BoxConstraints::tight(size));
 
@@ -102,7 +102,7 @@ impl App {
         let height = (new_size.height as u32).max(1);
         self.size = new_size;
         self.pixmap = Pixmap565::new(width, height).expect("Failed to allocate Pixmap565");
-        self.scratch_rgb565 = vec![0u16; (width * height) as usize];
+        self.scratch_rgb565 = Vec::new();
         self.dirty.mark_all_dirty(new_size);
         self.root.layout(&BoxConstraints::tight(new_size));
     }
@@ -389,6 +389,8 @@ impl App {
         }
         let dirty_rect = if self.is_first_frame {
             self.is_first_frame = false;
+            // The forced full first frame consumes any requested dirty region.
+            self.dirty.take();
             Some(Rect::from_ltwh(0.0, 0.0, self.size.width, self.size.height))
         } else {
             self.dirty.take()
@@ -416,8 +418,25 @@ impl App {
             #[cfg(feature = "profile")]
             let t_paint = std::time::Instant::now();
 
-            let (x1, y1, x2, y2, count) =
+            let (x1, y1, x2, y2) = self.pixmap.rect_bounds(tiny_gfx::Rect::from_ltwh(
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+            ));
+            let count = (x2 - x1) as usize * (y2 - y1) as usize;
+            // Whole-width rows are already tightly packed. The synchronous
+            // backend may borrow them directly; cropped columns still pack.
+            let pixels = if x1 == 0 && x2 == self.pixmap.width() as i32 {
+                let stride = self.pixmap.width() as usize;
+                &self.pixmap.data()[y1 as usize * stride..y2 as usize * stride]
+            } else {
+                if self.scratch_rgb565.len() < count {
+                    self.scratch_rgb565.resize(count, 0);
+                }
                 extract_rect_to_rgb565(&self.pixmap, rect, &mut self.scratch_rgb565);
+                &self.scratch_rgb565[..count]
+            };
 
             #[cfg(feature = "profile")]
             let t_extract = std::time::Instant::now();
@@ -435,7 +454,7 @@ impl App {
             if count > 0 {
                 let actual_flush_rect = Rect::from_ltrb(x1 as f32, y1 as f32, x2 as f32, y2 as f32);
                 backend.begin_frame();
-                backend.flush(actual_flush_rect, &self.scratch_rgb565[..count]);
+                backend.flush(actual_flush_rect, pixels);
                 backend.end_frame();
             }
 

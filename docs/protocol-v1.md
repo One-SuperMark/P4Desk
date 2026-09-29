@@ -65,8 +65,18 @@ SYNC把Snapshot与单个动态字体包组成同一代。TF目录 `/sdcard/p4des
 
 `include/p4desk_hal.h` 是固件唯一FFI定义。C完成DSI/GT911/TF/USB初始化后调用Rust入口。Rust负责JSON、快照持久化、字体与UI。C负责JPEG解码、唯一面板owner、触点采样、心跳回退与USB收发。
 
-原始触摸快照 FFI 使用 `p4desk_touch_point_t`（8字节）与 `p4desk_touch_frame_t`（56字节，points偏移16），两侧检查结构大小和偏移；通过 `p4desk_get_raw_touch` 复制 GT911 真实触点 ID／时间／session。它与 Pad 的稳定主触点 `host_touch_get_point` 独立。USB 数据不直接传输 C 结构，仍按上述 JSON 和小端帧头编码。
+原始触摸快照 FFI 使用 `p4desk_touch_point_t`（8字节）与 `p4desk_touch_frame_t`（56字节，points偏移16），两侧检查结构大小和偏移；通过 `p4desk_get_raw_touch` 复制 GT911 真实触点 ID／时间／session。
+
+Pad 稳定主触点通过 `p4desk_poll_pad_touch` 顺序读取采样事件。`p4desk_pad_touch_event_t` 为 12 字节（`kind:u32`，`x:i32` 偏移4，`y:i32` 偏移8），C／Rust 均有编译期布局断言；kind 为 Down=1、Move=2、Up=3、Cancel=4，坐标已经转换到 Pad 逻辑坐标。64 项有界队列保留短点击和拖动历史；溢出只送 Cancel，并等所有接触释放后重新接受手势。模式改变时清空事件。Rust 每次 UI step 最多消费一项，在应用切换后的重建之前不消费下一项。`host_touch_get_point` 保留兼容的最新状态查询，当前 Pad Rust 输入路径使用事件队列。
+
+以上为同一固件内的原生 C ABI，USB 数据不直接传输 C 结构，仍按上述 JSON 和显式小端帧头编码；USB 多点回传协议未改变。
 
 主机预旋转仅改变副屏 JPEG 的像素方向，触摸仍使用原桌面坐标，Pad 继续使用已确认的180°软件旋转。新版 LCD driver 在项目构建目录生成固定 SDK 扩展，为每缓冲额外预留8行 JPEG MCU padding；扫描、可见几何和 USB 帧头仍为1024×600。只有明确的 FREE/BUILDING 缓冲可以写入，实际 DMA completed/next 指针及严格相邻计数决定回收；重复扫描不释放缓冲，丢事件或超时停止重用。
 
 Rust的 begin/end frame 成对调用，flush指针只在同步调用期间有效；C立即复制到受锁保护的Pad canonical framebuffer。面板完成事件决定显示缓冲回收。切模式清空旧帧并更改显示epoch，防止迟到任务输出旧画面。Pad只接收固定首触点，副屏回传完整触点并识别三指长按1秒退出。
+
+### 桌面 USB 入口与首帧动画（设备内部，不增加 wire 字段）
+
+桌面图标展开至全屏主题色后，设备发送原有 `request_mode: display`。主机创建虚拟屏、捕获首张 JPEG 后沿用 `set_mode` 与视频包。仅从该桌面入口启动时，设备将收缩动画绑定至本次 epoch，成功解码首张 JPEG 才开始 600 ms 向中心收缩；Mac 直接开启副屏无此过渡。
+
+过渡期间真实帧仍在 LCD 完成后按原格式返回 `frame_presented`（该帧可能带主题色遮罩），不把动画内部重放的相同 JPEG 当作新收到的帧重复确认。最终无覆盖帧完成 LCD DMA 后，解除输入拦截，待手指全部释放再发送新触摸。主机无需新消息或新能力位。等待超过 10 秒、断线或失败时取消待进入请求并请求 Pad，收起至准备页显示错误；未连接时照常播放开屏动画并停在准备页。

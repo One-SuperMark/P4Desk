@@ -1,12 +1,15 @@
 pub mod app_icons;
+pub mod app_launch;
 pub mod flip_clock;
 pub mod headless;
 pub mod launcher_state;
 pub mod launcher_ui;
 pub mod manual_clock;
+pub mod pomodoro_ui;
 pub mod status_bar;
 pub mod storage;
 pub mod timer;
+pub mod timer_completion;
 pub mod widgets;
 
 pub use launcher_state::{ActiveApp, LauncherState, UiCommand, APP_IDS};

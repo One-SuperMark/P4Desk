@@ -131,6 +131,70 @@ pub fn blend_rgb565(dst: u16, src: u16, alpha: u8) -> u16 {
     (r << 11) | (g << 5) | b
 }
 
+/// Exact channel lookup for a constant color/alpha over a large pixel span.
+/// 256 stack bytes replace repeated multiply/divide operations per pixel.
+pub(crate) struct SolidBlend565 {
+    red: [u16; 32],
+    green: [u16; 64],
+    blue: [u16; 32],
+}
+impl SolidBlend565 {
+    pub(crate) fn new(src: u16, alpha: u8) -> Self {
+        let a = u32::from(alpha);
+        let inverse = 255 - a;
+        let channel = |source: u16, destination: usize, shift: u32| {
+            (((u32::from(source) * a + destination as u32 * inverse + 127) / 255) as u16) << shift
+        };
+        Self {
+            red: std::array::from_fn(|d| channel((src >> 11) & 31, d, 11)),
+            green: std::array::from_fn(|d| channel((src >> 5) & 63, d, 5)),
+            blue: std::array::from_fn(|d| channel(src & 31, d, 0)),
+        }
+    }
+    pub(crate) fn apply(&self, pixels: &mut [u16]) {
+        for pixel in pixels {
+            let d = *pixel;
+            *pixel = self.red[(d >> 11) as usize]
+                | self.green[((d >> 5) & 63) as usize]
+                | self.blue[(d & 31) as usize];
+        }
+    }
+}
+
+#[cfg(test)]
+mod solid_blend_tests {
+    use super::*;
+
+    #[test]
+    fn constant_blend_matches_original_rounding_for_all_channel_values_and_alpha() {
+        for (limit, shift) in [(32, 11), (64, 5), (32, 0)] {
+            for source in 0..limit {
+                for alpha in 0..=255 {
+                    let src = source << shift;
+                    let table = SolidBlend565::new(src, alpha);
+                    let mut pixels: Vec<u16> = (0..limit).map(|d| d << shift).collect();
+                    let expected: Vec<u16> = pixels
+                        .iter()
+                        .map(|&d| blend_rgb565(d, src, alpha))
+                        .collect();
+                    table.apply(&mut pixels);
+                    assert_eq!(pixels, expected);
+                }
+            }
+        }
+        // Mixed RGB words protect masking and the independently shifted tables.
+        for src in [0, 0xffff, 0x18c3, 0x2945, 0xf800, 0x07e0, 0x001f] {
+            for alpha in [0, 1, 17, 64, 127, 128, 213, 254, 255] {
+                let mut pixels: Vec<u16> = (0..=u16::MAX).collect();
+                SolidBlend565::new(src, alpha).apply(&mut pixels);
+                for (dst, actual) in pixels.into_iter().enumerate() {
+                    assert_eq!(actual, blend_rgb565(dst as u16, src, alpha));
+                }
+            }
+        }
+    }
+}
+
 /// Blend an RGB888 color with alpha onto an RGB565 destination pixel.
 #[inline(always)]
 pub fn blend_rgb888_onto_rgb565(dst: u16, r: u8, g: u8, b: u8, alpha: u8) -> u16 {

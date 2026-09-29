@@ -1,42 +1,23 @@
-# 原创桌面图标
+# 原创桌面 SVG 图标
 
-这 8 个图标由 P4Desk 项目自制，采用渐变圆角底板和白色几何符号，使用 MIT 许可。未使用 Apple 图标、品牌标志、上游许可不明的图标或山脉照片；不依赖外部下载、字体或图像库。
+八个桌面图标由 P4Desk 项目自制，采用渐变圆角底板和白色几何符号，使用 MIT 许可。`source/*.svg` 是正式可编辑源。其 128×128 坐标按实际桌面、状态栏尺寸转换为矢量路径，由 tiny_gfx 做覆盖率抗锯齿后直接画入设备 RGB565 帧缓冲。
 
-| 资源 ID | 图案 |
+| ID | 图案 |
 | --- | --- |
-| `clock` | 钟面与指针 |
-| `timer` | 秒表 |
-| `notes` | 纸张与文本线条 |
-| `calculator` | 显示框与按键 |
-| `mac` | 普通桌面显示器 |
-| `settings` | 齿轮 |
-| `display` | 双显示器，USB 副屏快捷入口 |
-| `screen` | 显示器电源，关闭屏幕快捷入口 |
-
-`source/*.svg` 是可编辑的矢量源素材。每个 SVG 明确标注原创来源和 MIT 版权。`preview.png` 按上表顺序，以四列两行展示最终 RGB565 色彩；各资源也有独立透明 PNG 预览。
-
-## 生成与校验
-
-在项目根目录运行，Python 3.9 及以上即可：
+| clock | 钟面与指针 |
+| timer | 秒表 |
+| notes | 纸张与文本线条 |
+| calculator | 显示框与按键 |
+| mac | 普通桌面显示器 |
+| settings | 齿轮 |
+| display | 双显示器 |
+| screen | 显示器电源 |
 
 ```sh
-python3 scripts/generate-desktop-assets.py
-python3 scripts/generate-desktop-assets.py --check
+python3 scripts/generate-vector-icons.py
+python3 scripts/generate-vector-icons.py --check
 ```
 
-脚本只使用 Python 标准库，自行栅格化本目录 SVG 中的基础几何图形。保留原 SVG 的 128×128 坐标系，直接生成桌面所用的 146×146 像素图标。所有边缘采用 8×8 超采样；采样先按预乘透明度合成，再还原颜色，避免圆角边缘出现黑晕。RGB565 转换采用固定 4×4 Bayer 有序抖动，减少低位色深的渐变条带。透明 PNG 的色彩已量化为同一份 RGB565，便于核对实际板端资源。SVG 渲染器仅支持当前素材使用的图元，不是通用 SVG 转换器。
+编译器同时处理本目录八个 SVG 和 `assets/ui_icons/source` 的 26 个通用 SVG，输出 `crates/tiny-flutter/src/graphics/svg_icons_generated.rs` 与 `assets/vector-icons.json`。源 SHA256 与生成几何 SHA256 可复现。固件存储几何，不存储这些图标的 PNG／RGB565／alpha 图集；旧八组 511,584 字节像素资源已移除。PNG 文件仅保留为素材预览，不链接进固件。
 
-`--check` 不写文件，重新生成并逐字节对照已提交的 RGB565、alpha、PNG、预览和清单。`manifest.json` 记录尺寸、格式、原始 SVG 与生成文件的 SHA256，不包含时间戳。
-
-## 设备端格式
-
-- 每个图标固定 **146×146**，按从左到右、从上到下排列。
-- `<id>.rgb565`：42,632 字节，像素为 `RRRRRGGG GGGBBBBB`，每像素 `u16` **小端**，与目标 ESP32-P4 一致。
-- `<id>.alpha`：21,316 字节，每像素独立 `u8` 覆盖率，0 完全透明、255 完全不透明；RGB 数据为非预乘颜色。
-- 八组设备端资源合计 **511,584 字节（约 499.6 KiB）**，较原 128×128 资源增加 118,368 字节。PNG、SVG 和清单不链接进固件。
-
-7B 的 1024×600 桌面按 146×146 原尺寸绘制。较小屏幕尺寸与状态栏后台应用入口采用像素中心对齐的双线性采样，按预乘透明度过滤 RGB565 和 alpha 后合成，避免最近邻放大台阶及透明像素颜色污染。资源 alpha 决定最终圆角轮廓，运行时不另加圆角掩码或白色边缘删除规则。
-
-`apps/app-launcher/src/app_icons.rs` 保留上游 `AppIconAsset` 和查询接口，RGB 字节通过 `#[repr(C, align(2))]` 静态结构嵌入，保证 `get_rgb565_slice()` 的 `u16` 对齐。方法还校验长度与对齐；不支持大端目标。资源单元测试验证八个 ID、尺寸、字节长度、实际静态地址对齐、所有像素的小端解码和透明度边缘。
-
-许可全文见 [LICENSE](LICENSE)。
+原 `AppIconAsset` 查询接口现在返回 `VectorIcon`，`DESKTOP_ICON_SIDE = 146` 继续作为桌面布局上限。详见 [矢量图标绘制](../../docs/vector-icons.md)。许可全文见 [LICENSE](LICENSE)。
