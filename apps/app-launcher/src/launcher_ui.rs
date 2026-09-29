@@ -318,6 +318,9 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             )),
         );
     }
+    if matches!(active, ActiveApp::Launcher) && state.lock().unwrap().status_panel_open {
+        root = crate::status_bar::with_status_panel(state.clone(), root, Size::new(w, h));
+    }
     if matches!(active, ActiveApp::Timer) {
         root = Box::new(TimerCompletionOverlay::new(state.clone(), root));
     }

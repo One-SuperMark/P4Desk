@@ -1,0 +1,233 @@
+{
+  "schema": "p4desk.pad.status-battery.acceptance.v1",
+  "recorded_at": "2026-09-29T18:09:50.113536+08:00",
+  "request": "桌面右上角 USB 与 TF 文字改为图标，增加板载电池状态。用户确认电池直连开发板电池接口。",
+  "source_base_commit": "f033f8cf0b8ba485fb8862151f72985415637374",
+  "source_state": "working tree, not committed",
+  "hardware": {
+    "source": "https://files.waveshare.com/wiki/ESP32-P4-WIFI6-Touch-LCD-7B/ESP32-P4-WIFI6-Touch-LCD-7B.pdf",
+    "verified_by": "official schematic text and visual inspection; local IDF 6.0.2 ADC pin map",
+    "voltage_pin": "GPIO20, ADC1 channel 4, R92 200k / R93 100k, multiplier 3",
+    "charging_signal": "ETA6098 STAT/change connects LED1 only, not MCU",
+    "charging_status": "unsupported by current wiring; production always Unknown",
+    "battery_model_capacity": "not provided",
+    "presence_detection": "not supported; assumes user-confirmed installed cell",
+    "charger_or_protection_changes": false
+  },
+  "implementation": {
+    "status_icons": [
+      "USB ready / enumerated waiting / offline",
+      "TF mounted / unavailable",
+      "battery levels / low / unknown"
+    ],
+    "interaction": "tap any status icon opens detail card; inside consumes taps; outside only dismisses",
+    "sample_period_ms": 2000,
+    "adc_calibration": "ESP-IDF curve fitting; no uncalibrated fallback",
+    "sample_filter": "16 raw samples, drop 2 per end; mean -> calibration -> x3; Rust IIR and 1% dead band",
+    "percentage": "approximate generic single-cell 4.2V-full lithium voltage curve, not coulomb counting",
+    "unknown_values": "--% and 无法读取; clear stale reading",
+    "remaining_runtime": "not estimated",
+    "wire_protocol_changes": false,
+    "new_fullscreen_pixel_buffers": 0,
+    "sampling_task": "existing watchdog, outside UI and display owner"
+  },
+  "host_verification": {
+    "rust_workspace": {
+      "status": "passed",
+      "passed": 207,
+      "log": ".cache/status-battery/tests.log"
+    },
+    "new_cases": [
+      "curve boundaries/monotonicity",
+      "invalid sample and smoothing recovery",
+      "only explicit telemetry can show charging",
+      "status hit regions and no click-through",
+      "panel lifecycle",
+      "offline/display polling and no USB-derived charging"
+    ],
+    "vector_assets": {
+      "status": "passed",
+      "svg_count": 37,
+      "command": "python3 scripts/generate-vector-icons.py --check"
+    },
+    "previews": {
+      "status": "visually inspected desktop/details/low/unknown",
+      "data": "synthetic 79%, 3.99 V; not hardware measurement",
+      "files": [
+        "docs/images/pad-status-icons.png",
+        "docs/images/pad-battery-details.png"
+      ]
+    },
+    "diff_check": "passed"
+  },
+  "build": {
+    "exit_code": 0,
+    "seconds": 33.75,
+    "source_unchanged": true,
+    "sdk": "ESP-IDF 6.0.2",
+    "rust": "nightly-2026-09-27",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3338688,
+        "sha256": "eb781cb6e79599f17d95c8fc3e89b7cf7b8f6eddd7496141b4465ef88ab4c8e0"
+      }
+    ],
+    "status": "passed",
+    "target": "riscv32imafc-esp-espidf",
+    "log": ".cache/status-battery/build.log"
+  },
+  "flash": {
+    "exit_code": 0,
+    "seconds": 26.05,
+    "source_and_binary_reverified": true,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "log": ".cache/status-battery/flash.log",
+    "status": "passed",
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "nvs_settings_and_tf_not_written": true
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/examples/status-battery-preview.rs",
+      "bytes": 1617,
+      "sha256": "386345cee8b1ac2b86fc721b4d4dfe06f3f68a38f7b4b6b49fb91d2149f7038a"
+    },
+    {
+      "path": "apps/app-launcher/src/app_launch.rs",
+      "bytes": 30508,
+      "sha256": "cd7fe4fd89eccf0fc64ccecada7aecc92c46fb815f7ee9e5da1e21dbf2f8022e"
+    },
+    {
+      "path": "apps/app-launcher/src/battery.rs",
+      "bytes": 3397,
+      "sha256": "ae7a7a96f7f48cf2b30c9c3818ac8e3a0cca4c805002b9f47d23fde021cf2e36"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_state.rs",
+      "bytes": 18529,
+      "sha256": "d5f14c21bc513e55652991fcc64636662c7a3c2c8952447698a8164fd40c6a09"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 29677,
+      "sha256": "bff049692da18ed588e4e221d2946089010ea0df14f05ed1d5477bf74ca03668"
+    },
+    {
+      "path": "apps/app-launcher/src/lib.rs",
+      "bytes": 508,
+      "sha256": "59c0c2cd3e749fc5e52c1912428e23eb8a2eb240ddbd723855aa9016cb0b28e5"
+    },
+    {
+      "path": "apps/app-launcher/src/status_bar.rs",
+      "bytes": 10257,
+      "sha256": "0e90cc0317b5165547a14c65d9c8831cdd17fa1366169667602e20752fc11f80"
+    },
+    {
+      "path": "apps/app-launcher/tests/battery_status_tests.rs",
+      "bytes": 4576,
+      "sha256": "b7b52d89b1986ded78bbc5d5c146082885073851074f6eb063a0eb540b67bab8"
+    },
+    {
+      "path": "apps/app-launcher/tests/vector_icons_tests.rs",
+      "bytes": 3207,
+      "sha256": "f34ace3df4cc55825205d2b2d73586444583bcaf8d5164c5088ffebd04a3048f"
+    },
+    {
+      "path": "assets/generated/ui.p4f",
+      "bytes": 1575932,
+      "sha256": "84c16171fca3d0061aa5fd5d91f7569d68b0b01498a53aaf715b6381d6dff114"
+    },
+    {
+      "path": "assets/ui_icons/source/sd-card.svg",
+      "bytes": 587,
+      "sha256": "da5e26f0acd4345eab265b3a8b83bc6b16976c4061e1ad5eab70d09d58da17d4"
+    },
+    {
+      "path": "assets/ui_icons/source/status-slash.svg",
+      "bytes": 327,
+      "sha256": "4db4075524bc33c229fa57d2c55835f0df9229dc083f9d3db28e93861212c85c"
+    },
+    {
+      "path": "assets/ui_icons/source/usb.svg",
+      "bytes": 682,
+      "sha256": "bdb6cd58a0254b4a1b0b5a09d94ac7b2ef4f521abd78bbd1aeaf521012cc55db"
+    },
+    {
+      "path": "crates/tiny-flutter/src/graphics/svg_icons_generated.rs",
+      "bytes": 65797,
+      "sha256": "157f5ef3421b05c3b55473d528a16b24fc02a3fd08f8a78debde85e27d9b3e2d"
+    },
+    {
+      "path": "firmware/components/board_p4/CMakeLists.txt",
+      "bytes": 292,
+      "sha256": "7b943fe4f7ea8d4a39eba230e297c0a5d6a4bf23bc2a364c653aa0e738a7eb95"
+    },
+    {
+      "path": "firmware/components/board_p4/battery.c",
+      "bytes": 2541,
+      "sha256": "e0affae9c92abacc01af4395308244e969474f50e42bb1052997bd5e91f48db8"
+    },
+    {
+      "path": "firmware/components/board_p4/board_p4.c",
+      "bytes": 9387,
+      "sha256": "5859675f3cb62b9f662880d22a5e4874e941915e6ce04a8ba6dfcacd2476e45f"
+    },
+    {
+      "path": "firmware/components/board_p4/include/board_p4.h",
+      "bytes": 1228,
+      "sha256": "612e451d46e17a83a8bb46de05e1d340025d9f749fdb508226988a976ff0dcf3"
+    },
+    {
+      "path": "firmware/components/rust_main/src/ffi.rs",
+      "bytes": 11798,
+      "sha256": "2cd2dc17163c0b2721d75d7222099758809944b58f62347a0bd64b8ca8e6931a"
+    },
+    {
+      "path": "firmware/components/rust_main/src/runtime.rs",
+      "bytes": 42912,
+      "sha256": "4a10f52da7f765f66b1b4199d163c4daf80200f23f268f21be2e6d8ca7ab17e9"
+    },
+    {
+      "path": "firmware/main/p4desk_runtime.c",
+      "bytes": 44671,
+      "sha256": "d7cdbb675cc0884bcef45755fd55a9bc682c38af86c3a2cf967491be38595904"
+    },
+    {
+      "path": "include/p4desk_hal.h",
+      "bytes": 3246,
+      "sha256": "c52e221157ee62bce46d8002ebd4a0ba04c16e2928bc50f8f2d82120523aca25"
+    }
+  ],
+  "all_build_input_hash_count": 240,
+  "physical_acceptance": {
+    "icons_and_popup_touch": "pending_user_check",
+    "live_voltage_and_percentage": {
+      "status": "user_confirmed_readable",
+      "voltage_v": 4.14,
+      "estimated_percent": 94,
+      "accuracy_verified": false
+    },
+    "voltage_accuracy_vs_multimeter": "not_measured",
+    "real_discharge_curve": "not_measured",
+    "charge_full_status": "hardware_unavailable",
+    "actual_fps_and_heap": "not_measured"
+  },
+  "followup": "docs/acceptance-typec-reset.json"
+}

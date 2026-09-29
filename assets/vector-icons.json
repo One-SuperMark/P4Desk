@@ -5,7 +5,7 @@
   "vertical_coverage_samples": 8,
   "bitmap_bytes_embedded": 0,
   "generated_file": "crates/tiny-flutter/src/graphics/svg_icons_generated.rs",
-  "generated_sha256": "fc51c76c07f8dee3b79a90e960d21e7a05874380446e404f059baebc6b2d1880",
+  "generated_sha256": "157f5ef3421b05c3b55473d528a16b24fc02a3fd08f8a78debde85e27d9b3e2d",
   "icons": [
     {
       "name": "DESKTOP_CALCULATOR",
@@ -164,9 +164,21 @@
       "layers": 2
     },
     {
+      "name": "UI_SD_CARD",
+      "source": "assets/ui_icons/source/sd-card.svg",
+      "source_sha256": "da5e26f0acd4345eab265b3a8b83bc6b16976c4061e1ad5eab70d09d58da17d4",
+      "layers": 5
+    },
+    {
       "name": "UI_SHIFT",
       "source": "assets/ui_icons/source/shift.svg",
       "source_sha256": "916108afe23b7c684b2c2063bccc05a45a1e975431868aa2532e741f1cfcb76c",
+      "layers": 1
+    },
+    {
+      "name": "UI_STATUS_SLASH",
+      "source": "assets/ui_icons/source/status-slash.svg",
+      "source_sha256": "4db4075524bc33c229fa57d2c55835f0df9229dc083f9d3db28e93861212c85c",
       "layers": 1
     },
     {
@@ -186,6 +198,12 @@
       "source": "assets/ui_icons/source/terminal.svg",
       "source_sha256": "313f6a2109b35b7fb253076238c080f831e9d981b389c80be1c612b46ffbb364",
       "layers": 2
+    },
+    {
+      "name": "UI_USB",
+      "source": "assets/ui_icons/source/usb.svg",
+      "source_sha256": "bdb6cd58a0254b4a1b0b5a09d94ac7b2ef4f521abd78bbd1aeaf521012cc55db",
+      "layers": 5
     },
     {
       "name": "UI_WIFI_0",

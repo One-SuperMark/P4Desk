@@ -81,6 +81,9 @@ pub struct LauncherState {
     pub usb_connected: bool,
     pub connected: bool,
     pub sd_ready: bool,
+    pub battery: crate::battery::BatteryState,
+    pub status_panel_open: bool,
+    pub reset_reason: u32,
     pub time_valid: bool,
     pub mode: Mode,
     pub unix_ms: i64,
@@ -122,6 +125,9 @@ impl LauncherState {
             usb_connected: false,
             connected: false,
             sd_ready: false,
+            battery: crate::battery::BatteryState::default(),
+            status_panel_open: false,
+            reset_reason: 0,
             time_valid: false,
             mode: Mode::Pad,
             unix_ms: 0,
@@ -143,6 +149,7 @@ impl LauncherState {
         }
     }
     pub fn open_app(&mut self, id: &str) {
+        self.status_panel_open = false;
         self.background_active_app();
         self.active_app = self.running_apps.remove(id).unwrap_or_else(|| match id {
             "clock" => ActiveApp::Clock,
@@ -187,6 +194,11 @@ impl LauncherState {
     }
     /// The original BackListener semantics, with the settings editor's nested route.
     pub fn back_active_app(&mut self) {
+        if self.status_panel_open {
+            self.status_panel_open = false;
+            self.changed();
+            return;
+        }
         if matches!(self.active_app, ActiveApp::Settings) && self.manual_time_open {
             self.manual_time_open = false;
             self.changed();
@@ -195,6 +207,7 @@ impl LauncherState {
         }
     }
     pub fn kill_active_app(&mut self) {
+        self.status_panel_open = false;
         if matches!(self.active_app, ActiveApp::DisplaySetup) {
             self.commands.retain(|c| {
                 !matches!(
@@ -387,6 +400,9 @@ impl LauncherState {
     pub fn tick(&mut self, monotonic_ms: u64, unix_ms: i64) -> bool {
         self.monotonic_ms = monotonic_ms;
         self.unix_ms = unix_ms;
+        if self.mode != Mode::Pad || !self.settings.screen_on {
+            self.status_panel_open = false;
+        }
         if self
             .display_wait_since
             .is_some_and(|start| monotonic_ms.saturating_sub(start) >= 10_000)

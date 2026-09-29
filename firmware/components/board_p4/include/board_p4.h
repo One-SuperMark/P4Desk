@@ -29,3 +29,7 @@ typedef struct {
 esp_err_t board_p4_init(board_p4_t *board);
 esp_err_t board_p4_brightness(uint8_t percent);
 uint64_t board_p4_sd_free_bytes(void);
+
+// Read-only battery monitoring; charging remains under the board's hardware IC.
+esp_err_t board_p4_battery_init(void);
+int32_t board_p4_battery_voltage_mv(void);

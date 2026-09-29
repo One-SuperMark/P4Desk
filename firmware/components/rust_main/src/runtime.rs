@@ -14,6 +14,12 @@ const MAX_UNIX_MS: i64 = 4_102_444_800_000;
 pub trait Hal {
     fn connected(&self) -> bool;
     fn host_active(&self) -> bool;
+    fn reset_reason(&self) -> u32 {
+        0
+    }
+    fn battery_reading(&self) -> app_launcher::battery::BatteryReading {
+        app_launcher::battery::BatteryReading::default()
+    }
     fn sd_ready(&self) -> bool;
     fn sd_free_bytes(&self) -> u64;
     fn mode(&self) -> Mode;
@@ -54,12 +60,14 @@ pub struct DeviceRuntime<H: Hal> {
     was_connected: bool,
     was_active: bool,
     pending_activity: u64,
+    last_battery_poll_ms: Option<u64>,
     status: Option<(Mode, bool, bool, u64)>,
 }
 impl<H: Hal> DeviceRuntime<H> {
     pub fn new(mut hal: H, root: impl Into<PathBuf>, local_root: impl Into<PathBuf>) -> Self {
         let mut store = GenerationStore::new(root, local_root);
         let mut state = LauncherState::new();
+        state.reset_reason = hal.reset_reason();
         state.settings = store.load_settings();
         state.settings.screen_on = true;
         hal.brightness(state.settings.brightness);
@@ -82,6 +90,7 @@ impl<H: Hal> DeviceRuntime<H> {
             was_connected,
             was_active: false,
             pending_activity: 0,
+            last_battery_poll_ms: None,
             status: None,
         }
     }
@@ -316,6 +325,15 @@ impl<H: Hal> DeviceRuntime<H> {
         }
         let mut state = self.state.lock().unwrap();
         let before = state.revision;
+        if self
+            .last_battery_poll_ms
+            .is_none_or(|last| now.saturating_sub(last) >= 2000)
+        {
+            self.last_battery_poll_ms = Some(now);
+            if state.battery.update(self.hal.battery_reading()) {
+                state.changed();
+            }
+        }
         if state.mode == Mode::Display && mode == Mode::Pad {
             state.fail_display_launch("操作未完成，请重试");
         }
@@ -501,6 +519,7 @@ mod tests {
         send_ready: bool,
         send_attempts: usize,
         messages: Vec<(u16, DeviceMessage)>,
+        battery: app_launcher::battery::BatteryReading,
     }
     impl Hal for Mock {
         fn connected(&self) -> bool {
@@ -508,6 +527,12 @@ mod tests {
         }
         fn host_active(&self) -> bool {
             self.connected
+        }
+        fn battery_reading(&self) -> app_launcher::battery::BatteryReading {
+            self.battery
+        }
+        fn reset_reason(&self) -> u32 {
+            9
         }
         fn sd_ready(&self) -> bool {
             false
@@ -592,11 +617,53 @@ mod tests {
                 send_ready: true,
                 send_attempts: 0,
                 messages: vec![],
+                battery: app_launcher::battery::BatteryReading::default(),
             },
             path.join("sd"),
             path.join("flash"),
         )
     }
+    #[test]
+    fn battery_is_polled_offline_and_in_display_without_inventing_charging() {
+        use app_launcher::battery::{BatteryReading, ChargeState};
+        let mut r = runtime();
+        r.hal.connected = false;
+        assert_eq!(r.state.lock().unwrap().reset_reason, 9);
+        r.hal.battery = BatteryReading {
+            voltage_mv: Some(3900),
+            charge: ChargeState::Unknown,
+        };
+        r.tick();
+        assert_eq!(r.state.lock().unwrap().battery.percent, Some(70));
+        assert_eq!(r.state.lock().unwrap().battery.charge, ChargeState::Unknown);
+        r.hal.connected = true;
+        r.hal.battery.voltage_mv = None;
+        r.hal.now = 1000;
+        r.tick();
+        assert_eq!(
+            r.state.lock().unwrap().battery.percent,
+            Some(70),
+            "not polled every UI loop"
+        );
+        assert_eq!(
+            r.state.lock().unwrap().battery.charge,
+            ChargeState::Unknown,
+            "USB is not charging"
+        );
+        r.hal.now = 2000;
+        r.hal.mode = Mode::Display;
+        r.tick();
+        assert_eq!(
+            r.state.lock().unwrap().battery.percent,
+            None,
+            "failed sample must clear stale charge"
+        );
+        r.hal.battery.voltage_mv = Some(3800);
+        r.hal.now = 4000;
+        r.tick();
+        assert_eq!(r.state.lock().unwrap().battery.percent, Some(50));
+    }
+
     #[test]
     fn negotiated_caps_and_request_sequence_match() {
         let mut r = runtime();

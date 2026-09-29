@@ -1,0 +1,305 @@
+{
+  "schema": "p4desk.typec-reset.acceptance.v1",
+  "recorded_at": "2026-09-29T18:20:25.484732+08:00",
+  "source_base_commit": "f033f8cf0b8ba485fb8862151f72985415637374",
+  "source_state": "working tree, not committed",
+  "request": "插入 Type-C 就保持充电显示；调查拔出或插入 Type-C 切换电池时重启。",
+  "user_evidence": {
+    "voltage_v": 4.14,
+    "estimated_percent": 94,
+    "battery_capacity": "not provided",
+    "battery_only_long_term_stability": "not confirmed",
+    "reset_reason_report": {
+      "reported_at": "2026-09-29T18:23:10.903213+08:00",
+      "status": "user_reported",
+      "label": "上电 / 硬件复位",
+      "mapped_sdk_reason": "ESP_RST_POWERON",
+      "transition": "not specified whether insertion, removal, or both",
+      "meaning": "power-on/hardware reset class; cannot distinguish power interruption from EN-pin reset"
+    },
+    "isolated_power_test": {
+      "reported_at": "2026-09-29T18:25:07.231180+08:00",
+      "status": "user_reported",
+      "configuration": "Type-A and other USB disconnected; battery plus one Type-C to wall charger",
+      "original_brightness": "still_reboots",
+      "brightness_25_percent": "still_reboots",
+      "scope": "Earlier reply 两种情况下都重启 confirms original/25% comparisons, not both transition directions; later clarification says wall charger insertion does not reboot."
+    },
+    "earlier_power_summary_superseded_by_clarification": {
+      "both_typec_ports_reset": true,
+      "host_or_wall_charger_reset": true,
+      "note": "Earlier summary did not distinguish insertion/removal; use clarified transition matrix below."
+    },
+    "clarified_transition_matrix": {
+      "reported_at": "2026-09-29T18:27:36.931876+08:00",
+      "wall_charger_insert": "no_reboot",
+      "wall_charger_remove": "reboot",
+      "mac_insert": "reboot",
+      "mac_remove": "reboot",
+      "wall_charger_charge_indicator": "not_detected",
+      "exact_port_per_transition": "not separately specified",
+      "reset_reason_for_mac_insert": "ESP_RST_POWERON, user confirmed"
+    },
+    "mac_insertion_reset_reason": {
+      "reported_at": "2026-09-29T18:28:40.210755+08:00",
+      "status": "user_reported",
+      "transition": "battery power -> insert Mac Type-C",
+      "label": "上电／硬件复位",
+      "mapped_sdk_reason": "ESP_RST_POWERON",
+      "exact_typec_port": "not separately specified"
+    },
+    "continuous_external_power_comparison": {
+      "reported_at": "2026-09-29T18:29:46.867870+08:00",
+      "status": "user_reported",
+      "configuration": "ordinary 5V wall charger continuously connected to one Type-C, Mac inserted/removed on other Type-C; Type-A disconnected",
+      "result": "no_reboot"
+    }
+  },
+  "implementation": {
+    "charging_indication": "PluggedInAssumed while native FS Type-C receives host SOF; bolt remains even at estimated 100%; no claim of measured charging",
+    "not_detectable": [
+      "wall charger",
+      "power bank",
+      "power-only cable",
+      "CH343 Type-C power input",
+      "suspended host without SOF"
+    ],
+    "hs_typea_enumeration_is_independent": true,
+    "boot_reason": "esp_reset_reason(), SDK 6.0.2 u32; key codes checked by C static_assert",
+    "uptime": "monotonic time since boot, not reset on app changes",
+    "brownout_protection": "unchanged and enabled",
+    "charger_or_boost_control_changes": false,
+    "efuse_writes": false,
+    "wire_changes": false
+  },
+  "diagnosis": {
+    "status": "evidence_strongly_supports_power_handover_root_component_unconfirmed",
+    "leading_hypothesis": "external-power/battery handover transient; continuous wall power prevents Mac insertion/removal reboot in user test",
+    "firmware_scan": "no app esp_restart path on Type-C insertion/removal found",
+    "limits": "No captured rail/EN waveforms. Cannot identify defective component or claim electrical root cause definitively. No firmware fix demonstrated. Type-A was disconnected in the final comparison.",
+    "next": "maintain external supply as tested workaround; vendor/qualified hardware measurement of handover rails and EN before any component-level repair",
+    "supporting_evidence": "charger insertion stable, charger removal reboots; Mac insertion/removal reboot on battery, Mac insertion reason POWERON; maintaining wall power prevents Mac plug/unplug reboot; lowering brightness to 25% had not removed the fault",
+    "mac_host_source_check": {
+      "product_filter": "303A:4044 vendor interface 0 only",
+      "native_debug_product": "303A:1001 not opened by P4Desk transport",
+      "current_tty_handle_snapshot": "lsof returned no open handles on queried usbmodem port; momentary snapshot cannot exclude transient accesses",
+      "does_not_prove": "other macOS software or electrical effects absent"
+    }
+  },
+  "host_verification": {
+    "rust_tests": {
+      "status": "passed",
+      "passed": 209,
+      "log": ".cache/typec-reset/tests.log"
+    },
+    "font_generation": "passed, 3456 glyphs, 1694180 bytes",
+    "preview": "visually checked actual Rust render; synthetic 4.14V/94% and BROWNOUT, not device reset evidence",
+    "preview_file": "docs/images/pad-typec-reset.png",
+    "diff_check": "passed"
+  },
+  "build": {
+    "exit_code": 0,
+    "seconds": 15.42,
+    "source_unchanged": true,
+    "sdk": "ESP-IDF 6.0.2",
+    "rust": "nightly-2026-09-27",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3459280,
+        "sha256": "9f8192000f3ffbf328c0ee867fbca701cd70f13c81f313dd99cb03c6c3f89437"
+      }
+    ],
+    "status": "passed",
+    "log": ".cache/typec-reset/build.log"
+  },
+  "flash": {
+    "exit_code": 0,
+    "seconds": 27.23,
+    "source_and_binary_reverified": true,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "log": ".cache/typec-reset/flash.log",
+    "status": "passed",
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "nvs_settings_and_tf_not_written": true
+  },
+  "source": [
+    {
+      "path": "apps/app-launcher/examples/status-battery-preview.rs",
+      "bytes": 1844,
+      "sha256": "97ad9b976fba9ea0693217840fab14035c20408a1d634220f30fb09e7b0d21a6"
+    },
+    {
+      "path": "apps/app-launcher/src/app_launch.rs",
+      "bytes": 30508,
+      "sha256": "cd7fe4fd89eccf0fc64ccecada7aecc92c46fb815f7ee9e5da1e21dbf2f8022e"
+    },
+    {
+      "path": "apps/app-launcher/src/battery.rs",
+      "bytes": 3641,
+      "sha256": "712d5c0dca4929bfd3fceb8c987daaa9728634f37f771fa0e8fbd8f086641193"
+    },
+    {
+      "path": "apps/app-launcher/src/boot_diagnostics.rs",
+      "bytes": 862,
+      "sha256": "a495d1f99887145f583e2e22bbfcbc65af3a11a56f747b958e170ef3e8cc5957"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_state.rs",
+      "bytes": 18585,
+      "sha256": "002ded967d36f64d27dab34407f3e680fd1910d332b35acb622b5dae330f4012"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 29677,
+      "sha256": "bff049692da18ed588e4e221d2946089010ea0df14f05ed1d5477bf74ca03668"
+    },
+    {
+      "path": "apps/app-launcher/src/lib.rs",
+      "bytes": 534,
+      "sha256": "50492a0f2ca58a37f15a399bab7eaf1cb4fef6e5c43376c3bd880ba924ae81af"
+    },
+    {
+      "path": "apps/app-launcher/src/status_bar.rs",
+      "bytes": 11385,
+      "sha256": "f5da2bcc7496d7553025e86fe51f49440d868d8acf1b454a9731fa93962f5b8e"
+    },
+    {
+      "path": "apps/app-launcher/tests/battery_status_tests.rs",
+      "bytes": 6239,
+      "sha256": "a544d1b2d6b4407c5da26c8da745bfb845df699bbdfd356f067867a56ac1bd7f"
+    },
+    {
+      "path": "apps/app-launcher/tests/vector_icons_tests.rs",
+      "bytes": 3207,
+      "sha256": "f34ace3df4cc55825205d2b2d73586444583bcaf8d5164c5088ffebd04a3048f"
+    },
+    {
+      "path": "assets/generated/ui.p4f",
+      "bytes": 1694180,
+      "sha256": "b6f4dea2a0bbadd90a3cea0af662b761c878d3979901c7c32f0683f54b0d4d6f"
+    },
+    {
+      "path": "assets/ui_icons/source/sd-card.svg",
+      "bytes": 587,
+      "sha256": "da5e26f0acd4345eab265b3a8b83bc6b16976c4061e1ad5eab70d09d58da17d4"
+    },
+    {
+      "path": "assets/ui_icons/source/status-slash.svg",
+      "bytes": 327,
+      "sha256": "4db4075524bc33c229fa57d2c55835f0df9229dc083f9d3db28e93861212c85c"
+    },
+    {
+      "path": "assets/ui_icons/source/usb.svg",
+      "bytes": 682,
+      "sha256": "bdb6cd58a0254b4a1b0b5a09d94ac7b2ef4f521abd78bbd1aeaf521012cc55db"
+    },
+    {
+      "path": "crates/tiny-flutter/src/graphics/svg_icons_generated.rs",
+      "bytes": 65797,
+      "sha256": "157f5ef3421b05c3b55473d528a16b24fc02a3fd08f8a78debde85e27d9b3e2d"
+    },
+    {
+      "path": "firmware/components/board_p4/CMakeLists.txt",
+      "bytes": 292,
+      "sha256": "7b943fe4f7ea8d4a39eba230e297c0a5d6a4bf23bc2a364c653aa0e738a7eb95"
+    },
+    {
+      "path": "firmware/components/board_p4/battery.c",
+      "bytes": 2541,
+      "sha256": "e0affae9c92abacc01af4395308244e969474f50e42bb1052997bd5e91f48db8"
+    },
+    {
+      "path": "firmware/components/board_p4/board_p4.c",
+      "bytes": 9387,
+      "sha256": "5859675f3cb62b9f662880d22a5e4874e941915e6ce04a8ba6dfcacd2476e45f"
+    },
+    {
+      "path": "firmware/components/board_p4/include/board_p4.h",
+      "bytes": 1228,
+      "sha256": "612e451d46e17a83a8bb46de05e1d340025d9f749fdb508226988a976ff0dcf3"
+    },
+    {
+      "path": "firmware/components/rust_main/src/ffi.rs",
+      "bytes": 12284,
+      "sha256": "925fdd577033d8cf29a6f3e6078cfce9bd77efba4b9611a1c783332d84050cc8"
+    },
+    {
+      "path": "firmware/components/rust_main/src/runtime.rs",
+      "bytes": 43138,
+      "sha256": "bbec902daa0dedd806dd61687ac72244e8c7164d20b8db78161e9751cfaccc54"
+    },
+    {
+      "path": "firmware/main/CMakeLists.txt",
+      "bytes": 831,
+      "sha256": "79d4d61b27838936531c3bcd70024b4b4f7cb95d5884d98f20dd56bd2cd02c46"
+    },
+    {
+      "path": "firmware/main/main.c",
+      "bytes": 5066,
+      "sha256": "81add0caf1bba8f626677e5c13eb27c0cb628eb4d1d9ec9669e30ced32b454b8"
+    },
+    {
+      "path": "firmware/main/p4desk_runtime.c",
+      "bytes": 44671,
+      "sha256": "d7cdbb675cc0884bcef45755fd55a9bc682c38af86c3a2cf967491be38595904"
+    },
+    {
+      "path": "include/p4desk_hal.h",
+      "bytes": 3486,
+      "sha256": "74b282275a920da0785e4cae408b487eeeeef937913858958ceaa3b3327d76f7"
+    }
+  ],
+  "all_build_input_hash_count": 241,
+  "physical_acceptance": {
+    "typec_mac_bolt": "pending_user_check",
+    "unplug_reset_reason": "pending_user_check",
+    "plug_reset_reason": {
+      "reported_at": "2026-09-29T18:28:40.210755+08:00",
+      "status": "user_reported",
+      "transition": "battery power -> insert Mac Type-C",
+      "label": "上电／硬件复位",
+      "mapped_sdk_reason": "ESP_RST_POWERON",
+      "exact_typec_port": "not separately specified"
+    },
+    "reboot_issue": "unresolved",
+    "reported_reset_reason": {
+      "reported_at": "2026-09-29T18:23:10.903213+08:00",
+      "status": "user_reported",
+      "label": "上电 / 硬件复位",
+      "mapped_sdk_reason": "ESP_RST_POWERON",
+      "transition": "not specified whether insertion, removal, or both",
+      "meaning": "power-on/hardware reset class; cannot distinguish power interruption from EN-pin reset"
+    },
+    "isolated_power_test": {
+      "reported_at": "2026-09-29T18:25:07.231180+08:00",
+      "status": "user_reported",
+      "configuration": "Type-A and other USB disconnected; battery plus one Type-C to wall charger",
+      "original_brightness": "still_reboots",
+      "brightness_25_percent": "still_reboots",
+      "scope": "Earlier reply 两种情况下都重启 confirms original/25% comparisons, not both transition directions; later clarification says wall charger insertion does not reboot."
+    },
+    "continuous_external_power_comparison": {
+      "reported_at": "2026-09-29T18:29:46.867870+08:00",
+      "status": "user_reported",
+      "configuration": "ordinary 5V wall charger continuously connected to one Type-C, Mac inserted/removed on other Type-C; Type-A disconnected",
+      "result": "no_reboot"
+    }
+  }
+}

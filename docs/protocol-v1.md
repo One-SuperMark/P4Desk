@@ -80,3 +80,9 @@ Rust的 begin/end frame 成对调用，flush指针只在同步调用期间有效
 桌面图标展开至全屏主题色后，设备发送原有 `request_mode: display`。主机创建虚拟屏、捕获首张 JPEG 后沿用 `set_mode` 与视频包。仅从该桌面入口启动时，设备将收缩动画绑定至本次 epoch，成功解码首张 JPEG 才开始 600 ms 向中心收缩；Mac 直接开启副屏无此过渡。
 
 过渡期间真实帧仍在 LCD 完成后按原格式返回 `frame_presented`（该帧可能带主题色遮罩），不把动画内部重放的相同 JPEG 当作新收到的帧重复确认。最终无覆盖帧完成 LCD DMA 后，解除输入拦截，待手指全部释放再发送新触摸。主机无需新消息或新能力位。等待超过 10 秒、断线或失败时取消待进入请求并请求 Pad，收起至准备页显示错误；未连接时照常播放开屏动画并停在准备页。
+
+### Pad 电池读数（内部 HAL）
+
+`int32_t p4desk_battery_voltage_mv(void)` 返回校准后的 BAT 毫伏值，无法读取返回 `-1`，C／Rust 均使用固定 32 位有符号整数。UI 每两秒读取一次后台缓存，百分比在 Rust 端平滑估算。7B 没有接入 MCU 的充电状态信号。按用户约定，`bool p4desk_typec_host_connected(void)` 返回原生 Type-C 的主机 SOF 连接状态，HAL 映射为 `PluggedInAssumed`／Unknown，独立于 Type-A 副屏 USB。此值不是 VBUS 或充电电流检测，不覆盖充电器／CH343 Type-C。
+
+`uint32_t p4desk_reset_reason(void)` 返回固定 SDK 6.0.2 的 `esp_reset_reason_t` 数值，Rust 显示启动原因；C 静态检查 POWERON=1、BROWNOUT=9、USB=11、PWR_GLITCH=14 和 CPU_LOCKUP=15。POWERON 不能区分断电和 EN 引脚复位。本次没有新增 USB wire 字段或改变版本。

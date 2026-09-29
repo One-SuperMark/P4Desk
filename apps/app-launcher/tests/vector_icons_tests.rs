@@ -17,7 +17,7 @@ fn draw(icon: &VectorIcon, side: usize, clip: Option<Rect>) -> Vec<u16> {
 }
 #[test]
 fn all_svg_icons_render_at_small_navigation_and_large_desktop_sizes() {
-    assert_eq!(ALL_VECTOR_ICONS.len(), 34);
+    assert_eq!(ALL_VECTOR_ICONS.len(), 37);
     for (name, icon) in ALL_VECTOR_ICONS {
         for side in [24, 32, 146] {
             let pixels = draw(icon, side, None);

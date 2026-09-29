@@ -1,5 +1,7 @@
 pub mod app_icons;
 pub mod app_launch;
+pub mod battery;
+pub mod boot_diagnostics;
 pub mod flip_clock;
 pub mod headless;
 pub mod launcher_state;

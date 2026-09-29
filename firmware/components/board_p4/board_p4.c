@@ -207,6 +207,8 @@ esp_err_t board_p4_init(board_p4_t *board)
     ESP_RETURN_ON_ERROR(panel_init(board), TAG, "display initialization");
     esp_err_t err = touch_init(board);
     if (err != ESP_OK) ESP_LOGW(TAG, "touch unavailable: %s", esp_err_to_name(err));
+    err = board_p4_battery_init();
+    if (err != ESP_OK) ESP_LOGW(TAG, "battery voltage unavailable: %s", esp_err_to_name(err));
     err = sd_mount();
     if (err == ESP_OK) err = sd_check();
     board->sd_ready = err == ESP_OK;

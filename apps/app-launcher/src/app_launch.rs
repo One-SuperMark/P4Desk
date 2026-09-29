@@ -222,6 +222,7 @@ impl RenderAppLaunchOverlay {
             if state.mode != Mode::Pad
                 || !state.settings.screen_on
                 || state.active_app.id().is_some()
+                || state.status_panel_open
             {
                 return;
             }

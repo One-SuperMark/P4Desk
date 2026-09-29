@@ -68,6 +68,9 @@ extern "C" {
     fn p4desk_set_brightness(percent: u8);
     fn p4desk_monotonic_us() -> i64;
     fn p4desk_delay_ms(ms: u32);
+    fn p4desk_battery_voltage_mv() -> i32;
+    fn p4desk_typec_host_connected() -> bool;
+    fn p4desk_reset_reason() -> u32;
     fn p4desk_sd_ready() -> bool;
     fn p4desk_sd_free_bytes() -> u64;
     fn p4desk_poll_packet(
@@ -93,6 +96,21 @@ impl Hal for EspHal {
     }
     fn host_active(&self) -> bool {
         unsafe { p4desk_host_active() }
+    }
+    fn battery_reading(&self) -> app_launcher::battery::BatteryReading {
+        app_launcher::battery::BatteryReading {
+            voltage_mv: u16::try_from(unsafe { p4desk_battery_voltage_mv() }).ok(),
+            charge: if unsafe { p4desk_typec_host_connected() } {
+                app_launcher::battery::ChargeState::PluggedInAssumed
+            } else {
+                // No SOF does not prove battery power: a wall charger or the
+                // separate CH343 UART Type-C can still be supplying power.
+                app_launcher::battery::ChargeState::Unknown
+            },
+        }
+    }
+    fn reset_reason(&self) -> u32 {
+        unsafe { p4desk_reset_reason() }
     }
     fn sd_ready(&self) -> bool {
         unsafe { p4desk_sd_ready() }

@@ -61,6 +61,12 @@ bool rust_p4desk_display_reveal(uint16_t *pixels, size_t count, uint32_t elapsed
 void p4desk_set_brightness(uint8_t percent);
 int64_t p4desk_monotonic_us(void);
 void p4desk_delay_ms(uint32_t milliseconds);
+// Calibrated battery terminal mV, or -1 when unavailable. No charge-status pin on 7B.
+int32_t p4desk_battery_voltage_mv(void);
+// Native Type-C USB Serial/JTAG host SOF only, not VBUS/charger/Type-A detection.
+bool p4desk_typec_host_connected(void);
+// ESP-IDF 6.0.2 esp_reset_reason_t numeric value; POWERON can include EN reset.
+uint32_t p4desk_reset_reason(void);
 bool p4desk_sd_ready(void);
 uint64_t p4desk_sd_free_bytes(void);
 size_t p4desk_poll_packet(uint8_t *kind, uint16_t *sequence, uint8_t *buffer, size_t capacity);

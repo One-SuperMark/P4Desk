@@ -13,8 +13,24 @@
 #include "esp_partition.h"
 #include "esp_random.h"
 #include "esp_spiffs.h"
+#include "esp_system.h"
+#include "driver/usb_serial_jtag.h"
 
 static const char *TAG = "p4desk";
+_Static_assert(ESP_RST_POWERON == 1 && ESP_RST_BROWNOUT == 9 && ESP_RST_USB == 11 &&
+               ESP_RST_PWR_GLITCH == 14 && ESP_RST_CPU_LOCKUP == 15, "reset-reason HAL ABI");
+
+uint32_t p4desk_reset_reason(void)
+{
+    return (uint32_t)esp_reset_reason();
+}
+
+bool p4desk_typec_host_connected(void)
+{
+    // Receives host SOF at the native FS Type-C port; wall chargers and the
+    // separate CH343 port are unobservable. Does not touch reset/DTR/RTS.
+    return usb_serial_jtag_is_connected();
+}
 
 static bool partition_is_blank(const esp_partition_t *partition)
 {
@@ -103,6 +119,7 @@ void app_main(void)
 {
     static board_p4_t board;
     ESP_LOGI(TAG, "P4Desk starting, protocol v1");
+    ESP_LOGI(TAG, "boot reset_reason=%" PRIu32, p4desk_reset_reason());
     ESP_ERROR_CHECK(board_p4_init(&board));
     flash_mount();
     p4desk_runtime_init(&board);

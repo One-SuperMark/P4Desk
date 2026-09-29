@@ -90,6 +90,7 @@ static uint32_t s_mode = MODE_PAD, s_epoch = 1, s_session, s_jpeg_rotation_degre
 static bool s_connected, s_invalidated = true, s_time_valid;
 static int64_t s_heartbeat_us;
 static p4desk_display_transition_t s_display_transition;
+static atomic_int s_battery_voltage_mv = -1;
 static atomic_uchar s_brightness = 75;
 static atomic_bool s_backlight_on = true;
 static bool s_pad_touch_active, s_pad_touch_blocked;
@@ -983,10 +984,16 @@ static void log_diagnostics(int64_t now_us)
         atomic_load_explicit(&s_frame_ack_dropped, memory_order_relaxed));
 }
 
+int32_t p4desk_battery_voltage_mv(void)
+{
+    return atomic_load_explicit(&s_battery_voltage_mv, memory_order_relaxed);
+}
+
 static void watchdog_task(void *argument)
 {
     (void)argument;
     int64_t last_diagnostics_us = esp_timer_get_time();
+    int64_t last_battery_us = last_diagnostics_us - 2000000;
     for (;;) {
         int64_t now = esp_timer_get_time();
         portENTER_CRITICAL(&s_state_lock);
@@ -999,6 +1006,12 @@ static void watchdog_task(void *argument)
             p4desk_usb_release_media();
             const char message[] = "{\"op\":\"request_mode\",\"mode\":\"pad\"}";
             p4desk_send_control(message, sizeof(message) - 1, 0);
+        }
+        if (now - last_battery_us >= 2000000) {
+            // ADC work stays off the UI and display-owner paths. Invalid samples
+            // clear stale telemetry; no USB state is used to infer charging.
+            atomic_store_explicit(&s_battery_voltage_mv, board_p4_battery_voltage_mv(), memory_order_relaxed);
+            last_battery_us = now;
         }
         if (now - last_diagnostics_us >= DIAGNOSTICS_INTERVAL_US) {
             log_diagnostics(now);
