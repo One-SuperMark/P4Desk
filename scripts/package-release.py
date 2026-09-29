@@ -46,8 +46,8 @@ def main():
         raise SystemExit('先提交源文件和验收记录，使源码归档与交付清单对应同一个 Git 提交。')
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
     for relative in ['Contents/MacOS/P4Desk', 'Contents/Resources/p4desk-fontpack',
-                     'Contents/Resources/NotoSansSC-Regular.otf', 'Contents/Resources/NotoSans-OFL.txt',
-                     'Contents/Resources/NotoSans-copyright.txt', 'Contents/Resources/FONT-SOURCES.json']:
+                     'Contents/Resources/HarmonyOS_Sans_SC_Regular.ttf',
+                     'Contents/Resources/HarmonyOS-Sans-LICENSE.txt', 'Contents/Resources/FONT-SOURCES.json']:
         resource = app / relative
         if not resource.is_file() or resource.stat().st_size == 0:
             raise SystemExit(f'Mac app 必需资源缺失：{relative}')
@@ -82,8 +82,8 @@ def main():
         shutil.copytree(ROOT / 'desktop/macos/acceptance', package / 'desktop/macos/acceptance')
         for script in ['backup-device.py', 'device-tool.py']:
             copy_required(ROOT / 'scripts' / script, package / 'scripts' / script)
-        for relative in ['p4desk-fontpack', 'NotoSansSC-Regular.otf', 'NotoSans-OFL.txt',
-                         'NotoSans-copyright.txt', 'FONT-SOURCES.json']:
+        # Font files stay bundled with P4Desk rather than distributed as a font-only tool.
+        for relative in ['p4desk-fontpack', 'FONT-SOURCES.json']:
             copy_required(app / 'Contents/Resources' / relative, package / 'tools/fontpack' / relative)
         copy_required(ROOT / 'tools/fontpack/README.md', package / 'tools/fontpack/README.md')
         source = package / f'{name}-source.tar.gz'

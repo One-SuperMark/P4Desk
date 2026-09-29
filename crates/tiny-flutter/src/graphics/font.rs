@@ -1,4 +1,3 @@
-use crate::graphics::baked_font::get_baked_font;
 use crate::graphics::fontpack::{FontPack, PackGlyphRef};
 use crate::graphics::geometry::Size;
 use fontdue::{Font as InnerFont, FontSettings, Metrics};
@@ -6,9 +5,10 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 
 static DEFAULT_FONT_BYTES: &[u8] =
-    include_bytes!("../../../../assets/fonts/source/Roboto-Subset.ttf");
+    include_bytes!("../../../../assets/fonts/source/HarmonyOS_Sans_Regular.ttf");
 static UI_FONT_BYTES: &[u8] = include_bytes!("../../../../assets/generated/ui.p4f");
 static DEFAULT_FONT: OnceLock<Font> = OnceLock::new();
+static CONTENT_FONT: OnceLock<Font> = OnceLock::new();
 static UI_PACK: OnceLock<Option<Arc<FontPack>>> = OnceLock::new();
 static ACTIVE_PACK: RwLock<Option<Arc<FontPack>>> = RwLock::new(None);
 const CACHE_BYTES: usize = 512 * 1024;
@@ -31,7 +31,6 @@ fn ui_pack() -> Option<&'static Arc<FontPack>> {
 
 #[derive(Clone)]
 enum Bitmap {
-    Static(&'static [u8]),
     Owned(Arc<[u8]>),
     Pack(PackGlyphRef),
 }
@@ -48,7 +47,6 @@ pub struct Glyph {
 impl Glyph {
     pub fn bitmap(&self) -> &[u8] {
         match &self.bitmap {
-            Bitmap::Static(v) => v,
             Bitmap::Owned(v) => v,
             Bitmap::Pack(v) => v.bitmap(),
         }
@@ -77,6 +75,7 @@ pub struct Font {
     inner: Arc<InnerFont>,
     cache: Arc<Mutex<GlyphCache>>,
     is_default: bool,
+    use_active_pack: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -95,12 +94,22 @@ impl Font {
             inner: Arc::new(inner),
             cache: Arc::new(Mutex::new(GlyphCache::default())),
             is_default: false,
+            use_active_pack: false,
         })
     }
     pub fn default_font() -> &'static Font {
         DEFAULT_FONT.get_or_init(|| {
             let mut f = Self::from_bytes(DEFAULT_FONT_BYTES).expect("bundled Latin font");
             f.is_default = true;
+            f
+        })
+    }
+    /// User text uses its synced atlas, while system labels keep the bundled UI face.
+    /// Both faces share the same bounded Latin fallback cache.
+    pub fn content_font() -> &'static Font {
+        CONTENT_FONT.get_or_init(|| {
+            let mut f = Self::default_font().clone();
+            f.use_active_pack = true;
             f
         })
     }
@@ -121,30 +130,26 @@ impl Font {
         (size * 1.35).ceil()
     }
 
-    /// Resolve each character independently: user atlas -> UI subset -> legacy ASCII -> Latin -> box.
+    /// Resolve user text through its atlas, then the UI subset, Latin face and missing-glyph box.
+    /// System labels skip the user atlas, including older TF generations with another typeface.
     /// Measurement and drawing call this same resolver, so missing CJK never collapses to zero width.
     pub fn glyph(&self, ch: char, size: f32) -> Glyph {
         let px = size.round().clamp(8.0, 128.0) as u16;
         if self.is_default {
-            let active = ACTIVE_PACK
-                .read()
-                .unwrap_or_else(|p| p.into_inner())
-                .clone();
+            let active = self
+                .use_active_pack
+                .then(|| {
+                    ACTIVE_PACK
+                        .read()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .clone()
+                })
+                .flatten();
             if let Some(g) = active.as_ref().and_then(|p| p.glyph(px, ch)) {
                 return Glyph::from_pack(g);
             }
             if let Some(g) = ui_pack().and_then(|p| p.glyph(px, ch)) {
                 return Glyph::from_pack(g);
-            }
-            if let Some(g) = get_baked_font(size).and_then(|f| f.get_glyph(ch)) {
-                return Glyph {
-                    width: g.width as usize,
-                    height: g.height as usize,
-                    xmin: g.xmin as i32,
-                    ymin: g.ymin as i32,
-                    advance: g.advance_width,
-                    bitmap: Bitmap::Static(g.bitmap),
-                };
             }
         }
         let key = (ch, (size * 10.0).round() as u32);
@@ -213,18 +218,20 @@ impl Font {
         }
         if self.is_default {
             let px = size.round().clamp(8.0, 128.0) as u16;
-            let active = ACTIVE_PACK
-                .read()
-                .unwrap_or_else(|p| p.into_inner())
-                .clone();
+            let active = self
+                .use_active_pack
+                .then(|| {
+                    ACTIVE_PACK
+                        .read()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .clone()
+                })
+                .flatten();
             if let Some(m) = active.as_ref().and_then(|p| p.metrics(px, ch)) {
                 return m.advance;
             }
             if let Some(m) = ui_pack().and_then(|p| p.metrics(px, ch)) {
                 return m.advance;
-            }
-            if let Some(g) = get_baked_font(size).and_then(|p| p.get_glyph(ch)) {
-                return g.advance_width;
             }
         }
         if self.inner.lookup_glyph_index(ch) != 0 {
@@ -282,6 +289,41 @@ impl Font {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graphics::fontpack::{encode_fontpack, PackGlyph};
+
+    #[test]
+    fn old_synced_atlas_cannot_override_ui_but_custom_content_font_still_works() {
+        let system = Font::default_font();
+        let baseline = system.glyph('钟', 22.0);
+        let baseline_pixels = baseline.bitmap().to_vec();
+        let baseline_advance = system.advance('钟', 22.0);
+        let bytes = encode_fontpack(vec![PackGlyph {
+            character: '钟',
+            size: 22,
+            width: 2,
+            height: 3,
+            xmin: 0,
+            ymin: 0,
+            advance: 41.0,
+            bitmap: vec![127; 6],
+        }])
+        .unwrap();
+        install_fontpack(Some(Arc::new(FontPack::from_bytes(bytes).unwrap())));
+        assert_eq!(system.glyph('钟', 22.0).bitmap(), baseline_pixels);
+        assert_eq!(system.advance('钟', 22.0), baseline_advance);
+        let content = Font::content_font();
+        assert_eq!(content.glyph('钟', 22.0).bitmap(), [127; 6]);
+        assert_eq!(content.advance('钟', 22.0), 41.0);
+        assert_eq!(content.measure_text("钟钟", 22.0).width, 82.0);
+        assert_eq!(
+            content.glyph('计', 22.0).bitmap(),
+            system.glyph('计', 22.0).bitmap()
+        );
+        install_fontpack(None);
+        assert_eq!(content.glyph('钟', 22.0).bitmap(), baseline_pixels);
+        assert_eq!(content.advance('钟', 22.0), baseline_advance);
+    }
+
     #[test]
     fn chinese_wrap_and_missing_fallback_have_same_advance() {
         let f = Font::default_font();

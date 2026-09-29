@@ -1,10 +1,11 @@
+use crate::flip_clock::FlipClockState;
 use crate::storage::LocalSettings;
 use crate::timer::TimerService;
 use calculator::CalcState;
 use p4desk_protocol::{Mode, Snapshot};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
-use tiny_flutter::{PageController, ScrollController};
+use tiny_flutter::{PageController, Rect, ScrollController, Size};
 
 pub const APP_IDS: [&str; 6] = ["clock", "timer", "notes", "calculator", "mac", "settings"];
 #[derive(Clone)]
@@ -73,6 +74,7 @@ pub struct LauncherState {
     pub unix_ms: i64,
     pub monotonic_ms: u64,
     pub clock: String,
+    pub flip_clock: FlipClockState,
     pub date: String,
     pub notice: String,
     pub mac_page: usize,
@@ -81,6 +83,7 @@ pub struct LauncherState {
     pub manual_clock: crate::manual_clock::ManualClock,
     commands: VecDeque<UiCommand>,
     last_second: u64,
+    last_unix_second: Option<i64>,
 }
 impl Default for LauncherState {
     fn default() -> Self {
@@ -106,6 +109,7 @@ impl LauncherState {
             unix_ms: 0,
             monotonic_ms: 0,
             clock: "--:--:--".into(),
+            flip_clock: FlipClockState::default(),
             date: "等待 Mac 校时".into(),
             notice: String::new(),
             mac_page: 0,
@@ -114,6 +118,7 @@ impl LauncherState {
             manual_clock: crate::manual_clock::ManualClock::default(),
             commands: VecDeque::new(),
             last_second: u64::MAX,
+            last_unix_second: None,
         }
     }
     pub fn open_app(&mut self, id: &str) {
@@ -127,6 +132,7 @@ impl LauncherState {
             "settings" => ActiveApp::Settings,
             _ => ActiveApp::Launcher,
         });
+        self.flip_clock.snap(&self.clock);
         self.changed();
     }
     pub fn background_active_app(&mut self) {
@@ -134,6 +140,7 @@ impl LauncherState {
             self.running_apps.insert(id.into(), self.active_app.clone());
         }
         self.active_app = ActiveApp::Launcher;
+        self.flip_clock.snap(&self.clock);
         self.changed();
     }
     /// The original BackListener semantics, with the settings editor's nested route.
@@ -153,6 +160,7 @@ impl LauncherState {
             self.manual_time_open = false;
         }
         self.active_app = ActiveApp::Launcher;
+        self.flip_clock.snap(&self.clock);
         self.changed();
     }
     pub fn changed(&mut self) {
@@ -177,15 +185,45 @@ impl LauncherState {
     }
     pub fn last_time_refresh(&mut self) {
         self.last_second = u64::MAX;
+        self.last_unix_second = None;
+        self.flip_clock.snap(&self.clock);
         self.changed();
+    }
+    fn clock_visible(&self) -> bool {
+        matches!(self.active_app, ActiveApp::Clock)
+            && self.mode == Mode::Pad
+            && self.settings.screen_on
+    }
+    pub fn take_clock_animation_dirty(&mut self, size: Size) -> Option<Rect> {
+        if !self.clock_visible() {
+            self.flip_clock.snap(&self.clock);
+            return None;
+        }
+        self.flip_clock.take_dirty(
+            self.monotonic_ms,
+            Size::new((size.width - 48.0).max(1.0), (size.height - 94.0).max(1.0)),
+        )
     }
     pub fn tick(&mut self, monotonic_ms: u64, unix_ms: i64) -> bool {
         self.monotonic_ms = monotonic_ms;
         self.unix_ms = unix_ms;
+        // Display mode skips Pad drawing entirely, so cancellation belongs in
+        // tick rather than relying on a hidden page consuming animation dirty.
+        if !self.clock_visible() {
+            self.flip_clock.snap(&self.clock);
+        }
         let changed = self.timer.tick(monotonic_ms);
         let second = monotonic_ms / 1000;
-        if second != self.last_second || changed {
+        let unix_second = (unix_ms > 0).then(|| unix_ms.div_euclid(1000));
+        if second != self.last_second || unix_second != self.last_unix_second || changed {
+            let animate = self.clock_visible()
+                && self.time_valid
+                && self
+                    .last_unix_second
+                    .zip(unix_second)
+                    .is_some_and(|(before, after)| after == before + 1);
             self.last_second = second;
+            self.last_unix_second = unix_second;
             self.time_valid = unix_ms > 0;
             if self.time_valid {
                 (self.clock, self.date) = clock_strings(unix_ms, self.settings.timezone_minutes);
@@ -193,6 +231,7 @@ impl LauncherState {
                 self.clock = "--:--:--".into();
                 self.date = "等待 Mac 校时".into();
             }
+            self.flip_clock.update(&self.clock, monotonic_ms, animate);
             self.changed();
             return true;
         }

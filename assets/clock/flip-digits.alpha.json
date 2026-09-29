@@ -1,0 +1,258 @@
+{
+  "atlas_sha256": "be04eb78bccb5252f2c8ca99225a61ee9a330689d25a316b69597710871aac1a",
+  "bytes": 329472,
+  "characters": "0123456789-",
+  "digit_advance_units": 524,
+  "features": [
+    "tnum",
+    "lnum"
+  ],
+  "font_name": "DINish Heavy",
+  "font_size": 282,
+  "font_version": "4.007",
+  "glyphs": [
+    {
+      "advance": 144.3046875,
+      "baseline": 201,
+      "bounds": [
+        11,
+        3,
+        133,
+        205
+      ],
+      "character": "0",
+      "glyph_id": 23,
+      "ink_center_y": 104,
+      "margins": [
+        11,
+        3,
+        11,
+        3
+      ],
+      "optical_y_adjustment": 0,
+      "pen_x": 0
+    },
+    {
+      "advance": 144.3046875,
+      "baseline": 201,
+      "bounds": [
+        26,
+        6,
+        117,
+        202
+      ],
+      "character": "1",
+      "glyph_id": 29,
+      "ink_center_y": 104,
+      "margins": [
+        26,
+        6,
+        27,
+        6
+      ],
+      "optical_y_adjustment": 0,
+      "pen_x": 9
+    },
+    {
+      "advance": 144.3046875,
+      "baseline": 203,
+      "bounds": [
+        12,
+        5,
+        132,
+        203
+      ],
+      "character": "2",
+      "glyph_id": 35,
+      "ink_center_y": 104,
+      "margins": [
+        12,
+        5,
+        12,
+        5
+      ],
+      "optical_y_adjustment": 2,
+      "pen_x": -2
+    },
+    {
+      "advance": 144.3046875,
+      "baseline": 201,
+      "bounds": [
+        12,
+        3,
+        132,
+        205
+      ],
+      "character": "3",
+      "glyph_id": 41,
+      "ink_center_y": 104,
+      "margins": [
+        12,
+        3,
+        12,
+        3
+      ],
+      "optical_y_adjustment": 0,
+      "pen_x": -1
+    },
+    {
+      "advance": 144.3046875,
+      "baseline": 201,
+      "bounds": [
+        6,
+        6,
+        138,
+        201
+      ],
+      "character": "4",
+      "glyph_id": 47,
+      "ink_center_y": 103.5,
+      "margins": [
+        6,
+        6,
+        6,
+        7
+      ],
+      "optical_y_adjustment": 0,
+      "pen_x": -6
+    },
+    {
+      "advance": 144.3046875,
+      "baseline": 199,
+      "bounds": [
+        13,
+        4,
+        131,
+        203
+      ],
+      "character": "5",
+      "glyph_id": 53,
+      "ink_center_y": 103.5,
+      "margins": [
+        13,
+        4,
+        13,
+        5
+      ],
+      "optical_y_adjustment": -2,
+      "pen_x": -2
+    },
+    {
+      "advance": 144.3046875,
+      "baseline": 199,
+      "bounds": [
+        9,
+        4,
+        135,
+        203
+      ],
+      "character": "6",
+      "glyph_id": 59,
+      "ink_center_y": 103.5,
+      "margins": [
+        9,
+        4,
+        9,
+        5
+      ],
+      "optical_y_adjustment": -2,
+      "pen_x": -1
+    },
+    {
+      "advance": 144.3046875,
+      "baseline": 201,
+      "bounds": [
+        13,
+        6,
+        130,
+        201
+      ],
+      "character": "7",
+      "glyph_id": 65,
+      "ink_center_y": 103.5,
+      "margins": [
+        13,
+        6,
+        14,
+        7
+      ],
+      "optical_y_adjustment": 0,
+      "pen_x": -7
+    },
+    {
+      "advance": 144.3046875,
+      "baseline": 201,
+      "bounds": [
+        9,
+        3,
+        134,
+        205
+      ],
+      "character": "8",
+      "glyph_id": 71,
+      "ink_center_y": 104,
+      "margins": [
+        9,
+        3,
+        10,
+        3
+      ],
+      "optical_y_adjustment": 0,
+      "pen_x": -1
+    },
+    {
+      "advance": 144.3046875,
+      "baseline": 203,
+      "bounds": [
+        9,
+        5,
+        135,
+        203
+      ],
+      "character": "9",
+      "glyph_id": 77,
+      "ink_center_y": 104,
+      "margins": [
+        9,
+        5,
+        9,
+        5
+      ],
+      "optical_y_adjustment": 2,
+      "pen_x": -2
+    },
+    {
+      "advance": 110.70703125,
+      "baseline": 201,
+      "bounds": [
+        32,
+        85,
+        111,
+        123
+      ],
+      "character": "-",
+      "glyph_id": 16,
+      "ink_center_y": 104,
+      "margins": [
+        32,
+        85,
+        33,
+        85
+      ],
+      "optical_y_adjustment": 0,
+      "pen_x": 16
+    }
+  ],
+  "height": 208,
+  "license": "SIL OFL 1.1",
+  "nominal_baseline": 201,
+  "numeric_ink_center_y": 104,
+  "postscript_name": "DINish-Heavy",
+  "rasterizer": "macOS CoreText outlines / CoreGraphics grayscale",
+  "selected_style": "heavy",
+  "source_commit": "a5f3b2a3b932336225815bf9005e3b72cc3de71c",
+  "source_sha256": "6812edbc60553218229b256670b57fdaf8186969e56f9aa7c19bcb19c66ad263",
+  "source_url": "https://raw.githubusercontent.com/playbeing/dinish/a5f3b2a3b932336225815bf9005e3b72cc3de71c/fonts/ttf/DINish/DINish-Heavy.ttf",
+  "weight": 800,
+  "width": 144
+}

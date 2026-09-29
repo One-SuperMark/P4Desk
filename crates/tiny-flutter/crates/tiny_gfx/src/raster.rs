@@ -183,6 +183,115 @@ pub fn fill_rrect(pixmap: &mut Pixmap565Mut<'_>, clip: Option<Rect>, rrect: RRec
     }
 }
 
+/// Fill a rounded rectangle with coverage at its edges. Four vertical samples
+/// and analytic horizontal overlap preserve fine capsule corners. The opaque
+/// interior still uses fast span fills; no enlarged framebuffer is allocated.
+pub fn fill_rrect_aa(
+    pixmap: &mut Pixmap565Mut<'_>,
+    clip: Option<Rect>,
+    rrect: RRect,
+    color: Color,
+) {
+    let rect = rrect.rect;
+    if rect.width <= 0.0 || rect.height <= 0.0 || color.a == 0 {
+        return;
+    }
+    let radius = rrect.radius.x.min(rect.width * 0.5).min(rect.height * 0.5);
+    if radius <= 0.5 {
+        fill_rect(pixmap, clip, rect, color);
+        return;
+    }
+    let bounds = match clip {
+        Some(c) => match rect.intersect(&c) {
+            Some(i) => i,
+            None => return,
+        },
+        None => rect,
+    };
+    let width = pixmap.width as i32;
+    let height = pixmap.height as i32;
+    let x0 = (bounds.x.floor() as i32).clamp(0, width);
+    let x1 = (bounds.right().ceil() as i32).clamp(x0, width);
+    let y0 = (bounds.y.floor() as i32).clamp(0, height);
+    let y1 = (bounds.bottom().ceil() as i32).clamp(y0, height);
+    let rgb = color.to_rgb565();
+    let top = rect.y + radius;
+    let bottom = rect.bottom() - radius;
+    for y in y0..y1 {
+        let mut spans = [None; 4];
+        let mut left = rect.right();
+        let mut right = rect.x;
+        let mut full_left = rect.x;
+        let mut full_right = rect.right();
+        let mut valid = 0;
+        for (sample, span) in spans.iter_mut().enumerate() {
+            let sy = y as f32 + (sample as f32 + 0.5) / 4.0;
+            if sy < rect.y || sy >= rect.bottom() {
+                continue;
+            }
+            let dy = if sy < top {
+                top - sy
+            } else if sy > bottom {
+                sy - bottom
+            } else {
+                0.0
+            };
+            let inset = if dy == 0.0 {
+                0.0
+            } else {
+                radius - (radius * radius - dy * dy).max(0.0).sqrt()
+            };
+            let l = rect.x + inset;
+            let r = rect.right() - inset;
+            *span = Some((l, r));
+            valid += 1;
+            left = left.min(l);
+            right = right.max(r);
+            full_left = full_left.max(l);
+            full_right = full_right.min(r);
+        }
+        if valid == 0 {
+            continue;
+        }
+        let begin = (left.floor() as i32).clamp(x0, x1);
+        let end = (right.ceil() as i32).clamp(begin, x1);
+        let inside_begin = if valid == 4 {
+            (full_left.ceil() as i32).clamp(begin, end)
+        } else {
+            end
+        };
+        let inside_end = if valid == 4 {
+            (full_right.floor() as i32).clamp(inside_begin, end)
+        } else {
+            end
+        };
+        let row = pixmap.row_mut(y as u32);
+        let interior = &mut row[inside_begin as usize..inside_end as usize];
+        if color.a == 255 {
+            fill_u16_slice(interior, rgb);
+        } else {
+            for pixel in interior {
+                *pixel = blend_rgb565(*pixel, rgb, color.a);
+            }
+        }
+        for range in [begin..inside_begin, inside_end..end] {
+            for x in range {
+                let coverage = spans
+                    .iter()
+                    .flatten()
+                    .map(|(l, r)| (r.min(x as f32 + 1.0) - l.max(x as f32)).clamp(0.0, 1.0))
+                    .sum::<f32>()
+                    / 4.0;
+                let alpha = (coverage * color.a as f32).round() as u8;
+                if alpha != 0 {
+                    let pixel = &mut row[x as usize];
+                    *pixel = blend_rgb565(*pixel, rgb, alpha);
+                }
+            }
+        }
+    }
+}
+
 /// Draw a stroked rounded rectangle border.
 pub fn stroke_rrect(
     pixmap: &mut Pixmap565Mut<'_>,
@@ -483,7 +592,8 @@ pub fn blit_image_565(
     }
 }
 
-/// Blit of 16-bit RGB565 pixels with an 8-bit alpha mask (e.g. app icons with squircle rounded corners).
+/// Blit RGB565 colors using the supplied linear coverage mask. The mask owns
+/// the silhouette; do not recut corners or discard white artwork at its edges.
 pub fn blit_image_565_with_alpha(
     pixmap: &mut Pixmap565Mut<'_>,
     clip: Option<Rect>,
@@ -494,90 +604,48 @@ pub fn blit_image_565_with_alpha(
     rgb_pixels: &[u16],
     alpha_mask: &[u8],
 ) {
-    let total = (w * h) as usize;
-    if w == 0 || h == 0 || rgb_pixels.len() < total || alpha_mask.len() < total {
+    let Some(total) = (w as usize).checked_mul(h as usize) else {
+        return;
+    };
+    if w == 0
+        || h == 0
+        || w > i32::MAX as u32
+        || h > i32::MAX as u32
+        || rgb_pixels.len() < total
+        || alpha_mask.len() < total
+    {
         return;
     }
-
     let pix_w = pixmap.width as i32;
     let pix_h = pixmap.height as i32;
-
     let clip_box = clip.unwrap_or(Rect::from_ltwh(0.0, 0.0, pix_w as f32, pix_h as f32));
-    let clip_x1 = (clip_box.x.floor() as i32).max(0);
-    let clip_y1 = (clip_box.y.floor() as i32).max(0);
-    let clip_x2 = (clip_box.right().ceil() as i32).min(pix_w);
-    let clip_y2 = (clip_box.bottom().ceil() as i32).min(pix_h);
-
-    let x1 = x.max(clip_x1);
-    let y1 = y.max(clip_y1);
-    let x2 = (x + w as i32).min(clip_x2);
-    let y2 = (y + h as i32).min(clip_y2);
-
+    let x1 = x.max((clip_box.x.floor() as i32).max(0));
+    let y1 = y.max((clip_box.y.floor() as i32).max(0));
+    let x2 = x
+        .saturating_add(w as i32)
+        .min((clip_box.right().ceil() as i32).min(pix_w));
+    let y2 = y
+        .saturating_add(h as i32)
+        .min((clip_box.bottom().ceil() as i32).min(pix_h));
     if x2 <= x1 || y2 <= y1 {
         return;
     }
-
-    let half_w = w as f32 * 0.5;
-    let half_h = h as f32 * 0.5;
-    let corner_r = 0.225 * (w.min(h) as f32);
-    let inner_w = half_w - corner_r;
-    let inner_h = half_h - corner_r;
-
     for py in y1..y2 {
-        let sy = (py - y) as usize;
+        let source_row = (py - y) as usize * w as usize;
         let row = pixmap.row_mut(py as u32);
-        let py_dist = (sy as f32 + 0.5 - half_h).abs();
-        let qy = (py_dist - inner_h).max(0.0);
-
         for px in x1..x2 {
-            let sx = (px - x) as usize;
-            let idx = sy * (w as usize) + sx;
-            let mut a = alpha_mask[idx];
-            if a == 0 {
-                continue;
-            }
-
-            // Authentic iOS squircle boundary check
-            let px_dist = (sx as f32 + 0.5 - half_w).abs();
-            let qx = (px_dist - inner_w).max(0.0);
-            let dist_from_corner = (qx * qx + qy * qy).sqrt();
-
-            if dist_from_corner > corner_r {
-                continue;
-            }
-            if dist_from_corner > corner_r - 1.25 {
-                let edge_factor = ((corner_r - dist_from_corner) / 1.25).clamp(0.0, 1.0);
-                a = ((a as f32) * edge_factor) as u8;
-                if a == 0 {
-                    continue;
-                }
-            }
-
-            let src = rgb_pixels[idx];
-
-            // White fringe suppressor for hello and counter icons:
-            // Filter near-white halo pixels (R>200, G>200, B>200) within 3.0px of the outer edge
-            if dist_from_corner > corner_r - 3.0 {
-                let r5 = (src >> 11) & 0x1F;
-                let g6 = (src >> 5) & 0x3F;
-                let b5 = src & 0x1F;
-                if r5 >= 25 && g6 >= 50 && b5 >= 25 {
-                    continue;
-                }
-            }
-
-            let dst = &mut row[px as usize];
-            if a == 255 {
-                *dst = src;
-            } else {
-                *dst = blend_rgb565(*dst, src, a);
+            let index = source_row + (px - x) as usize;
+            let a = alpha_mask[index];
+            if a != 0 {
+                row[px as usize] = blend_rgb565(row[px as usize], rgb_pixels[index], a);
             }
         }
     }
 }
 
-/// Blit of 16-bit RGB565 pixels with an 8-bit alpha mask, scaled to (dst_w, dst_h)
-/// with authentic iOS squircle boundary antialiasing and edge white fringe removal.
+/// Pixel-centered bilinear scaling of RGB565 + unassociated alpha. Interpolate
+/// premultiplied colors and coverage together so transparent RGB cannot create
+/// dark or white halos. Native-size assets take the exact fast blit above.
 pub fn blit_image_565_with_alpha_scaled(
     pixmap: &mut Pixmap565Mut<'_>,
     clip: Option<Rect>,
@@ -590,102 +658,109 @@ pub fn blit_image_565_with_alpha_scaled(
     rgb_pixels: &[u16],
     alpha_mask: &[u8],
 ) {
-    let total = (src_w * src_h) as usize;
+    let Some(total) = (src_w as usize).checked_mul(src_h as usize) else {
+        return;
+    };
     if dst_w == 0
         || dst_h == 0
         || src_w == 0
         || src_h == 0
+        || dst_w > i32::MAX as u32
+        || dst_h > i32::MAX as u32
+        || src_w > i32::MAX as u32
+        || src_h > i32::MAX as u32
         || rgb_pixels.len() < total
         || alpha_mask.len() < total
     {
         return;
     }
-
+    if dst_w == src_w && dst_h == src_h {
+        blit_image_565_with_alpha(pixmap, clip, x, y, dst_w, dst_h, rgb_pixels, alpha_mask);
+        return;
+    }
     let pix_w = pixmap.width as i32;
     let pix_h = pixmap.height as i32;
-
     let clip_box = clip.unwrap_or(Rect::from_ltwh(0.0, 0.0, pix_w as f32, pix_h as f32));
-    let clip_x1 = (clip_box.x.floor() as i32).max(0);
-    let clip_y1 = (clip_box.y.floor() as i32).max(0);
-    let clip_x2 = (clip_box.right().ceil() as i32).min(pix_w);
-    let clip_y2 = (clip_box.bottom().ceil() as i32).min(pix_h);
-
-    let x1 = x.max(clip_x1);
-    let y1 = y.max(clip_y1);
-    let x2 = (x + dst_w as i32).min(clip_x2);
-    let y2 = (y + dst_h as i32).min(clip_y2);
-
+    let x1 = x.max((clip_box.x.floor() as i32).max(0));
+    let y1 = y.max((clip_box.y.floor() as i32).max(0));
+    let x2 = x
+        .saturating_add(dst_w as i32)
+        .min((clip_box.right().ceil() as i32).min(pix_w));
+    let y2 = y
+        .saturating_add(dst_h as i32)
+        .min((clip_box.bottom().ceil() as i32).min(pix_h));
     if x2 <= x1 || y2 <= y1 {
         return;
     }
-
-    // Authentic iOS squircle mask parameters for dst_w x dst_h (corner radius ~0.225 size)
-    let half_w = dst_w as f32 * 0.5;
-    let half_h = dst_h as f32 * 0.5;
-    let corner_r = 0.225 * (dst_w.min(dst_h) as f32);
-    let inner_w = half_w - corner_r;
-    let inner_h = half_h - corner_r;
-
-    // Fixed-point 16.16 scale factors for fast coordinate mapping on ESP32-S3
-    let scale_x = ((src_w as u64) << 16) / (dst_w as u64);
-    let scale_y = ((src_h as u64) << 16) / (dst_h as u64);
-
+    let step_x = ((src_w as u64) << 16) / dst_w as u64;
+    let step_y = ((src_h as u64) << 16) / dst_h as u64;
     for py in y1..y2 {
-        let dy = (py - y) as usize;
-        let sy = (((dy as u64 * scale_y) >> 16) as usize).min((src_h - 1) as usize);
+        let (sy0, sy1, fy) = bilinear_axis((py - y) as u64, step_y, src_h);
+        let row0 = sy0 * src_w as usize;
+        let row1 = sy1 * src_w as usize;
         let row = pixmap.row_mut(py as u32);
-        let src_row_offset = sy * (src_w as usize);
-
-        let py_dist = (dy as f32 + 0.5 - half_h).abs();
-        let qy = (py_dist - inner_h).max(0.0);
-
         for px in x1..x2 {
-            let dx = (px - x) as usize;
-            let sx = (((dx as u64 * scale_x) >> 16) as usize).min((src_w - 1) as usize);
-            let idx = src_row_offset + sx;
-
-            let mut a = alpha_mask[idx];
-            if a == 0 {
-                continue;
-            }
-
-            // Compute exact squircle distance from corner center
-            let px_dist = (dx as f32 + 0.5 - half_w).abs();
-            let qx = (px_dist - inner_w).max(0.0);
-            let dist_from_corner = (qx * qx + qy * qy).sqrt();
-
-            if dist_from_corner > corner_r {
-                continue;
-            }
-            if dist_from_corner > corner_r - 1.25 {
-                let edge_factor = ((corner_r - dist_from_corner) / 1.25).clamp(0.0, 1.0);
-                a = ((a as f32) * edge_factor) as u8;
-                if a == 0 {
-                    continue;
-                }
-            }
-
-            let src = rgb_pixels[idx];
-
-            // White fringe suppressor for hello and counter icons:
-            // Filter near-white halo pixels (R>200, G>200, B>200) within 3.0px of the outer edge
-            if dist_from_corner > corner_r - 3.0 {
-                let r5 = (src >> 11) & 0x1F;
-                let g6 = (src >> 5) & 0x3F;
-                let b5 = src & 0x1F;
-                if r5 >= 25 && g6 >= 50 && b5 >= 25 {
-                    continue;
-                }
-            }
-
-            let dst = &mut row[px as usize];
-            if a == 255 {
-                *dst = src;
-            } else {
-                *dst = blend_rgb565(*dst, src, a);
-            }
+            let (sx0, sx1, fx) = bilinear_axis((px - x) as u64, step_x, src_w);
+            let indices = [row0 + sx0, row0 + sx1, row1 + sx0, row1 + sx1];
+            let weights = [
+                (256 - fx) * (256 - fy),
+                fx * (256 - fy),
+                (256 - fx) * fy,
+                fx * fy,
+            ];
+            row[px as usize] =
+                blend_bilinear_rgba565(row[px as usize], rgb_pixels, alpha_mask, indices, weights);
         }
     }
+}
+
+#[inline(always)]
+fn bilinear_axis(pixel: u64, step: u64, side: u32) -> (usize, usize, u32) {
+    // Map destination pixel centers to source pixel centers, clamping at the
+    // outermost centers. Q16 accumulation avoids drift across the row.
+    let coordinate = (pixel * step + step / 2)
+        .saturating_sub(32768)
+        .min(((side - 1) as u64) << 16);
+    let first = (coordinate >> 16) as usize;
+    (
+        first,
+        (first + 1).min((side - 1) as usize),
+        ((coordinate & 65535) >> 8) as u32,
+    )
+}
+
+#[inline(always)]
+fn blend_bilinear_rgba565(
+    dst: u16,
+    rgb: &[u16],
+    alpha: &[u8],
+    indices: [usize; 4],
+    weights: [u32; 4],
+) -> u16 {
+    let mut coverage = 0;
+    let mut r = 0;
+    let mut g = 0;
+    let mut b = 0;
+    for i in 0..4 {
+        let weighted_alpha = alpha[indices[i]] as u32 * weights[i];
+        let color = rgb[indices[i]] as u32;
+        coverage += weighted_alpha;
+        r += ((color >> 11) & 31) * weighted_alpha;
+        g += ((color >> 5) & 63) * weighted_alpha;
+        b += (color & 31) * weighted_alpha;
+    }
+    if coverage == 0 {
+        return dst;
+    }
+    const FULL_COVERAGE: u32 = 255 * 65536;
+    let inverse = FULL_COVERAGE - coverage;
+    let d = dst as u32;
+    // 63 * FULL_COVERAGE plus rounding fits u32. Composite once, avoiding
+    // precision loss from unpremultiplying small alpha before blending.
+    let r = (r + ((d >> 11) & 31) * inverse + FULL_COVERAGE / 2) / FULL_COVERAGE;
+    let g = (g + ((d >> 5) & 63) * inverse + FULL_COVERAGE / 2) / FULL_COVERAGE;
+    let b = (b + (d & 31) * inverse + FULL_COVERAGE / 2) / FULL_COVERAGE;
+    ((r << 11) | (g << 5) | b) as u16
 }
 
 /// Stroke a list of points (polyline) with thickness, caps and optional shader.

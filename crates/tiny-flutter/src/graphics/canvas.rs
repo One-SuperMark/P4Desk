@@ -161,6 +161,21 @@ impl<'a> Canvas<'a> {
     }
 
     /// Draw a stroked rounded rectangle border.
+    pub fn draw_rrect_aa(&mut self, rrect: RRect, color: Color) {
+        let shape = tiny_gfx::RRect::from_rect_xy(
+            tiny_gfx::Rect::from_ltwh(
+                rrect.rect.x,
+                rrect.rect.y,
+                rrect.rect.width,
+                rrect.rect.height,
+            ),
+            rrect.radius.x,
+            rrect.radius.y,
+        );
+        self.inner.draw_rrect_aa(shape, color.to_gfx());
+    }
+
+    /// Draw a stroked rounded rectangle border.
     #[inline(always)]
     pub fn draw_rrect_stroke(&mut self, rrect: RRect, color: Color, stroke_width: f32) {
         let gfx_rrect = tiny_gfx::RRect::from_rect_xy(
@@ -218,11 +233,8 @@ impl<'a> Canvas<'a> {
             return;
         }
 
-        if let Some(clip) = self.current_clip() {
-            if origin.y + size < clip.y || origin.y > clip.bottom() {
-                return;
-            }
-        }
+        // Text origin is local; the saved clip is in framebuffer coordinates.
+        // The raster blitter clips each transformed glyph in the same space.
 
         let mut cur_x = origin.x;
         let base_y = origin.y + font.cap_height(size);

@@ -1,0 +1,216 @@
+{
+  "schema": "p4desk.pad.icon_quality.acceptance.v1",
+  "recorded_at": "2026-09-29T11:02:36.768582+08:00",
+  "request": "提高 Pad 桌面图标圆角与曲线边缘的细腻程度",
+  "diagnosis": {
+    "desktop_resolution": [
+      1024,
+      600
+    ],
+    "icon_slot": [
+      146,
+      146
+    ],
+    "previous_asset_size": [
+      128,
+      128
+    ],
+    "previous_runtime_sampling": "nearest_neighbor",
+    "confirmed_primary_cause": "128×128 资源被最近邻放大到 146×146，边缘像素重复形成台阶",
+    "old_extra_corner_mask_covered_pixels_at_128_and_146": 0,
+    "old_extra_corner_mask_is_primary_cause": false
+  },
+  "implementation": {
+    "asset_size": [
+      146,
+      146
+    ],
+    "supersampling_before": [
+      4,
+      4
+    ],
+    "supersampling_after": [
+      8,
+      8
+    ],
+    "source_svg_unchanged_against_git_head": true,
+    "native_size_blit_for_desktop": true,
+    "other_size_sampling": "pixel_centered_bilinear_premultiplied_alpha",
+    "transparent_rgb_cannot_pollute_edges": true,
+    "same_size_scaled_equals_native": true,
+    "generic_blit_respects_artwork_alpha_without_extra_shape_or_white_filter": true,
+    "eight_icon_grid": [
+      4,
+      2
+    ],
+    "static_rgb565_and_alpha_bytes": 511584,
+    "previous_static_bytes": 393216,
+    "static_byte_increase": 118368,
+    "runtime_fullscreen_or_per_icon_dynamic_texture_added": false,
+    "display_owner": "existing ESP-IDF C HAL display owner"
+  },
+  "source": [
+    {
+      "path": "scripts/generate-desktop-assets.py",
+      "bytes": 13986,
+      "sha256": "fbefaab15edcbe219f125da42f3a8d6746157dd4e525093ff107501a54ec30de"
+    },
+    {
+      "path": "assets/app_icons/manifest.json",
+      "bytes": 5976,
+      "sha256": "53c68fa6241604d30aadc82be886d70b43e9780eca7a93bf7bc6c725930dc515"
+    },
+    {
+      "path": "apps/app-launcher/src/app_icons.rs",
+      "bytes": 4446,
+      "sha256": "98d42394ca9f1474605708d87b5732c824c904641b19314caf8936c9d08b7581"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 26233,
+      "sha256": "b5ac8330f3d88b6b56e80f39ad51a7529edc8eb3c3be2b1f0b704db46155b44a"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/raster.rs",
+      "bytes": 28725,
+      "sha256": "6a5deebd3f030cbe19a2b3fb2824fc3949d617146915d704a1ba52ee4e51f239"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/tests/image_sampling.rs",
+      "bytes": 4057,
+      "sha256": "fe37a7d33b680ad7489b22f37a4d20e600811c1dccb190ba1bc80da5d4c5ed38"
+    },
+    {
+      "path": "apps/app-launcher/examples/pad-icons-preview.rs",
+      "bytes": 1367,
+      "sha256": "f5db2200fe6f67ae813d16d373f92332be2134c3ac608b97bc3e20a29a17853b"
+    }
+  ],
+  "font_atlas": {
+    "path": "assets/clock/flip-digits.alpha",
+    "bytes": 329472,
+    "sha256": "be04eb78bccb5252f2c8ca99225a61ee9a330689d25a316b69597710871aac1a"
+  },
+  "asset_reproduction": {
+    "command": "python3 scripts/generate-desktop-assets.py --check",
+    "exit_code": 0,
+    "valid": true,
+    "log": {
+      "path": ".cache/pad-icon-check.log",
+      "bytes": 538,
+      "sha256": "49126aabb433a9c4f09ddd17cd3b75aea1368a417cf4caba0b99bfb04e73475c"
+    }
+  },
+  "tests": {
+    "command": "cargo test --workspace",
+    "exit_code": 0,
+    "passed": 93,
+    "failed": 0,
+    "new_image_sampling_tests": 5,
+    "coverage": [
+      "白色角部与半透明合成",
+      "双线性边缘与透明 RGB 污染",
+      "原尺寸逐像素一致",
+      "负起点与局部裁剪坐标",
+      "非法尺寸与短缓冲"
+    ],
+    "log": {
+      "path": ".cache/pad-icon-tests.log",
+      "bytes": 10370,
+      "sha256": "fd766ba7b882d418d3317057a45fd6c1b7f37532008e803c1bf542a95a550ca1"
+    }
+  },
+  "synthetic_preview": {
+    "command": "cargo run -p app-launcher --features screenshots --example pad-icons-preview -- artifacts/pad-icon-quality/after.png",
+    "exit_code": 0,
+    "resolution": [
+      1024,
+      600
+    ],
+    "is_device_capture": false,
+    "renderer": "same Rust launcher UI with fixed demonstration time and simulated connection state",
+    "before": {
+      "path": "artifacts/pad-icon-quality/before.png",
+      "bytes": 813380,
+      "sha256": "4df1d42dc34740692e52a5ce02fc6628a5f5ea71e93521860ff39e0150d5e867"
+    },
+    "after": {
+      "path": "artifacts/pad-icon-quality/after.png",
+      "bytes": 824316,
+      "sha256": "1fc6b5ce1cb52dfb731d8d727a15a1bc6916774912cf4f132cfa4c5bff82449e"
+    },
+    "desktop_comparison": {
+      "path": "artifacts/pad-icon-quality/desktop-comparison.png",
+      "bytes": 293747,
+      "sha256": "f7b2386f51c7c5e14e5402d0f66898ba298d11bc90ba6f85a32c3e9b98eede16"
+    },
+    "corner_comparison": {
+      "path": "artifacts/pad-icon-quality/corner-comparison.png",
+      "bytes": 12235,
+      "sha256": "15235a2a7ab6dc4fcf559836ad45dcac8d20eaca4dc15305d65f09f22b688627"
+    },
+    "corner_comparison_zoom": 5,
+    "corner_comparison_resampling": "nearest_neighbor"
+  },
+  "firmware_build": {
+    "command": "./scripts/build-firmware.sh",
+    "exit_code": 0,
+    "esp_idf": "6.0.2",
+    "esp_idf_path": "/Volumes/work/esp/esp-idf-v6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "log": {
+      "path": ".cache/pad-icon-build.log",
+      "bytes": 5099,
+      "sha256": "6de216e8afc7f951ad836e45bc50ecba509efca172b45c396fb57dc531d1941d"
+    },
+    "application": {
+      "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+      "bytes": 2619232,
+      "sha256": "799528260b114f88c20cee3e688c11c4f87e47fd023369101e2eaba099e237c2"
+    }
+  },
+  "device_write": {
+    "exit_code": 0,
+    "chip": "ESP32-P4",
+    "revision": "v3.2",
+    "backup_reverified": true,
+    "backup_path": "backups/2026-09-28/p4-before-p4desk.bin",
+    "log": {
+      "path": ".cache/pad-icon-flash.log",
+      "bytes": 8803,
+      "sha256": "fbd1b7ec3025098eadf831877b173ffb880b86dbbcfd2de2de31d481f3c04c64"
+    },
+    "hardware_reset_sent": true,
+    "flash_write_includes_nvs_settings_or_tf": false,
+    "partitions": [
+      {
+        "offset": "0x2000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "offset": "0x8000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "offset": "0x10000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 2619232,
+        "sha256": "799528260b114f88c20cee3e688c11c4f87e47fd023369101e2eaba099e237c2"
+      }
+    ]
+  },
+  "physical_acceptance": {
+    "desktop_icon_rounding_and_curved_edges": "passed_user_confirmation",
+    "user_reply": "明显更细腻，效果合适",
+    "confirmation_recorded_at": "2026-09-29T11:02:36.768582+08:00",
+    "device_fps_latency_and_long_running_stability_measured": false
+  }
+}

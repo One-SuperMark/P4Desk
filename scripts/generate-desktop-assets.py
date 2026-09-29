@@ -3,7 +3,7 @@
 
 This intentionally small renderer supports the SVG primitives used by our source
 artwork: rounded rectangles, circles, round lines, polygons and vertical gradients.
-It is not a general SVG renderer. All edges use deterministic 4 x 4 supersampling.
+It is not a general SVG renderer. Native desktop edges use 8 x 8 supersampling.
 """
 
 import argparse
@@ -20,8 +20,9 @@ import zlib
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / 'assets' / 'app_icons'
 IDS = ('clock', 'timer', 'notes', 'calculator', 'mac', 'settings', 'display', 'screen')
-SIZE = 128
-SUPERSAMPLE = 4
+SOURCE_SIZE = 128
+SIZE = 146
+SUPERSAMPLE = 8
 PREVIEW_COLUMNS = 4
 BAYER_4X4 = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
 
@@ -68,7 +69,7 @@ def line_contains(x, y, x1, y1, x2, y2, width):
 
 def parse_artwork(path):
     root = ET.fromstring(path.read_bytes())
-    if root.get('width') != str(SIZE) or root.get('height') != str(SIZE) or root.get('viewBox') != '0 0 128 128':
+    if root.get('width') != str(SOURCE_SIZE) or root.get('height') != str(SOURCE_SIZE) or root.get('viewBox') != '0 0 128 128':
         raise ValueError(f'{path.name}: expected a 128 x 128 SVG')
     gradients = {}
     for element in root.iter():
@@ -143,14 +144,15 @@ def round_byte(value):
 
 def render(layers):
     side = SIZE * SUPERSAMPLE
+    sample_step = SOURCE_SIZE / side
     samples = bytearray(side * side * 4)
     for bounds, contains, paint, opacity in layers:
-        start_x = max(0, math.floor(bounds[0] * SUPERSAMPLE))
-        start_y = max(0, math.floor(bounds[1] * SUPERSAMPLE))
-        end_x = min(side, math.ceil(bounds[2] * SUPERSAMPLE))
-        end_y = min(side, math.ceil(bounds[3] * SUPERSAMPLE))
+        start_x = max(0, math.floor(bounds[0] / sample_step))
+        start_y = max(0, math.floor(bounds[1] / sample_step))
+        end_x = min(side, math.ceil(bounds[2] / sample_step))
+        end_y = min(side, math.ceil(bounds[3] / sample_step))
         for sy in range(start_y, end_y):
-            y = (sy + 0.5) / SUPERSAMPLE
+            y = (sy + 0.5) * sample_step
             if len(paint) == 4:
                 y1, y2, top, bottom = paint
                 t = max(0.0, min(1.0, (y - y1) / (y2 - y1)))
@@ -158,7 +160,7 @@ def render(layers):
             else:
                 rgb = paint
             for sx in range(start_x, end_x):
-                x = (sx + 0.5) / SUPERSAMPLE
+                x = (sx + 0.5) * sample_step
                 if not contains(x, y):
                     continue
                 index = (sy * side + sx) * 4
@@ -213,10 +215,11 @@ def png(width, height, rgba):
 
 
 def preview_sheet(images):
-    width, height = PREVIEW_COLUMNS * 160, math.ceil(len(images) / PREVIEW_COLUMNS) * 160
+    cell = SIZE + 32
+    width, height = PREVIEW_COLUMNS * cell, math.ceil(len(images) / PREVIEW_COLUMNS) * cell
     output = bytearray(bytes((20, 28, 44, 255)) * width * height)
     for index, image in enumerate(images):
-        left, top = (index % PREVIEW_COLUMNS) * 160 + 16, (index // PREVIEW_COLUMNS) * 160 + 16
+        left, top = (index % PREVIEW_COLUMNS) * cell + 16, (index // PREVIEW_COLUMNS) * cell + 16
         for y in range(SIZE):
             for x in range(SIZE):
                 source = (y * SIZE + x) * 4
@@ -244,11 +247,13 @@ def main():
             'width': SIZE, 'height': SIZE,
             'files': {name: {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()} for name, data in files.items()},
         }
+        print(f'Processed icon {icon_id}: {SIZE}x{SIZE}, {SUPERSAMPLE}x{SUPERSAMPLE} coverage', file=sys.stderr, flush=True)
     outputs['preview.png'] = preview_sheet(previews)
     manifest = {
         'schema': 'p4desk.original-app-icons.v1', 'license': 'MIT',
         'pixel_format': 'RGB565', 'byte_order': 'little', 'alpha_format': 'unassociated-u8',
         'supersampling': [SUPERSAMPLE, SUPERSAMPLE],
+        'source_viewbox': [0, 0, SOURCE_SIZE, SOURCE_SIZE],
         'quantization': 'ordered-4x4-bayer',
         'rust_storage_alignment_bytes': 2, 'icons': entries,
         'preview': {'file': 'preview.png', 'columns': PREVIEW_COLUMNS, 'rows': math.ceil(len(IDS) / PREVIEW_COLUMNS), 'order': list(IDS), 'sha256': hashlib.sha256(outputs['preview.png']).hexdigest()},

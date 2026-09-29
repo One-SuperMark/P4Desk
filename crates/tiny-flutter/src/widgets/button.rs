@@ -13,6 +13,7 @@ pub struct ButtonStyle {
     pub color: Color,
     pub pressed_color: Color,
     pub border_radius: f32,
+    pub antialias: bool,
     pub padding: EdgeInsets,
     pub width: Option<f32>,
     pub height: Option<f32>,
@@ -24,6 +25,7 @@ impl Default for ButtonStyle {
             color: Color::PRIMARY,
             pressed_color: Color::from_rgb(21, 101, 192),
             border_radius: 8.0,
+            antialias: false,
             padding: EdgeInsets::symmetric(8.0, 16.0),
             width: None,
             height: None,
@@ -48,6 +50,11 @@ impl ButtonStyle {
 
     pub fn border_radius(mut self, radius: f32) -> Self {
         self.border_radius = radius;
+        self
+    }
+    /// Coverage rendering for capsule edges. Existing app styles retain their raster path.
+    pub fn antialias(mut self, enabled: bool) -> Self {
+        self.antialias = enabled;
         self
     }
 
@@ -81,6 +88,7 @@ pub struct ElevatedButton {
     pub pressed_color: Color,
     pub padding: EdgeInsets,
     pub border_radius: f32,
+    pub antialias: bool,
     pub width: Option<f32>,
     pub height: Option<f32>,
     pub trigger_on_down: bool,
@@ -96,6 +104,7 @@ impl ElevatedButton {
             pressed_color: Color::from_rgb(21, 101, 192),
             padding: EdgeInsets::symmetric(8.0, 16.0),
             border_radius: 8.0,
+            antialias: false,
             width: None,
             height: None,
             trigger_on_down: false,
@@ -107,6 +116,7 @@ impl ElevatedButton {
         self.color = style.color;
         self.pressed_color = style.pressed_color;
         self.border_radius = style.border_radius;
+        self.antialias = style.antialias;
         self.padding = style.padding;
         if style.width.is_some() {
             self.width = style.width;
@@ -177,6 +187,7 @@ impl Widget for ElevatedButton {
             pressed_color: self.pressed_color,
             padding: self.padding,
             border_radius: self.border_radius,
+            antialias: self.antialias,
             width: self.width,
             height: self.height,
             trigger_on_down: self.trigger_on_down,
@@ -195,6 +206,7 @@ pub struct RenderElevatedButton {
     pub pressed_color: Color,
     pub padding: EdgeInsets,
     pub border_radius: f32,
+    pub antialias: bool,
     pub width: Option<f32>,
     pub height: Option<f32>,
     pub trigger_on_down: bool,
@@ -264,10 +276,12 @@ impl RenderBox for RenderElevatedButton {
             self.color
         };
 
-        canvas.draw_rrect(
-            RRect::from_rect_circular(btn_rect, self.border_radius),
-            active_color,
-        );
+        let shape = RRect::from_rect_circular(btn_rect, self.border_radius);
+        if self.antialias {
+            canvas.draw_rrect_aa(shape, active_color);
+        } else {
+            canvas.draw_rrect(shape, active_color);
+        }
 
         self.child.paint(canvas, offset + self.child.offset());
     }

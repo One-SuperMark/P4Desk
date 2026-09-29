@@ -1,0 +1,139 @@
+{
+  "schema": "p4desk.pad.clock_contrast.acceptance.v1",
+  "recorded_at": "2026-09-29T10:40:17.035088+08:00",
+  "request": "翻页卡片与整体背景颜色接近，需要更清楚的明暗层次",
+  "palette": {
+    "background": {
+      "before": "#000000",
+      "after": "#000000"
+    },
+    "upper_plate": {
+      "before": "#222222",
+      "after": "#424242"
+    },
+    "lower_plate": {
+      "before": "#181818",
+      "after": "#313131"
+    },
+    "base": {
+      "before": "#080808",
+      "after": "#181818"
+    },
+    "hinge_highlight": {
+      "before": "#292929",
+      "after": "#525252"
+    },
+    "moving_and_static_plates_share_palette": true,
+    "synthetic_rgb565_output_verified": {
+      "background": [
+        0,
+        0,
+        0
+      ],
+      "upper_plate": [
+        65,
+        64,
+        65
+      ],
+      "lower_plate": [
+        49,
+        48,
+        49
+      ]
+    }
+  },
+  "source": {
+    "path": "apps/app-launcher/src/flip_clock.rs",
+    "bytes": 22662,
+    "sha256": "956615e33c60a0d7c02da46d661a4716511f170b3d8b6ac82f1390d863a08e9a"
+  },
+  "font_atlas": {
+    "path": "assets/clock/flip-digits.alpha",
+    "bytes": 329472,
+    "sha256": "be04eb78bccb5252f2c8ca99225a61ee9a330689d25a316b69597710871aac1a"
+  },
+  "tests": {
+    "command": "cargo test -p app-launcher --test flip_clock_tests",
+    "exit_code": 0,
+    "passed": 11,
+    "failed": 0,
+    "log": ".cache/flip-clock/test-contrast.log"
+  },
+  "synthetic_preview": {
+    "resolution": [
+      1024,
+      600
+    ],
+    "png_samples": 191,
+    "command": "cargo run -p app-launcher --features screenshots --example flip-clock-preview -- artifacts/flip-clock-contrast",
+    "exit_code": 0,
+    "image": {
+      "path": "artifacts/flip-clock-contrast/clock.png",
+      "bytes": 63405,
+      "sha256": "178cbe7c86d0943320d7b6b94d9f39f44bbc704523595a4ab8bfc1918bd690c5"
+    },
+    "comparison": {
+      "path": "artifacts/flip-clock-contrast/comparison.png",
+      "bytes": 66273,
+      "sha256": "8762b736034288b2df92112a4884a3cc8988add0bcab1c68d0d4b92b51297668"
+    },
+    "gif": {
+      "path": "artifacts/flip-clock-contrast/contrast-flip.gif",
+      "bytes": 437653,
+      "sha256": "c4f74cbd88b5ffcf4e5adce3bfaa7479d8137920d433da108f200896b80c99f2"
+    },
+    "is_device_capture": false
+  },
+  "firmware_build": {
+    "command": "./scripts/build-firmware.sh",
+    "exit_code": 0,
+    "esp_idf": "6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "log": ".cache/flip-clock/build-contrast.log",
+    "application": {
+      "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+      "bytes": 2535472,
+      "sha256": "f1ad3d5c4ceaf9647d139fbfdba129b2e739f361e11187f0e7387645a2e6f9d9"
+    }
+  },
+  "device_write": {
+    "exit_code": 0,
+    "chip": "ESP32-P4",
+    "revision": "v3.2",
+    "backup_reverified": true,
+    "backup_path": "backups/2026-09-28/p4-before-p4desk.bin",
+    "log": ".cache/flip-clock/flash-contrast.log",
+    "hardware_reset_sent": true,
+    "flash_write_includes_nvs_settings_or_tf": false,
+    "partitions": [
+      {
+        "offset": "0x2000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "offset": "0x8000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "offset": "0x10000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 2535472,
+        "sha256": "f1ad3d5c4ceaf9647d139fbfdba129b2e739f361e11187f0e7387645a2e6f9d9"
+      }
+    ]
+  },
+  "physical_acceptance": {
+    "card_background_separation": "passed_user_confirmation",
+    "user_reply": "层次清楚，亮度合适",
+    "prior_animation_confirmation_does_not_confirm_new_palette": true,
+    "confirmation_recorded_at": "2026-09-29T10:40:46.488505+08:00"
+  }
+}

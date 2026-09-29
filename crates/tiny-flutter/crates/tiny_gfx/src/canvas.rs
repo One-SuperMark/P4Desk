@@ -151,6 +151,23 @@ impl<'a> Canvas<'a> {
         let sw = stroke_width * sx;
         raster::stroke_rrect(&mut self.pixmap, self.current_clip, transformed, color, sw);
     }
+    pub fn draw_rrect_aa(&mut self, rrect: RRect, color: Color) {
+        let sx = self.current_transform.sx;
+        let sy = self.current_transform.sy;
+        let transformed = RRect {
+            rect: Rect::from_ltwh(
+                sx * rrect.rect.x + self.current_transform.tx,
+                sy * rrect.rect.y + self.current_transform.ty,
+                sx * rrect.rect.width,
+                sy * rrect.rect.height,
+            ),
+            radius: crate::geometry::Radius {
+                x: sx * rrect.radius.x,
+                y: sy * rrect.radius.y,
+            },
+        };
+        raster::fill_rrect_aa(&mut self.pixmap, self.current_clip, transformed, color);
+    }
 
     pub fn draw_circle(&mut self, center: Point, radius: f32, color: Color) {
         let mapped = self.current_transform.map_point(center);

@@ -94,7 +94,10 @@ final class DeskModel: ObservableObject {
            (try? saved.validated()) != nil { snapshot = saved }
         else { snapshot = initial }
         let preferences = UserDefaults.standard
-        fontPath = preferences.string(forKey: "fontPath") ?? Bundle.main.url(forResource: "NotoSansSC-Regular", withExtension: "otf")?.path ?? ""
+        fontPath = FontResources.resolvePath(
+            savedPath: preferences.string(forKey: "fontPath"),
+            bundledURL: Bundle.main.url(forResource: "HarmonyOS_Sans_SC_Regular", withExtension: "ttf")
+        )
         fontToolPath = preferences.string(forKey: "fontToolPath") ?? ProcessInfo.processInfo.environment["P4DESK_FONTPACK_BIN"]
             ?? Bundle.main.url(forResource: "p4desk-fontpack", withExtension: nil)?.path ?? ""
     }

@@ -24,11 +24,12 @@ Flash 的设置和便签删除记录写入独立 `p4settings` SPIFFS 分区（0x
 
 ## 字体来源与内存
 
-- 系统界面汉字内嵌为 `assets/generated/ui.p4f`，TF 不可用时仍可显示基础工具。
-- Mac 随包提供 Noto Sans SC Regular（SIL OFL 1.1）和 `p4desk-fontpack`。
+- 系统界面中文、ASCII 和常用符号内嵌为 `assets/generated/ui.p4f`，按 9 个字号生成 HarmonyOS Sans SC Regular 字形；TF 不可用时仍可显示基础工具。普通字号的拉丁回退使用同源 HarmonyOS Sans Regular，未将完整 CJK 字体内嵌到固件。
+- Mac 随包提供 HarmonyOS Sans SC Regular 1.9 / 400（HarmonyOS Sans Fonts License Agreement）和 `p4desk-fontpack`。字体保持官方原文件，随包保留版权及许可。
 - 同步字形来自当前便签／标签，包含 Unicode 标量和字号，无需设备加载完整 CJK TTF／OTF。
 - TF 字形只加载索引，alpha8 图像按需读取。缓存限制为 512 KiB／512 项；整个字形包上限 8 MiB。
-- 文字排版按字符回退，支持显式换行、中文自动换行与滚动视口裁剪。
+- 系统标签通过 `Font::default_font()` 使用内置字形，旧 TF 字库不会覆盖它；便签标题／正文和快捷按钮标签通过 `Font::content_font()` 优先使用本代同步字形，再逐字回退到系统子集和拉丁字体。测量与绘制使用同一解析路径，支持显式换行、中文自动换行与滚动视口裁剪。
+- 字形生成与逐字节复现使用 `scripts/generate-ui-fonts.py`；固定来源、字重、字号和哈希见 `assets/fonts/SOURCES.json`、`assets/generated/ui-font.json`。
 
 Snapshot UTF-8 JSON 总量不超过 60 KiB，最多 32 条便签、48 个按钮。逐字段限制和 USB 包长度见 [协议 v1](protocol-v1.md)。
 

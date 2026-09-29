@@ -4,7 +4,10 @@
 //! Chinese text and touch Back/Kill controls extend the original shell. Each page
 //! contains four columns and two rows; system shortcuts share the original slots.
 
-use crate::app_icons::get_app_icon_asset;
+use crate::app_icons::{get_app_icon_asset, DESKTOP_ICON_SIDE};
+use crate::flip_clock::{
+    ClockControl, ClockControlPainter, FlipClockPainter, CLOCK_CONTENT_ORIGIN,
+};
 use crate::launcher_state::{ActiveApp, LauncherState, UiCommand};
 use crate::status_bar::{build_status_bar, STATUS_BAR_HEIGHT};
 use crate::timer::{Phase, TimerKind};
@@ -72,12 +75,107 @@ fn edit(state: &Arc<Mutex<LauncherState>>, f: impl FnOnce(&mut LauncherState)) {
         s.changed();
     }
 }
+fn clock_icon_button(
+    control: ClockControl,
+    f: impl Fn() + Send + Sync + 'static,
+) -> ElevatedButton {
+    ElevatedButton::new(
+        CustomPaint::new(ClockControlPainter::new(control)).size(Size::new(32.0, 32.0)),
+    )
+    .style(
+        ButtonStyle::new()
+            .size(48.0, 48.0)
+            .color(Color::BLACK)
+            .pressed_color(Color::from_hex(0x222222))
+            .border_radius(12.0)
+            .padding(EdgeInsets::all(8.0)),
+    )
+    .on_pressed(f)
+}
+fn clock_navigation(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
+    let home = state.clone();
+    Stack::new()
+        .push(
+            Container::new()
+                .width(w)
+                .height(STATUS_BAR_HEIGHT)
+                .color(Color::BLACK),
+        )
+        .push(at(
+            clock_icon_button(ClockControl::Home, move || {
+                edit(&home, |s| s.background_active_app())
+            }),
+            24.0,
+            6.0,
+        ))
+        .push(at(
+            clock_icon_button(ClockControl::Close, move || {
+                edit(&state, |s| s.kill_active_app())
+            }),
+            w - 72.0,
+            6.0,
+        ))
+}
+pub fn calculator_mode_selector_bounds(w: f32) -> Rect {
+    let right = w - 96.0;
+    let width = (right - 96.0).clamp(1.0, 340.0);
+    Rect::from_ltwh(right - width, 13.0, width, 34.0)
+}
+fn calculator_navigation(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
+    let home = state.clone();
+    let calc = match &state.lock().unwrap().active_app {
+        ActiveApp::Calculator(calc) => calc.clone(),
+        _ => unreachable!("calculator navigation requires an active calculator"),
+    };
+    let selector = calculator_mode_selector_bounds(w);
+    let icon = |control, action: Box<dyn Fn() + Send + Sync>| {
+        ElevatedButton::new(
+            CustomPaint::new(ClockControlPainter::new(control)).size(Size::new(32.0, 32.0)),
+        )
+        .style(
+            ButtonStyle::new()
+                .size(48.0, 48.0)
+                .color(calculator::CALCULATOR_BG)
+                .pressed_color(Color::from_hex(0x5b5958))
+                .border_radius(24.0)
+                .padding(EdgeInsets::all(8.0)),
+        )
+        .on_pressed(action)
+    };
+    Stack::new()
+        .push(
+            Container::new()
+                .width(w)
+                .height(STATUS_BAR_HEIGHT)
+                .color(calculator::CALCULATOR_BG),
+        )
+        .push(at(
+            icon(
+                ClockControl::Home,
+                Box::new(move || edit(&home, |s| s.background_active_app())),
+            ),
+            24.0,
+            6.0,
+        ))
+        .push(at(
+            calculator::build_mode_selector(calc, Size::new(selector.width, selector.height)),
+            selector.x,
+            selector.y,
+        ))
+        .push(at(
+            icon(
+                ClockControl::Close,
+                Box::new(move || edit(&state, |s| s.kill_active_app())),
+            ),
+            w - 72.0,
+            6.0,
+        ))
+}
 pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dyn Widget> {
-    let (active, clock, date, notice, manual_time_open) = {
+    let (active, date, notice, manual_time_open) = {
         let s = state.lock().unwrap();
         (
             s.active_app.clone(),
-            s.clock.clone(),
             s.date.clone(),
             s.notice.clone(),
             s.manual_time_open,
@@ -100,7 +198,11 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
         let content_w = (w - 48.0).max(1.0);
         let content_h = (h - 94.0).max(1.0);
         let content: Box<dyn Widget> = match active.clone() {
-            ActiveApp::Clock => Box::new(clock_page(state.clone(), content_w, clock, date)),
+            ActiveApp::Clock => Box::new(clock_page(
+                state.clone(),
+                Size::new(content_w, content_h),
+                date,
+            )),
             ActiveApp::Timer => Box::new(timer_page(state.clone(), content_w)),
             ActiveApp::Notes(view) => Box::new(notes_page(state.clone(), view, content_w)),
             ActiveApp::Calculator(calc) => Box::new(calculator::build_calculator_ui(
@@ -113,51 +215,65 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
         };
         let back = state.clone();
         let kill = state.clone();
-        let bar = Stack::new()
-            .push(
-                Container::new()
-                    .width(w)
-                    .height(STATUS_BAR_HEIGHT)
-                    .color(CARD),
-            )
-            .push(at(text(title, 28.0, INK), 24.0, 10.0))
-            .push(at(
-                button(
-                    if matches!(active, ActiveApp::Settings) && manual_time_open {
-                        "返回设置"
-                    } else {
-                        "回桌面"
-                    },
-                    152.0,
-                    44.0,
-                    false,
-                    move || edit(&back, |s| s.back_active_app()),
-                ),
-                w - 304.0,
-                6.0,
-            ))
-            .push(at(
-                button("结束应用", 108.0, 44.0, false, move || {
-                    edit(&kill, |s| s.kill_active_app())
-                }),
-                w - 132.0,
-                6.0,
-            ));
+        let bar = if matches!(active, ActiveApp::Clock) {
+            clock_navigation(state.clone(), w)
+        } else if matches!(active, ActiveApp::Calculator(_)) {
+            calculator_navigation(state.clone(), w)
+        } else {
+            Stack::new()
+                .push(
+                    Container::new()
+                        .width(w)
+                        .height(STATUS_BAR_HEIGHT)
+                        .color(CARD),
+                )
+                .push(at(text(title, 28.0, INK), 24.0, 10.0))
+                .push(at(
+                    button(
+                        if matches!(active, ActiveApp::Settings) && manual_time_open {
+                            "返回设置"
+                        } else {
+                            "回桌面"
+                        },
+                        152.0,
+                        44.0,
+                        false,
+                        move || edit(&back, |s| s.back_active_app()),
+                    ),
+                    w - 304.0,
+                    6.0,
+                ))
+                .push(at(
+                    button("结束应用", 108.0, 44.0, false, move || {
+                        edit(&kill, |s| s.kill_active_app())
+                    }),
+                    w - 132.0,
+                    6.0,
+                ))
+        };
         Box::new(
             Stack::new()
-                .push(Container::new().width(w).height(h).color(BG))
+                .push(Container::new().width(w).height(h).color(
+                    if matches!(active, ActiveApp::Clock) {
+                        Color::BLACK
+                    } else if matches!(active, ActiveApp::Calculator(_)) {
+                        calculator::CALCULATOR_BG
+                    } else {
+                        BG
+                    },
+                ))
                 .push(at(bar, 0.0, 0.0))
                 .push(at(
                     Container::new()
                         .width(content_w)
                         .height(content_h)
                         .child(content),
-                    24.0,
-                    78.0,
+                    CLOCK_CONTENT_ORIGIN.dx,
+                    CLOCK_CONTENT_ORIGIN.dy,
                 )),
         )
     };
-    if !notice.is_empty() {
+    if !notice.is_empty() && !matches!(active, ActiveApp::Clock | ActiveApp::Calculator(_)) {
         // Desktop notices occupy the left of the footer, leaving page dots visible.
         let on_desktop = matches!(active, ActiveApp::Launcher);
         let notice_width = if on_desktop { w * 0.38 } else { w - 48.0 };
@@ -230,7 +346,7 @@ fn build_desktop(state: Arc<Mutex<LauncherState>>, size: Size) -> impl Widget {
     };
     let page_y = STATUS_BAR_HEIGHT + 12.0;
     let page_h = (size.height - page_y - 44.0).max(1.0);
-    let icon_size = (page_h * 0.30).clamp(96.0, 146.0);
+    let icon_size = (page_h * 0.30).clamp(96.0, DESKTOP_ICON_SIDE as f32);
     let entry = |id: &'static str, label: &'static str| -> Box<dyn Widget> {
         let launch = state.clone();
         Box::new(build_app_icon(
@@ -316,24 +432,17 @@ fn short(s: &str, max: usize) -> String {
     }
 }
 
-fn clock_page(state: Arc<Mutex<LauncherState>>, w: f32, clock: String, date: String) -> Stack {
-    let s = state.clone();
+fn clock_page(state: Arc<Mutex<LauncherState>>, size: Size, date: String) -> Stack {
+    let w = size.width;
     Stack::new()
-        .push(panel(w, 406.0))
-        .push(at(text("本地时间", 22.0, MINT), 28.0, 24.0))
-        .push(at(text(clock, 100.0, INK), 28.0, 120.0))
-        .push(at(text(date, 28.0, MUTED), 28.0, 259.0))
+        .push(CustomPaint::new(FlipClockPainter::new(state)).size(size))
         .push(at(
-            button("从 Mac 校时", 200.0, 50.0, false, move || {
-                edit(&s, |s| s.queue(UiCommand::RequestTimeSync))
-            }),
-            28.0,
-            326.0,
-        ))
-        .push(at(
-            text("离线时继续走时；重新上电后连接 Mac 校时", 18.0, MUTED),
-            28.0,
-            430.0,
+            Container::new()
+                .width(w)
+                .height(34.0)
+                .child(Center::new(text(date, 22.0, MUTED))),
+            0.0,
+            size.height - 106.0,
         ))
 }
 fn timer_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
@@ -422,16 +531,22 @@ fn notes_page(
     if let Some(n) = notes.get(selected) {
         p = p
             .push(at(
-                Container::new()
-                    .width(w - 48.0)
-                    .height(79.0)
-                    .child(text(&n.title, 28.0, MINT).wrap()),
+                Container::new().width(w - 48.0).height(79.0).child(
+                    text(&n.title, 28.0, MINT)
+                        .font(Font::content_font().clone())
+                        .wrap(),
+                ),
                 24.0,
                 17.0,
             ))
             .push(at(
                 Container::new().width(w - 48.0).height(271.0).child(
-                    SingleChildScrollView::new(text(&n.body, 22.0, INK).wrap()).controller(scroll),
+                    SingleChildScrollView::new(
+                        text(&n.body, 22.0, INK)
+                            .font(Font::content_font().clone())
+                            .wrap(),
+                    )
+                    .controller(scroll),
                 ),
                 24.0,
                 96.0,
@@ -523,16 +638,20 @@ fn mac_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
         let s = state.clone();
         let id = b.id.clone();
         p = p.push(at(
-            ElevatedButton::new(text(short(&b.label, 26), 18.0, INK).wrap())
-                .style(
-                    ButtonStyle::new()
-                        .size(cw, 66.0)
-                        .color(CARD)
-                        .pressed_color(LINE)
-                        .border_radius(12.0)
-                        .padding(EdgeInsets::all(8.0)),
-                )
-                .on_pressed(move || edit(&s, |s| s.queue(UiCommand::Action(id.clone())))),
+            ElevatedButton::new(
+                text(short(&b.label, 26), 18.0, INK)
+                    .font(Font::content_font().clone())
+                    .wrap(),
+            )
+            .style(
+                ButtonStyle::new()
+                    .size(cw, 66.0)
+                    .color(CARD)
+                    .pressed_color(LINE)
+                    .border_radius(12.0)
+                    .padding(EdgeInsets::all(8.0)),
+            )
+            .on_pressed(move || edit(&s, |s| s.queue(UiCommand::Action(id.clone())))),
             (i % 3) as f32 * (cw + 16.0),
             44.0 + (i / 3) as f32 * 77.0,
         ));
@@ -667,7 +786,7 @@ fn settings_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
         ))
         .push(at(
             text(
-                format!("资源代次：{generation}    轻触屏幕可唤醒"),
+                format!("资源代次：{generation}    轻触屏幕可唤醒    字体：HarmonyOS Sans"),
                 18.0,
                 MUTED,
             ),

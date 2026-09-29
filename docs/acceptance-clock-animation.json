@@ -1,0 +1,150 @@
+{
+  "schema": "p4desk.pad.clock_animation.acceptance.v1",
+  "recorded_at": "2026-09-29T10:29:57.515534+08:00",
+  "request": "翻页动画像抖一下，参考其他翻页时钟让它更真实",
+  "implementation": {
+    "renderer": "original tiny-flutter / tiny_gfx with ESP-IDF C display owner",
+    "duration_ms": 640,
+    "repaint_gate_ms": 20,
+    "repaint_gate_is_not_measured_lcd_fps": true,
+    "phases_ms": {
+      "fall": [
+        0,
+        280
+      ],
+      "unfold": [
+        280,
+        540
+      ],
+      "settle": [
+        540,
+        640
+      ]
+    },
+    "projection": "rigid half-page rotation with perspective; front/back at 90 degrees",
+    "shadows": "angle-dependent face shading and soft free-edge cast shadows",
+    "interpolation": "integer bilinear alpha sampling with Q16 horizontal accumulation",
+    "bounded_scratch_bytes": 1216,
+    "damage_margin_native_px": 16,
+    "source": {
+      "path": "apps/app-launcher/src/flip_clock.rs",
+      "bytes": 22497,
+      "sha256": "0b4d7bdc1c1d50728037df965d4f9ecc70b50ec5c54e4ef362378c65a42ee54e"
+    },
+    "font_atlas": {
+      "path": "assets/clock/flip-digits.alpha",
+      "bytes": 329472,
+      "sha256": "be04eb78bccb5252f2c8ca99225a61ee9a330689d25a316b69597710871aac1a"
+    },
+    "reference_sources": [
+      {
+        "repository": "https://github.com/pqina/flip",
+        "commit": "5ba01ae23451fb15c9e07a30eca69d6126f67628"
+      },
+      {
+        "repository": "https://github.com/objectivehtml/FlipClock",
+        "commit": "a7ff42742912b7dd9b47719fe0ebc2b1b00ccf4b"
+      }
+    ],
+    "upstream_code_or_assets_copied": false
+  },
+  "tests": {
+    "command": "cargo test --workspace",
+    "exit_code": 0,
+    "passed": 88,
+    "failed": 0,
+    "clock_passed": 11,
+    "new_checks": [
+      "release/contact/settled pixel equality with native glyphs",
+      "new upper / old lower layer ordering at 90 degrees",
+      "visible perspective expansion and damage containment across every animation gate"
+    ],
+    "regressions": [
+      "partial vs full render pixel equality across fall/unfold/contact/settle",
+      "monotonic timing and delayed final frame",
+      "noon/midnight and time correction",
+      "hidden/sleep/display mode recovery",
+      "Home/close touch routing",
+      "accepted numeral ink center"
+    ]
+  },
+  "synthetic_preview": {
+    "command": "cargo run -p app-launcher --features screenshots --example flip-clock-preview -- artifacts/flip-clock-mechanical-v2",
+    "exit_code": 0,
+    "width": 1024,
+    "height": 600,
+    "start_utc": "2026-09-29T20:06:58Z",
+    "png_samples": 191,
+    "sample_interval_ms": 20,
+    "gif": {
+      "path": "artifacts/flip-clock-mechanical-v2/mechanical-flip-complete.gif",
+      "bytes": 427344,
+      "sha256": "b5582b5cda280fd7a6e79828ef7c8da710578afdb257f84c55969cb29610f6c4"
+    },
+    "phase_sheet": {
+      "path": "artifacts/flip-clock-mechanical-v2/phases-v2.png",
+      "bytes": 54687,
+      "sha256": "17afc5e910a548f9425b2166940b57a20b87644bfd91b0f7d2425d4cebe718db"
+    },
+    "captures_real_device_or_user_content": false,
+    "proves_device_fps_or_latency": false,
+    "last_sample_ms": 3800,
+    "last_sample_is_settled": true
+  },
+  "firmware_build": {
+    "command": "./scripts/build-firmware.sh",
+    "exit_code": 0,
+    "esp_idf": "6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "log": ".cache/flip-clock/build-mechanical-v2.log",
+    "application": {
+      "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+      "bytes": 2535472,
+      "sha256": "428ffb7079512238c82f74d99ecb1829546dfd4e34d6c2cac00fed01f71aa930"
+    }
+  },
+  "device_write": {
+    "exit_code": 0,
+    "chip": "ESP32-P4",
+    "revision": "v3.2",
+    "previous_full_flash_nvs_backup_reverified": true,
+    "backup_path": "backups/2026-09-28/p4-before-p4desk.bin",
+    "hardware_reset_sent": true,
+    "log": ".cache/flip-clock/flash-mechanical-v2.log",
+    "partitions": [
+      {
+        "offset": "0x2000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "offset": "0x8000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "offset": "0x10000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 2535472,
+        "sha256": "428ffb7079512238c82f74d99ecb1829546dfd4e34d6c2cac00fed01f71aa930"
+      }
+    ],
+    "flash_write_includes_nvs_settings_or_tf": false
+  },
+  "physical_acceptance": {
+    "animation_appearance": "passed_user_confirmation",
+    "user_reply": "翻页更真实，效果合适",
+    "device_presented_fps": "not_measured",
+    "device_animation_latency": "not_measured",
+    "new_application_uart_capture": "not_collected",
+    "prior_font_and_hinge_acceptance_does_not_prove_new_animation_smoothness": true,
+    "confirmation_recorded_at": "2026-09-29T10:31:29.729240+08:00",
+    "acceptance_scope": "user-observed flip appearance on the flashed board; not quantified FPS, latency or long-run stability"
+  }
+}

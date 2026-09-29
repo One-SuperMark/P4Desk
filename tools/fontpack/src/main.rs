@@ -80,7 +80,7 @@ fn run() -> Result<(), String> {
         .or_else(|| env::var_os("P4DESK_FONT_PATH").map(PathBuf::from))
         .unwrap_or_else(|| {
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../assets/fonts/NotoSansSC-Regular.otf")
+                .join("../../assets/fonts/HarmonyOS_Sans_SC_Regular.ttf")
         });
     let text = if let Some(p) = options.get("--snapshot") {
         snapshot_text(p)?

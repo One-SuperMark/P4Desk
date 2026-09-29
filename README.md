@@ -8,11 +8,15 @@ UI 基于 [esp32-rust-ui](https://github.com/pomelos-on-sale/esp32-rust-ui) 的 
 
 | 模式 | 功能 |
 | --- | --- |
-| Pad 本地 | 中文桌面、时钟、番茄钟与倒计时、计算器、便签查看与删除、亮度和手动校时 |
+| Pad 本地 | 中文桌面、翻页时钟、番茄钟与倒计时、基本／科学／程序员计算器、便签查看与删除、亮度和手动校时 |
 | Pad 电脑控制 | Mac 编辑的快捷键、应用启动、播放控制、音量和静音按钮 |
 | USB 副屏 | 独立 1024×600 macOS 显示器、单指点击和拖动、双指滚动 |
 
 切换应用保留计算器和便签浏览状态，计时服务在后台继续运行。开机时间无效时显示“待校时”；连接 Mac 后通过 USB 校时。进入副屏由用户手动触发；Mac 菜单退出、板上三指长按一秒、断线或主机心跳超时都会返回 Pad。
+
+时钟采用黑底、三张炭灰色大翻页卡片与 DINish Heavy 等宽白色数字，显示 12 小时制及 AM／PM；数字跟随刚性半页绕固定中轴作透视翻转，带角度明暗、软阴影与轻微落稳回弹，日期居中显示。左上角 Home 返回桌面并保留时钟，右上角 × 结束时钟并返回桌面。连接 Mac 自动校时，手动校时位于桌面的设置应用。动画阶段与参考来源见 [翻页时钟动画](docs/flip-clock-animation.md)。
+
+计算器参考 macOS 的深色背景、灰色胶囊按键、橙色运算键与右对齐数字区，支持基本、科学、程序员三个模式。科学模式提供括号、优先级、函数与存储器；程序员模式使用 64 位整数、8／10／16 进制、位运算和可点按的二进制视图。模式与计算状态在回桌面后保留，右上角 × 结束应用。操作、数值边界与三个模式的真实 Rust 预览见 [Pad 计算器](docs/calculator.md)。
 
 桌面沿用原项目的图标槽位、分页框架与后台状态栏，按 7 寸横屏排列为 **4 列 × 2 行**，一屏八个入口：时钟、番茄钟、便签、计算器、Mac 控制、设置、USB 副屏、关闭屏幕。当前八项在同一页，超过八项时分页并显示页码圆点。返回桌面保留当前应用实例，状态栏图标可恢复后台应用；触屏“结束应用”释放该应用实例。设置中的手动校时子页先返回设置主页。
 
@@ -39,7 +43,7 @@ UI 基于 [esp32-rust-ui](https://github.com/pomelos-on-sale/esp32-rust-ui) 的 
 | `crates/tiny-flutter` | 原 Rust 组件／布局引擎，中文字形回退、换行、裁剪、外部事件更新 |
 | `crates/tiny-flutter/crates/tiny_gfx` | 原软件栅格绘制引擎 |
 | `apps/app-launcher` | 横屏桌面、应用状态、后台计时、便签与配置持久化 |
-| `apps/calculator` | 原计算器及状态恢复 |
+| `apps/calculator` | tiny-flutter 计算器界面、基本／科学表达式、64 位程序员模式及状态恢复 |
 | `crates/p4desk-protocol` | Rust 的 USB v1 协议、快照和字段限制 |
 | `common/protocol` | C 的小端帧头与有界分包解析器 |
 | `firmware` | ESP-IDF 工程、最小 7B 硬件层、显示管理器、USB、Rust 静态库入口 |
@@ -97,7 +101,7 @@ swift test --package-path desktop/macos
 - Rust UI：MIT，固定上游提交 `0b75870835902cbf950505d1539dbb8f6e0a7197`。
 - 最小板级初始化：微雪 BSP 3.0.1，Apache-2.0。
 - TinyUSB：MIT；FatFs 局部覆盖保留 ESP-IDF 6.0.2 和 FatFs 原许可。
-- DeskPad 虚拟显示器声明：MIT；Noto Sans SC：SIL OFL 1.1。
+- DeskPad 虚拟显示器声明：MIT；系统界面与默认同步字体 HarmonyOS Sans：原 HarmonyOS Sans Fonts License Agreement；先前 Noto Sans SC 及翻页数字 DINish：SIL OFL 1.1。
 - 几何图标与界面由项目代码绘制。第三方许可保存在 `third_party/licenses` 与各组件的来源说明中。
 
 参见 [第三方资源清单](docs/third-party.md)。Git 提交使用中文。

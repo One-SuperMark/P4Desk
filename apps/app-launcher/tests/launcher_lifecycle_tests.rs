@@ -191,7 +191,7 @@ fn touch_back_status_bar_resume_and_kill_obey_app_lifecycle() {
         _ => panic!("calculator icon did not open calculator"),
     };
     first.lock().unwrap().input_digit('7');
-    tap(&mut app, &mut backend, &state, Point::new(796.0, 28.0));
+    tap(&mut app, &mut backend, &state, Point::new(48.0, 28.0));
     {
         let s = state.lock().unwrap();
         assert!(matches!(s.active_app, ActiveApp::Launcher));
@@ -204,7 +204,7 @@ fn touch_back_status_bar_resume_and_kill_obey_app_lifecycle() {
     };
     assert!(Arc::ptr_eq(&first, &resumed));
     assert_eq!(resumed.lock().unwrap().current_input, "7");
-    tap(&mut app, &mut backend, &state, Point::new(946.0, 28.0));
+    tap(&mut app, &mut backend, &state, Point::new(976.0, 28.0));
     assert!(state.lock().unwrap().running_apps.is_empty());
     tap(&mut app, &mut backend, &state, Point::new(873.0, 177.0));
     let fresh = match &state.lock().unwrap().active_app {

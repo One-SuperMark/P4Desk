@@ -1,0 +1,400 @@
+{
+  "schema": "p4desk.pad.typeface.acceptance.v1",
+  "recorded_at": "2026-09-29T11:23:45.259356+08:00",
+  "request": "将 Pad 界面 typeface 调整为苹方或相近字体",
+  "selected_face": {
+    "cjk_ui_and_default_sync": "HarmonyOS Sans SC Regular",
+    "latin_fallback": "HarmonyOS Sans Regular",
+    "version": "1.9",
+    "weight_class": 400,
+    "source_commit": "4d96c1c7158103732b687e9ea47f4454f6df3ea4",
+    "license": "HarmonyOS Sans Fonts License Agreement",
+    "original_ttf_and_outlines_unchanged": true,
+    "font_notice_in_pad_settings_and_mac_font_section": true,
+    "visual_similarity_is_subjective_not_a_pingfang_font_claim": true
+  },
+  "official_sources": {
+    "font_repository": "https://github.com/openharmony/utils_system_resources/tree/4d96c1c7158103732b687e9ea47f4454f6df3ea4/fonts",
+    "font_license": "https://github.com/openharmony/utils_system_resources/blob/4d96c1c7158103732b687e9ea47f4454f6df3ea4/LICENSE_Fonts",
+    "apple_font_embedding_terms": "https://www.apple.com/legal/sla/docs/macOSTahoe.pdf"
+  },
+  "source_fonts": [
+    {
+      "name": "HarmonyOS Sans SC Regular",
+      "path": "assets/fonts/HarmonyOS_Sans_SC_Regular.ttf",
+      "source": "https://github.com/openharmony/utils_system_resources/blob/4d96c1c7158103732b687e9ea47f4454f6df3ea4/fonts/HarmonyOS_Sans_SC_Regular.ttf",
+      "download": "https://raw.githubusercontent.com/openharmony/utils_system_resources/4d96c1c7158103732b687e9ea47f4454f6df3ea4/fonts/HarmonyOS_Sans_SC_Regular.ttf",
+      "commit": "4d96c1c7158103732b687e9ea47f4454f6df3ea4",
+      "version": "Version 1.9",
+      "weight_class": 400,
+      "license": "HarmonyOS Sans Fonts License Agreement",
+      "license_file": "third_party/licenses/HarmonyOS-Sans-LICENSE.txt",
+      "license_source": "https://raw.githubusercontent.com/openharmony/utils_system_resources/4d96c1c7158103732b687e9ea47f4454f6df3ea4/LICENSE_Fonts",
+      "copyright": "Copyright 2021-2023 Huawei Device Co., Ltd. All Rights Reserved.",
+      "bytes": 8430912,
+      "sha256": "8b193c486e7fd959598d209e3974b5f3838f07384239a9f4d05d45d06e6116ae",
+      "variable": false,
+      "outlines_modified": false
+    },
+    {
+      "name": "HarmonyOS Sans Regular",
+      "path": "assets/fonts/source/HarmonyOS_Sans_Regular.ttf",
+      "source": "https://github.com/openharmony/utils_system_resources/blob/4d96c1c7158103732b687e9ea47f4454f6df3ea4/fonts/HarmonyOS_Sans_Regular.ttf",
+      "download": "https://raw.githubusercontent.com/openharmony/utils_system_resources/4d96c1c7158103732b687e9ea47f4454f6df3ea4/fonts/HarmonyOS_Sans_Regular.ttf",
+      "commit": "4d96c1c7158103732b687e9ea47f4454f6df3ea4",
+      "version": "Version 1.9",
+      "weight_class": 400,
+      "license": "HarmonyOS Sans Fonts License Agreement",
+      "license_file": "third_party/licenses/HarmonyOS-Sans-LICENSE.txt",
+      "license_source": "https://raw.githubusercontent.com/openharmony/utils_system_resources/4d96c1c7158103732b687e9ea47f4454f6df3ea4/LICENSE_Fonts",
+      "copyright": "Copyright 2021-2023 Huawei Device Co., Ltd. All Rights Reserved.",
+      "bytes": 156880,
+      "sha256": "c3e8b1a7c3c1ddf735e4d67ebba4b0a045cc275075d25e8687fd00481516dd60",
+      "variable": false,
+      "outlines_modified": false
+    }
+  ],
+  "implementation": {
+    "system_labels": "bundled UI glyphs, then same-family Latin fallback; ignore synced user atlas",
+    "notes_and_shortcut_labels": "synced user atlas, then per-character UI and Latin fallback",
+    "measurement_and_drawing_share_resolver": true,
+    "embedded_ui": {
+      "path": "assets/generated/ui.p4f",
+      "bytes": 1336956,
+      "sha256": "97925c4d0ff96de2f08042fb63ff35321fddb96a7ba4381239ec27ecc4026e14"
+    },
+    "ui_manifest": {
+      "schema": "p4desk.ui-typeface.v1",
+      "family": "HarmonyOS Sans SC Regular",
+      "source_path": "assets/fonts/HarmonyOS_Sans_SC_Regular.ttf",
+      "source_sha256": "8b193c486e7fd959598d209e3974b5f3838f07384239a9f4d05d45d06e6116ae",
+      "source_commit": "4d96c1c7158103732b687e9ea47f4454f6df3ea4",
+      "license": "HarmonyOS Sans Fonts License Agreement",
+      "outlines_modified": false,
+      "rasterizer": "fontdue 0.9.4",
+      "pixel_format": "alpha8",
+      "sizes": [
+        14,
+        16,
+        18,
+        22,
+        24,
+        26,
+        28,
+        34,
+        36
+      ],
+      "glyph_count": 2835,
+      "text_path": "assets/generated/ui-text.txt",
+      "text_sha256": "0d6e4b1c2dfc772dc1201360454edc731c0b73cbb80880052bf33644bd543dea",
+      "bytes": 1336956,
+      "sha256": "97925c4d0ff96de2f08042fb63ff35321fddb96a7ba4381239ec27ecc4026e14"
+    },
+    "full_cjk_ttf_parsed_on_device": false,
+    "user_sync_sizes": [
+      18,
+      22,
+      28,
+      36
+    ],
+    "bounded_cache_bytes": 524288,
+    "bounded_cache_glyphs": 512,
+    "old_tf_generation_preserved_until_new_sync": true,
+    "custom_external_mac_font_preferences_preserved": true,
+    "legacy_app_bundled_default_migrated": true,
+    "clock_digit_atlas": {
+      "path": "assets/clock/flip-digits.alpha",
+      "bytes": 329472,
+      "sha256": "be04eb78bccb5252f2c8ca99225a61ee9a330689d25a316b69597710871aac1a"
+    }
+  },
+  "source": [
+    {
+      "path": "crates/tiny-flutter/src/graphics/font.rs",
+      "bytes": 11446,
+      "sha256": "f9230cb718b71f41e28aef3c9ed3613e1a3cf2c774962990783767de4918728c"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 26554,
+      "sha256": "eafd0904b65c2505ba954a2d2c104c43976a80d35b6c0adfee4f7b845804b47f"
+    },
+    {
+      "path": "tools/fontpack/src/main.rs",
+      "bytes": 5551,
+      "sha256": "1488882c679d64e3fe0730c9eb5ea182f80b1eb2d3cfec56c114a88004ab1a39"
+    },
+    {
+      "path": "scripts/generate-ui-fonts.py",
+      "bytes": 3000,
+      "sha256": "97a38e04d9358a3526c9b07eef0438e18ae43a8b6588038c7c666d1fc180bd56"
+    },
+    {
+      "path": "scripts/build-macos.sh",
+      "bytes": 3259,
+      "sha256": "07c49fa1475257fc98aac9c269ddcda748ba0a8022985c068b35a41b4e908cf8"
+    },
+    {
+      "path": "scripts/probe-macos.sh",
+      "bytes": 4097,
+      "sha256": "f0e9556567e5fb8acd81979bae90e3fa738cd1eeae5f946156b49132a9b4f713"
+    },
+    {
+      "path": "scripts/package-release.py",
+      "bytes": 6698,
+      "sha256": "6e52fab6d2a56410272a9adf3582fedbcf85b2c19a8faec5a78d5054c34e6409"
+    },
+    {
+      "path": "desktop/macos/Sources/P4Desk/DeskModel.swift",
+      "bytes": 40005,
+      "sha256": "11045dea21bef45287ab8e0dea28661a50d02397a741f3310426382c450fa716"
+    },
+    {
+      "path": "desktop/macos/Sources/P4DeskCore/FontResources.swift",
+      "bytes": 625,
+      "sha256": "5109a1df63398e824b3dc9d34f18f1f4d79ac6239d929ebff78d93829bb5ce61"
+    },
+    {
+      "path": "desktop/macos/Tests/P4DeskCoreTests/FontResourcesTests.swift",
+      "bytes": 1356,
+      "sha256": "f8c012592766d1df6d5f9514a313e3a5cad4c00783001d317d476e94e3a84207"
+    }
+  ],
+  "asset_reproduction": {
+    "command": "python3 scripts/generate-ui-fonts.py --check",
+    "exit_code": 0,
+    "valid": true,
+    "log": {
+      "path": ".cache/pad-typeface/font-check.log",
+      "bytes": 357,
+      "sha256": "459d495523e3dbd72b0aa5b1ec19fdcfca9211a439be22885f28ef530ca75d89"
+    }
+  },
+  "tests": {
+    "rust": {
+      "command": "cargo test --workspace",
+      "exit_code": 0,
+      "passed": 94,
+      "failed": 0,
+      "added_font_resolution_tests": 1,
+      "log": {
+        "path": ".cache/pad-typeface/rust-tests.log",
+        "bytes": 10477,
+        "sha256": "033b3caeb09ec1671f6d615aa1054203511dc9263b210a1f7bac01c5388a5d0f"
+      }
+    },
+    "swift": {
+      "command": "swift test --package-path desktop/macos",
+      "exit_code": 0,
+      "passed": 53,
+      "failed": 0,
+      "added_font_preference_migration_tests": 4,
+      "log": {
+        "path": ".cache/pad-typeface/swift-tests.log",
+        "bytes": 15100,
+        "sha256": "93df1362604b426e6d8213de2ba5cfa0c7f4410150165489cd36ffd37d6849e4"
+      }
+    },
+    "installed_app_font_fixture": {
+      "exit_code": 0,
+      "results": [
+        {
+          "bytes": 201004,
+          "glyph_count": 540,
+          "sizes": [
+            18,
+            22,
+            28,
+            36
+          ],
+          "valid": true
+        },
+        {
+          "bytes": 201004,
+          "glyph_count": 540,
+          "valid": true
+        }
+      ],
+      "log": {
+        "path": ".cache/pad-typeface/app-font-fixture.log",
+        "bytes": 118,
+        "sha256": "7389879428120b428c6aea4abafa2eded09b583c16db2dcd1f737833bc001cf4"
+      },
+      "uses_synthetic_fixture": true
+    }
+  },
+  "synthetic_preview": {
+    "resolution": [
+      1024,
+      600
+    ],
+    "is_device_capture": false,
+    "fixed_demonstration_state": true,
+    "desktop_before": {
+      "path": "artifacts/pad-typeface/before.png",
+      "bytes": 824316,
+      "sha256": "1fc6b5ce1cb52dfb731d8d727a15a1bc6916774912cf4f132cfa4c5bff82449e"
+    },
+    "desktop_after": {
+      "path": "artifacts/pad-typeface/after.png",
+      "bytes": 823996,
+      "sha256": "dc434df4565153d69a19c80379070b6bd15591d5d2c8a0bdaa821294b76e7116"
+    },
+    "comparison": {
+      "path": "artifacts/pad-typeface/comparison.png",
+      "bytes": 229661,
+      "sha256": "936b0722315221847f0c149ce6d0ddf47ee0bb4bcbc2e449e7622ebb414a645b"
+    },
+    "native_pixel_text_detail": {
+      "path": "artifacts/pad-typeface/text-detail.png",
+      "bytes": 26882,
+      "sha256": "57deeb57852eccfca8a74599861154aabc6b9d0311d02370e6aaa6019cb2dfb6"
+    },
+    "text_detail_zoom": 3,
+    "text_detail_resampling": "nearest_neighbor",
+    "tool_pages": [
+      {
+        "path": "artifacts/pad-typeface/screens/calculator.png",
+        "bytes": 45141,
+        "sha256": "f8dc865e36ff103e5b765d68e7f741dd677b38f728021f4abdb0fdff5e59c6d6"
+      },
+      {
+        "path": "artifacts/pad-typeface/screens/clock.png",
+        "bytes": 62781,
+        "sha256": "455e2423f65d395f89f049fdf83586981f12717935bc1e85ed99a3f2c7277535"
+      },
+      {
+        "path": "artifacts/pad-typeface/screens/home.png",
+        "bytes": 819022,
+        "sha256": "864e57084229d43a201960c5c975ee80a376c50089674de67bd45f0cb44d83a3"
+      },
+      {
+        "path": "artifacts/pad-typeface/screens/mac.png",
+        "bytes": 57259,
+        "sha256": "2b1da0f6f3f435a6fa3c0e3a0c30505a49f18bbbd21c4efc73bf90365060c0bc"
+      },
+      {
+        "path": "artifacts/pad-typeface/screens/manual.png",
+        "bytes": 76923,
+        "sha256": "aca0d26aa7f29784bc6b2a4fe91d7d10538745d271c8f0d21694a96187f0a29e"
+      },
+      {
+        "path": "artifacts/pad-typeface/screens/notes.png",
+        "bytes": 78806,
+        "sha256": "f64893f3e3f75a0b5f7ad235398caf7e6e544ef15b7582e08de21a8aa818973f"
+      },
+      {
+        "path": "artifacts/pad-typeface/screens/settings.png",
+        "bytes": 88099,
+        "sha256": "0d252a83b90ac495907a0218bf0339c407a8a3531a819ac067eca3f491cf4a5f"
+      },
+      {
+        "path": "artifacts/pad-typeface/screens/timer.png",
+        "bytes": 69893,
+        "sha256": "29b4e2d153e11ba714c02abe7eae3a761bffac7e6e1114a29b13b954688b6ede"
+      }
+    ]
+  },
+  "firmware_build": {
+    "command": "./scripts/build-firmware.sh",
+    "exit_code": 0,
+    "esp_idf": "6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "application": {
+      "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+      "bytes": 3331008,
+      "sha256": "e1c98451f6aaae76fb0b0b414d6616fe33282ab2d3f8df45c4456a7b577b4589"
+    },
+    "log": {
+      "path": ".cache/pad-typeface/firmware-build.log",
+      "bytes": 4998,
+      "sha256": "23456c1857b867b6388e0ff04a3ed79bfd8749d5fcdea03cb3238eae59efcd04"
+    }
+  },
+  "device_write": {
+    "exit_code": 0,
+    "chip": "ESP32-P4",
+    "revision": "v3.2",
+    "backup_reverified": true,
+    "backup_path": "backups/2026-09-28/p4-before-p4desk.bin",
+    "hardware_reset_sent": true,
+    "flash_write_includes_nvs_settings_or_tf": false,
+    "partitions": [
+      {
+        "offset": "0x2000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "offset": "0x8000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "offset": "0x10000",
+        "hash_verified": true,
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3331008,
+        "sha256": "e1c98451f6aaae76fb0b0b414d6616fe33282ab2d3f8df45c4456a7b577b4589"
+      }
+    ],
+    "log": {
+      "path": ".cache/pad-typeface/firmware-flash.log",
+      "bytes": 10685,
+      "sha256": "6bed384e8d365cca0848dfe42855fe44a3df842166eef1a6cc5e28379991f1f8"
+    }
+  },
+  "mac_build_and_installation": {
+    "command": "./scripts/build-macos.sh",
+    "exit_code": 0,
+    "architecture": "arm64",
+    "log": {
+      "path": ".cache/pad-typeface/mac-build.log",
+      "bytes": 320,
+      "sha256": "f21298d6f2d75ebbae93db3272d2663d86bcd4f0d385fd22e02de6aee177c4f9"
+    },
+    "installed_path": "/Applications/P4Desk.app",
+    "clean_bundle_replacement": true,
+    "deep_strict_signature_verified": true,
+    "developer_id_application": true,
+    "hardened_runtime": true,
+    "bundled_resources_match_build": true,
+    "bundled_font_fixture_valid": true,
+    "previous_merge_left_retired_font_resources": true,
+    "executable": {
+      "path": "/Applications/P4Desk.app/Contents/MacOS/P4Desk",
+      "bytes": 1614224,
+      "sha256": "56930c22b9cb8b730f68c1aab2f9ef9e763b58cdb7a46ec2ea007b625d3fed8f"
+    },
+    "font": {
+      "path": "/Applications/P4Desk.app/Contents/Resources/HarmonyOS_Sans_SC_Regular.ttf",
+      "bytes": 8430912,
+      "sha256": "8b193c486e7fd959598d209e3974b5f3838f07384239a9f4d05d45d06e6116ae"
+    },
+    "license": {
+      "path": "/Applications/P4Desk.app/Contents/Resources/HarmonyOS-Sans-LICENSE.txt",
+      "bytes": 3352,
+      "sha256": "327e0147d4a3ca2d89e81abce45b210576b0f9fe2b29d900f64b58039f12a102"
+    },
+    "font_helper": {
+      "path": "/Applications/P4Desk.app/Contents/Resources/p4desk-fontpack",
+      "bytes": 554240,
+      "sha256": "b74ef1471672d3f97c75f4036a65f699cb783fab014fbbd920c2c4608ac5c03e"
+    },
+    "initial_merge_install_signature": "failed_due_to_retired_Noto_resources",
+    "recovery": "clean app-bundle replacement; deep strict verification and bundled glyph bake passed",
+    "user_notes_or_shortcut_state_modified_by_installation": false
+  },
+  "physical_acceptance": {
+    "pad_desktop_and_settings_typeface_and_weight": "passed_user_confirmation",
+    "user_reply": "字体更舒服，效果合适",
+    "confirmation_recorded_at": "2026-09-29T11:23:45.259356+08:00",
+    "new_note_font_generation_usb_transfer_tested": false,
+    "device_fps_latency_long_running_stability_measured": false
+  }
+}

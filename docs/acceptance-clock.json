@@ -1,0 +1,130 @@
+{
+  "schema": "p4desk.pad.flip_clock.acceptance.v1",
+  "recorded_at": "2026-09-29T09:37:27.181238+08:00",
+  "ui": {
+    "width": 1024,
+    "height": 600,
+    "cards": 3,
+    "hour_format": 12,
+    "period_label": true,
+    "date": true,
+    "controls": [
+      "home",
+      "close"
+    ],
+    "title_or_explanatory_labels": false,
+    "settings_control": false,
+    "manual_usb_time_sync_control": false,
+    "global_notice_overlay": false,
+    "home_backgrounds_app": true,
+    "close_kills_app": true,
+    "auto_usb_time_sync_retained": true,
+    "manual_time_settings_retained_on_desktop": true
+  },
+  "font": {
+    "name": "Roboto Mono Bold",
+    "version": "3.001",
+    "weight": 700,
+    "license": "SIL OFL 1.1",
+    "upstream_commit": "895ec691990d041dd727c7b5afa3ce56525d98e6",
+    "source_sha256": "3ecf35e5e87accc7578b605d1f5f0bc30d88b195d6807bec8a0c57f6aa95c4db",
+    "nonzero_hmtx_advance_units": 1229,
+    "characters": "0123456789-",
+    "atlas_glyph_width": 144,
+    "atlas_glyph_height": 208,
+    "atlas_bytes": 329472,
+    "atlas_sha256": "039196997617cdacf2d1d1b77b91ee67306f29dd4457e12c47edbe9fd8468b61",
+    "raster_font_size": 264,
+    "stroke_width": 0,
+    "common_baseline": 198,
+    "numeric_ink_center_y": 104,
+    "individual_digit_ink_center_range_y": [
+      102.5,
+      105.5
+    ],
+    "minimum_transparent_margin": 3,
+    "original_slashed_zero_retained": true,
+    "runtime_font_rasterizer_required": false
+  },
+  "animation": {
+    "duration_ms": 240,
+    "repaint_gate_ms": 33,
+    "changed_cards_only_in_rust": true,
+    "final_settled_frame_always_requested": true,
+    "hidden_clock_cancels_active_flip": true,
+    "actual_hardware_fps_measured": false,
+    "hal_final_pad_frame_copy_is_full_screen": true
+  },
+  "software_tests": {
+    "workspace_command": "cargo test --workspace",
+    "workspace_passed": 85,
+    "workspace_failed": 0,
+    "flip_clock_passed": 8,
+    "partial_and_full_render_pixels_equal": true,
+    "actual_numeral_ink_center_test_passed": true,
+    "git_diff_check_passed": true
+  },
+  "build": {
+    "command": "./scripts/build-firmware.sh",
+    "esp_idf": "6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "compile_and_link_passed": true
+  },
+  "flashed_images": [
+    {
+      "offset": "0x2000",
+      "file": "bootloader/bootloader.bin",
+      "bytes": 23888,
+      "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897",
+      "esptool_write_hash_verified": true
+    },
+    {
+      "offset": "0x8000",
+      "file": "partition_table/partition-table.bin",
+      "bytes": 3072,
+      "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330",
+      "esptool_write_hash_verified": true
+    },
+    {
+      "offset": "0x10000",
+      "file": "p4desk.bin",
+      "bytes": 2532288,
+      "sha256": "95bbddd4bb51366a5596242675309d050088c2d51df899da776c795923736da1",
+      "esptool_write_hash_verified": true
+    }
+  ],
+  "existing_verified_full_flash_backup_rechecked_before_write": true,
+  "flash_ranges_exclude_nvs_storage_and_settings": true,
+  "rotation": {
+    "display_software_degrees": 180,
+    "touch_correction_degrees": 0,
+    "implementation_modified_this_turn": false
+  },
+  "boot_log": {
+    "reset_monitor_seconds": 35,
+    "bootloader_esp_idf_6_0_2_confirmed": true,
+    "application_image_loaded_confirmed": true,
+    "psram_self_check_confirmed": true,
+    "rust_ui_start_confirmed": false,
+    "application_runtime_logs_captured": false,
+    "application_default_console": "UART0",
+    "scope": "Only bootloader and application startup messages were captured; no Rust UI, TF or runtime stability assertion."
+  },
+  "preview": {
+    "source": "same Rust UI headless renderer",
+    "demo_time_is_synthetic": true,
+    "width": 1024,
+    "height": 600,
+    "render_frames": 71,
+    "frame_sample_interval_ms": 33,
+    "path": "artifacts/flip-clock/flip-clock.gif",
+    "is_physical_board_capture": false
+  },
+  "physical_clock_acceptance": {
+    "status": "pending_user_confirmation",
+    "font_visual_confirmed": false,
+    "hinge_alignment_confirmed": false,
+    "animation_smoothness_confirmed": false
+  }
+}

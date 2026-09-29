@@ -36,7 +36,7 @@ for key, argument in [('protocol', '--self-test'), ('synthetic_jpeg', '--probe-j
 resources = executable.parent.parent / 'Resources'
 with tempfile.TemporaryDirectory(prefix='p4desk-bundled-font-') as directory:
     output = Path(directory) / 'fixture.p4f'
-    helper, font = resources / 'p4desk-fontpack', resources / 'NotoSansSC-Regular.otf'
+    helper, font = resources / 'p4desk-fontpack', resources / 'HarmonyOS_Sans_SC_Regular.ttf'
     baked = subprocess.run([str(helper), 'bake', '--font', str(font), '--snapshot', str(fixture),
         '--output', str(output), '--sizes', '18,22,28,36'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
     if baked.returncode == 0:

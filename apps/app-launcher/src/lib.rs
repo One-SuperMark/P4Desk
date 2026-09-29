@@ -1,4 +1,5 @@
 pub mod app_icons;
+pub mod flip_clock;
 pub mod headless;
 pub mod launcher_state;
 pub mod launcher_ui;

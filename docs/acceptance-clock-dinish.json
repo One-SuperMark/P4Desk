@@ -1,0 +1,164 @@
+{
+  "schema": "p4desk.pad.clock_font.acceptance.v1",
+  "recorded_at": "2026-09-29T10:08:48.622256+08:00",
+  "selection": {
+    "user_selected": "DINish Heavy",
+    "weight": 800,
+    "comparison_candidates": [
+      "DINish Black 900",
+      "DINish Heavy 800",
+      "previous Roboto Mono Bold"
+    ],
+    "user_reply": "B：DINish Heavy（推荐）",
+    "selection_was_from_synthetic_preview": true,
+    "comparison_path": "artifacts/flip-clock-fonts/comparison.png"
+  },
+  "font": {
+    "name": "DINish Heavy",
+    "version": "4.007",
+    "weight": 800,
+    "features": [
+      "tnum",
+      "lnum"
+    ],
+    "source_commit": "a5f3b2a3b932336225815bf9005e3b72cc3de71c",
+    "source_url": "https://raw.githubusercontent.com/playbeing/dinish/a5f3b2a3b932336225815bf9005e3b72cc3de71c/fonts/ttf/DINish/DINish-Heavy.ttf",
+    "source_sha256": "6812edbc60553218229b256670b57fdaf8186969e56f9aa7c19bcb19c66ad263",
+    "license": "SIL OFL 1.1",
+    "source_font_is_unmodified": true,
+    "zero_has_slash": false,
+    "tabular_digit_hmtx_advance_units": 524,
+    "units_per_em": 1024,
+    "all_ten_actual_digit_advances_equal": true,
+    "glyph_ids": [
+      23,
+      29,
+      35,
+      41,
+      47,
+      53,
+      59,
+      65,
+      71,
+      77
+    ]
+  },
+  "atlas": {
+    "width_per_glyph": 144,
+    "height_per_glyph": 208,
+    "glyphs": 11,
+    "bytes": 329472,
+    "sha256": "be04eb78bccb5252f2c8ca99225a61ee9a330689d25a316b69597710871aac1a",
+    "format": "alpha8",
+    "font_size": 282,
+    "digit_advance_pixels": 144.3046875,
+    "fixed_renderer_cell_advance_pixels": 144,
+    "actual_ink_centers_y": [
+      104,
+      104,
+      104,
+      104,
+      103.5,
+      103.5,
+      103.5,
+      103.5,
+      104,
+      104
+    ],
+    "target_hinge_y": 104,
+    "optical_y_adjustments": [
+      0,
+      0,
+      2,
+      0,
+      0,
+      -2,
+      -2,
+      0,
+      0,
+      2
+    ],
+    "minimum_transparent_margin": 3,
+    "regeneration_byte_check_passed": true
+  },
+  "software_tests": {
+    "workspace_command": "cargo test --workspace",
+    "workspace_passed": 85,
+    "workspace_failed": 0,
+    "flip_clock_passed": 8,
+    "actual_numeral_hinge_alignment_test_passed": true,
+    "partial_and_full_render_pixels_equal": true
+  },
+  "build": {
+    "command": "./scripts/build-firmware.sh",
+    "esp_idf": "6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "compile_and_link_passed": true
+  },
+  "flashed_images": [
+    {
+      "offset": "0x2000",
+      "file": "bootloader/bootloader.bin",
+      "bytes": 23888,
+      "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897",
+      "esptool_write_hash_verified": true
+    },
+    {
+      "offset": "0x8000",
+      "file": "partition_table/partition-table.bin",
+      "bytes": 3072,
+      "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330",
+      "esptool_write_hash_verified": true
+    },
+    {
+      "offset": "0x10000",
+      "file": "p4desk.bin",
+      "bytes": 2532288,
+      "sha256": "08aafa8e1f22e7b63fcc783fc4a993aec40f46d4413772f7594b52795e56e787",
+      "esptool_write_hash_verified": true
+    }
+  ],
+  "existing_verified_full_flash_backup_rechecked_before_write": true,
+  "flash_ranges_exclude_nvs_storage_and_settings": true,
+  "tf_format_requested_or_performed": false,
+  "rotation": {
+    "display_software_degrees": 180,
+    "touch_correction_degrees": 0,
+    "implementation_modified_this_font_step": false
+  },
+  "ui": {
+    "font_changed": true,
+    "three_flip_cards": true,
+    "navigation_icons": [
+      "home",
+      "close"
+    ],
+    "date_visible": true,
+    "settings_or_manual_sync_controls_visible": false,
+    "font_rasterizer_used_at_runtime": false,
+    "external_card_required_for_clock_glyphs": false
+  },
+  "preview": {
+    "source": "same Rust UI headless renderer",
+    "path": "artifacts/flip-clock-fonts/dinish-heavy-clock.gif",
+    "width": 1024,
+    "height": 600,
+    "render_frames": 71,
+    "time_is_synthetic": true,
+    "physical_board_capture": false
+  },
+  "application_uart_startup_or_stability_verification_performed_this_font_step": false,
+  "physical_board_acceptance": {
+    "font_visual": "user_confirmed",
+    "hinge_alignment": "user_confirmed",
+    "animation_smoothness": "not_separately_verified"
+  },
+  "user_confirmation": {
+    "recorded_at": "2026-09-29T10:10:47.523048+08:00",
+    "reply": "字体和居中位置都合适",
+    "font_visual_confirmed": true,
+    "hinge_alignment_confirmed": true,
+    "covers_animation_smoothness_or_long_term_stability": false
+  }
+}

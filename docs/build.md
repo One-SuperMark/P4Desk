@@ -127,7 +127,9 @@ python3 scripts/device-tool.py monitor \
 open dist/P4Desk.app
 ```
 
-脚本构建 arm64 SwiftPM release、Rust 字形工具，打包 Noto Regular 字体和 OFL 许可后签名。默认选择本机唯一有效的 Developer ID Application 证书，字体 helper 与主 App 都启用 Hardened Runtime 并添加安全时间戳；没有证书或有多张时明确报错。可通过 `P4DESK_CODESIGN_IDENTITY` 指定身份，只有显式设为 `-` 才使用 ad hoc。输出 `dist/P4Desk.app`，安装时放入 `/Applications`。
+脚本构建 arm64 SwiftPM release、Rust 字形工具，打包 HarmonyOS Sans SC Regular 字体和原许可后签名。默认选择本机唯一有效的 Developer ID Application 证书，字体 helper 与主 App 都启用 Hardened Runtime 并添加安全时间戳；没有证书或有多张时明确报错。可通过 `P4DESK_CODESIGN_IDENTITY` 指定身份，只有显式设为 `-` 才使用 ad hoc。输出 `dist/P4Desk.app`，安装时放入 `/Applications`。
+
+更新安装时先退出正在运行的 P4Desk，完整替换应用包，再执行 `codesign --verify --deep --strict /Applications/P4Desk.app` 校验。应用数据位于 Application Support 和 UserDefaults。系统界面字形生成、默认同步字体与许可说明见 [Pad 界面字体](pad-typeface.md)。
 
 首次进入副屏时授予屏幕录制权限；需要触摸和快捷键时授予辅助功能权限。配置窗口显示当前权限和连接状态，并提供系统设置入口。便签／快捷面板编辑和同步不要求录屏权限。
 
@@ -153,11 +155,21 @@ python3 scripts/package-release.py --build-dir /Volumes/work/esp/build/p4desk
 
 ## Rust 桌面预览与字形工具
 
-应用图标采用项目自制的 128×128 RGB565／alpha8 资源，已经保存在源码中。修改图标几何定义后，可用 Python 标准库重新生成：
+应用图标采用项目自制的 146×146 RGB565／alpha8 资源，按桌面实际尺寸离线进行 8×8 超采样，已经保存在源码中。修改图标几何定义后，可用 Python 标准库重新生成并校验：
 
 ```sh
 python3 scripts/generate-desktop-assets.py
+python3 scripts/generate-desktop-assets.py --check
 ```
+
+检查圆角与缩放质量时，可用同一 Rust 桌面与固定演示时间输出预览，包含八个桌面图标与两个状态栏小图标：
+
+```sh
+cargo run -p app-launcher --features screenshots --example pad-icons-preview -- \
+  artifacts/pad-icons.png
+```
+
+图标原尺寸绘制与透明边缘缩放说明见 [Pad 图标绘制质量](pad-render-quality.md)。
 
 ```sh
 cargo run -p app-launcher --features screenshots --bin p4desk-simulator -- \
@@ -165,7 +177,7 @@ cargo run -p app-launcher --features screenshots --bin p4desk-simulator -- \
 
 cargo build --release -p p4desk-fontpack
 target/release/p4desk-fontpack bake \
-  --font assets/fonts/NotoSansSC-Regular.otf \
+  --font assets/fonts/HarmonyOS_Sans_SC_Regular.ttf \
   --snapshot tests/fixtures/snapshot-v1.json \
   --output .cache/demo-font.p4f --sizes 18,22,28,36
 target/release/p4desk-fontpack validate \
@@ -173,3 +185,25 @@ target/release/p4desk-fontpack validate \
 ```
 
 交互模拟器可添加 `--features simulator`；无屏环境使用 `screenshots`。演示数据与设备上的真实数据独立。
+
+### 翻页时钟预览
+
+使用同一 Rust 控件、动画状态与局部绘制路径生成固定演示时间的预览：
+
+```sh
+cargo run -p app-launcher --features screenshots --example flip-clock-preview -- \
+  artifacts/flip-clock
+```
+
+输出 1024×600 的 `000.png` 至 `190.png` 以及最终落稳的 `clock.png`，按 20 ms 演示时间间隔采样。演示从 2026-09-29 20:06:58 UTC 开始，包含秒变化与分钟进位，画面使用 12 小时制；文件用于界面审阅，不是开发板截屏或实机帧率记录。
+
+数字采用 DINish Heavy 的原生 800 字重，启用 `tnum`／`lnum` 选择源字体中的等宽齐线数字。图集固定为 11 个 144×208 alpha8 字形，随固件内嵌；正常构建无需再次栅格化字体。重新生成仅需要 macOS、Swift／CoreText 和 Python 标准库，不需要 Pillow：
+
+```sh
+python3 scripts/generate-clock-assets.py --font heavy
+python3 scripts/generate-clock-assets.py --font heavy --check
+```
+
+检查模式在临时目录生成并逐字节比较图集、元数据和来源说明；不修改已保存资源。源字体、尺寸、校验值、实际等宽字形 ID 与光学居中边界见 [时钟数字图集](../assets/clock/README.md)。
+
+动画由单调时间驱动，持续 640 ms，采用半页透视、正反面交接、软阴影与轻微落稳回弹，以 20 ms 门限提交变化卡片的局部 dirty，结束时补齐完整展开帧。离开时钟、进入副屏或关闭屏幕后取消动画，重新进入直接显示当前时间。局部 dirty 降低 Rust 绘制／提取开销；C 显示 owner 仍沿用既有整屏 180°复制和 LCD 提交路径。实现、参考来源与验证边界见 [翻页时钟动画](flip-clock-animation.md)；重绘门限不代表实测设备帧率。

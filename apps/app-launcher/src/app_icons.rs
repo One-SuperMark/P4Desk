@@ -34,7 +34,8 @@ impl AppIconAsset {
 #[repr(C, align(2))]
 struct AlignedRgb565<const N: usize>([u8; N]);
 
-const SIDE: u32 = 128;
+pub const DESKTOP_ICON_SIDE: u32 = 146;
+const SIDE: u32 = DESKTOP_ICON_SIDE;
 const RGB565_BYTES: usize = SIDE as usize * SIDE as usize * 2;
 
 macro_rules! icon_asset {
@@ -95,11 +96,11 @@ mod tests {
     fn resource_dimensions_lengths_and_alignment_match_renderer_contract() {
         for id in IDS {
             let asset = get_app_icon_asset(id).expect("known desktop icon");
-            assert_eq!((asset.width, asset.height), (128, 128));
-            assert_eq!(asset.rgb565.len(), 32768);
-            assert_eq!(asset.alpha.len(), 16384);
+            assert_eq!((asset.width, asset.height), (146, 146));
+            assert_eq!(asset.rgb565.len(), 42632);
+            assert_eq!(asset.alpha.len(), 21316);
             assert_eq!(asset.rgb565.as_ptr() as usize % 2, 0);
-            assert_eq!(asset.get_rgb565_slice().len(), 16384);
+            assert_eq!(asset.get_rgb565_slice().len(), 21316);
         }
         assert!(get_app_icon_asset("unknown").is_none());
     }
@@ -118,7 +119,7 @@ mod tests {
     fn rounded_icons_have_transparency_and_antialiased_coverage() {
         for id in IDS {
             let alpha = get_app_icon_asset(id).unwrap().alpha;
-            for corner in [0, 127, 128 * 127, 16383] {
+            for corner in [0, 145, 146 * 145, 21315] {
                 assert_eq!(alpha[corner], 0);
             }
             assert!(alpha.contains(&255));

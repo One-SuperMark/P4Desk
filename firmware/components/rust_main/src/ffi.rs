@@ -255,6 +255,9 @@ pub extern "C" fn rust_main_entry() {
         if mode == Mode::Pad {
             let screen_on = state.lock().unwrap().settings.screen_on;
             app.set_screen_power(&mut backend, screen_on);
+            if let Some(rect) = state.lock().unwrap().take_clock_animation_dirty(app.size()) {
+                app.mark_dirty(rect);
+            }
             app.step_with_builder(&mut backend, |size| {
                 app_launcher::build_launcher_ui(state.clone(), size)
             });

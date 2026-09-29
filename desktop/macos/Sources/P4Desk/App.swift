@@ -283,6 +283,8 @@ struct DeskSettings: View {
                 Button("刷新权限状态") { model.refreshPermissions() }
             }
             Section("中文字库") {
+                Text("内置 HarmonyOS Sans SC Regular，用于便签与快捷按钮字形同步。")
+                    .font(.caption).foregroundStyle(.secondary)
                 HStack { Text(model.fontPath.isEmpty ? "尚未选择 TTF/OTF 字库" : URL(fileURLWithPath: model.fontPath).lastPathComponent); Spacer(); Button("选择字体…") { model.selectFont() } }
                 HStack { Text(model.fontToolPath.isEmpty ? "缺少 p4desk-fontpack" : "字体生成工具已配置"); Spacer(); Button("选择工具…") { model.selectFontTool() } }
                 Text("只打包本次便签与按钮所需字符。同步按完整一代提交，失败保留设备上一有效版本。").font(.caption).foregroundStyle(.secondary)

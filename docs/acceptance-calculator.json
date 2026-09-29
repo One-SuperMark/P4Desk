@@ -1,0 +1,233 @@
+{
+  "schema": "p4desk.pad.calculator.acceptance.v1",
+  "recorded_at": "2026-09-29T12:11:10.583480+08:00",
+  "request": "参考用户提供的 macOS 计算器截图，外观与基本、科学、程序员三个模式一起做",
+  "implementation": {
+    "rust_ui": "tiny-flutter / tiny_gfx",
+    "screen": [
+      1024,
+      600
+    ],
+    "modes": [
+      "basic",
+      "scientific",
+      "programmer"
+    ],
+    "float_internal": "f64",
+    "display_significant_digits": 12,
+    "word_bits": 64,
+    "default_angle": "degrees",
+    "state_preserved_on_home": true,
+    "state_reset_on_close": true,
+    "rounded_coverage": "calculator buttons opt in; legacy rounded fill retained",
+    "max_expression_tokens": 128,
+    "max_pending_unary_per_level": 8,
+    "unicode_fallback": "current bundled per-character font resolver"
+  },
+  "host_verification": {
+    "rust_workspace": {
+      "exit_code": 0,
+      "passed": 137,
+      "failures": []
+    },
+    "new_tests": {
+      "calculation": 32,
+      "calculator_ui": 6,
+      "rounded_coverage": 4,
+      "translated_text_clip": 1
+    },
+    "existing_flip_clock_tests": 11,
+    "font_byte_reproduction": "passed",
+    "preview_kind": "actual Rust launcher and calculator rendered on native RGB565 headless backend with synthetic input",
+    "images": [
+      {
+        "path": "docs/images/calculator-v1-basic.png",
+        "bytes": 71291,
+        "sha256": "6e94ff2a83969585733cfd66998714d0a9c139b296785d227516240c5a5c038d"
+      },
+      {
+        "path": "docs/images/calculator-v1-scientific.png",
+        "bytes": 135018,
+        "sha256": "da154738908c32f7252a8601509e81fc1f8c5aa1b6ed792fc1f51b2579717145"
+      },
+      {
+        "path": "docs/images/calculator-v1-programmer.png",
+        "bytes": 151539,
+        "sha256": "cca4b119d8c092a62bd9b3e14feaee46e9903eb1b085200e693a5103ac468108"
+      }
+    ]
+  },
+  "build": {
+    "status": "passed",
+    "idf_version": "v6.0.2",
+    "rust_toolchain": "nightly-2026-09-27",
+    "rustc": "1.101.0-nightly (75a75c3e0 2026-09-26)",
+    "target": "riscv32imafc-esp-espidf",
+    "log": ".cache/calculator-mac/build.log",
+    "files": [
+      {
+        "path": "/Volumes/work/esp/build/p4desk/bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "50554f0b06c77260f387be5a114f5f968d00523a6dde39a96d3d024cb3d93897"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "path": "/Volumes/work/esp/build/p4desk/p4desk.bin",
+        "bytes": 3487712,
+        "sha256": "24fb5f5c9e4335fbe1bb9da56af777c1c6d258c8225ca02ea056056d2be49a53"
+      }
+    ],
+    "partition_size": 8388608,
+    "app_remaining_bytes": 4900896,
+    "idf_path": "/Volumes/work/esp/esp-idf-v6.0.2",
+    "version_gate": "scripts/build-firmware.sh requires idf.py --version = ESP-IDF v6.0.2 before build"
+  },
+  "flash": {
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 26.79,
+    "verified_hash_count": 3,
+    "hard_reset": true,
+    "backup_reverified": true,
+    "chip": "ESP32-P4 revision v3.2",
+    "written_offsets": [
+      "0x2000",
+      "0x8000",
+      "0x10000"
+    ],
+    "log": ".cache/calculator-mac/flash.log",
+    "backup": "existing full 32 MiB Flash/NVS image reverified by SHA256 before flashing",
+    "nvs_settings_and_tf_not_written": true
+  },
+  "assets": {
+    "ui_font": {
+      "schema": "p4desk.ui-typeface.v1",
+      "family": "HarmonyOS Sans SC Regular",
+      "source_path": "assets/fonts/HarmonyOS_Sans_SC_Regular.ttf",
+      "source_sha256": "8b193c486e7fd959598d209e3974b5f3838f07384239a9f4d05d45d06e6116ae",
+      "source_commit": "4d96c1c7158103732b687e9ea47f4454f6df3ea4",
+      "license": "HarmonyOS Sans Fonts License Agreement",
+      "outlines_modified": false,
+      "rasterizer": "fontdue 0.9.4",
+      "pixel_format": "alpha8",
+      "sizes": [
+        14,
+        16,
+        18,
+        22,
+        24,
+        26,
+        28,
+        34,
+        36
+      ],
+      "glyph_count": 3024,
+      "text_path": "assets/generated/ui-text.txt",
+      "text_sha256": "effb63bd6338d3dd088a68c28263d31d7dea836849290c524260628746041ed0",
+      "bytes": 1440876,
+      "sha256": "bd41a55d6bf014b0b74ec4a34fb129933bfbb50f665fce1c96b37fba6d0bbe84"
+    },
+    "clock_digit_atlas": {
+      "path": "assets/clock/flip-digits.alpha",
+      "bytes": 329472,
+      "sha256": "be04eb78bccb5252f2c8ca99225a61ee9a330689d25a316b69597710871aac1a"
+    }
+  },
+  "source": [
+    {
+      "path": "apps/calculator/src/lib.rs",
+      "bytes": 437,
+      "sha256": "632c43b0bb8c68000959260fb2ea29192913121f171228fcfd064e6b65793f1b"
+    },
+    {
+      "path": "apps/calculator/src/expression.rs",
+      "bytes": 5470,
+      "sha256": "934b9e8e9dd68ffae02d67c5012fa3cc05b087507362890d6e941d7480b888de"
+    },
+    {
+      "path": "apps/calculator/src/model.rs",
+      "bytes": 25141,
+      "sha256": "a4f63f99abaf1c0d3c62d65f5e522a7aa5a1675798a1316c6d21111c8950541b"
+    },
+    {
+      "path": "apps/calculator/src/programmer.rs",
+      "bytes": 12820,
+      "sha256": "c16a3f2610b731950571543ea9ec2fd1f632ce1d8928bb720b26c93e7adc4118"
+    },
+    {
+      "path": "apps/calculator/src/ui.rs",
+      "bytes": 25423,
+      "sha256": "afa993e2172c8ddeb72eec5177100734c7b20fb66e2e028ddf3aa84b90072173"
+    },
+    {
+      "path": "apps/calculator/tests/calculation.rs",
+      "bytes": 14255,
+      "sha256": "e795ae9eff7c3aec4c50cce398eabce2a3e6ea42fc02b95cb3b937b6781faaab"
+    },
+    {
+      "path": "apps/app-launcher/src/launcher_ui.rs",
+      "bytes": 28119,
+      "sha256": "fd0f18bb6beb7bb347daea0d58d1063eea1ffc5ca15d2d7a1ab95e90ee166267"
+    },
+    {
+      "path": "apps/app-launcher/examples/calculator-preview.rs",
+      "bytes": 2207,
+      "sha256": "e6fdc954a6e77b5bc6fc8beb1298300f6ce1cc2f8d3bd756e98a18af249f8b2f"
+    },
+    {
+      "path": "apps/app-launcher/tests/calculator_ui_tests.rs",
+      "bytes": 6277,
+      "sha256": "7efec6baa568733a5e0349da184739b4c8f925d294f39c9c892161aebb5ec47d"
+    },
+    {
+      "path": "apps/app-launcher/tests/launcher_lifecycle_tests.rs",
+      "bytes": 11313,
+      "sha256": "af146609a97553a98e6e9d3e794b5ff4053b817bfbcb851e33cf9db562115178"
+    },
+    {
+      "path": "crates/tiny-flutter/src/widgets/button.rs",
+      "bytes": 10566,
+      "sha256": "444787109c01471a1bfc4e3deb973700a3592c30720d9e5940220dfd607524cd"
+    },
+    {
+      "path": "crates/tiny-flutter/src/graphics/canvas.rs",
+      "bytes": 7983,
+      "sha256": "3fea18eeae1235acd7253c710e56c21df303022a1e009ea873cd10f60663365b"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/canvas.rs",
+      "bytes": 9321,
+      "sha256": "8ba4f9e004c6c7abd3d793b431baf97d75d3404472e4189a871ed18447443918"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/src/raster.rs",
+      "bytes": 32449,
+      "sha256": "346d4d3e848991e1824dff240b5daded634790636fc2b69cb12ff46aa1623686"
+    },
+    {
+      "path": "crates/tiny-flutter/crates/tiny_gfx/tests/rounded_coverage.rs",
+      "bytes": 2614,
+      "sha256": "876d73594ff7b35c9ffc5fbc912b33b603e399fb239b4d2a649a1e2a1c85c5ab"
+    },
+    {
+      "path": "crates/tiny-flutter/tests/text_clipping.rs",
+      "bytes": 785,
+      "sha256": "0fa81243509f2f531a1ffc4e2c03cefdc1ff7849f3b3a09f46220c4c580a2c97"
+    }
+  ],
+  "physical_acceptance": {
+    "status": "awaiting_user_feedback",
+    "question": "三个模式布局、触摸与 7+5、30 sin、F AND 3 的现场确认",
+    "user_reply": null,
+    "long_run_latency_and_full_math_matrix": "not_measured"
+  },
+  "official_behavior_references": [
+    "https://support.apple.com/en-lamr/guide/calculator/calc2c05fe23/12.0/mac/26",
+    "https://support.apple.com/en-lamr/guide/calculator/calcf964141e/12.0/mac/26",
+    "https://support.apple.com/en-lamr/guide/calculator/calc8990e3ee/12.0/mac/26"
+  ]
+}
