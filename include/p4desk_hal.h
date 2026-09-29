@@ -35,6 +35,8 @@ void p4desk_pad_frame_begin(void);
 void p4desk_pad_frame_end(void);
 uint32_t p4desk_get_mode(void);
 bool p4desk_set_mode(uint32_t mode, uint32_t session);
+uint32_t p4desk_direct_jpeg_rotation_degrees(void);
+bool p4desk_set_mode_with_jpeg_rotation(uint32_t mode, uint32_t session, uint32_t jpeg_rotation_degrees);
 void p4desk_set_brightness(uint8_t percent);
 int64_t p4desk_monotonic_us(void);
 void p4desk_delay_ms(uint32_t milliseconds);

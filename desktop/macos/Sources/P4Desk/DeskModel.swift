@@ -10,7 +10,8 @@ final class DeskModel: ObservableObject {
     static let shared = DeskModel()
     @Published var snapshot: Snapshot
     @Published var connected = false
-    @Published var connectionStatus = "未连接 USB HS（Type-A）"
+    @Published var connectionStatus = "未连接 USB（Type-A）"
+    @Published var usbSpeedMbps: UInt64 = 0
     @Published var displayActive = false
     @Published var changingMode = false
     @Published var syncing = false
@@ -19,13 +20,17 @@ final class DeskModel: ObservableObject {
     @Published var sdReady = false
     @Published var screenAllowed = false
     @Published var inputAllowed = false
-    @Published var message = "请用数据线连接板上 Type-A USB-OTG 大接口（USB HS 数据口）。Type-C 小接口用于供电／烧录调试，不能连接此副屏协议。"
+    @Published var message = "请用数据线连接板上 Type-A USB-OTG 大接口。Type-C 小接口用于供电／烧录调试，不能连接此副屏协议。"
     @Published var codec = "尚未启动"
     @Published var presentedFrames = 0
     @Published var presentationMS: Double?
     @Published var captureToReceiptP95MS: Double?
     @Published var effectivePresentedFPS = 0.0
     @Published var performanceSampleCount = 0
+    @Published var performanceMetrics: PerformanceReport?
+    @Published var encoderQueueStatistics: LatestFrameQueueStatistics?
+    @Published var jpegDeliveryStatistics: LatestFrameQueueStatistics?
+    @Published var encoderDiagnostics: JPEGEncoderDiagnostics?
     @Published var fontPath = ""
     @Published var fontToolPath = ""
 
@@ -36,14 +41,21 @@ final class DeskModel: ObservableObject {
     private var connectionEpoch: UInt64 = 0
     private var deviceActions: [String: DeskAction] = [:]
     private var capture: DisplayCapture?
+    private var encodedDelivery: LatestFrameDelivery<EncodedFrame>?
     private var displayHandle: UnsafeMutableRawPointer?
     private var activeSession: UInt32 = 0
+    private var directJPEGRotationDegrees = 0
     private var videoEnabled = false
     private var videoSequence: UInt16 = 0
     private var frameEnqueued: [UInt16: FrameTiming] = [:]
     private var frameTokens: [UInt32: UInt16] = [:]
     private var nextFrameToken: UInt32 = 1
     private var performance = PerformanceWindow()
+    private var encodedTotal: UInt64 = 0
+    private var enqueuedTotal: UInt64 = 0
+    private var usbCompletedTotal: UInt64 = 0
+    private var presentedTotal = 0
+    private var latestPresentationMS: Double?
     private var firstJPEG: EncodedFrame?
     private var jpegWait: (UUID, CheckedContinuation<EncodedFrame, Error>)?
     private var presentedWait: (UUID, CheckedContinuation<Void, Error>)?
@@ -57,6 +69,7 @@ final class DeskModel: ObservableObject {
     }
     private var pending: [UInt16: Pending] = [:]
     private var heartbeatTask: Task<Void, Never>?
+    private var performanceTask: Task<Void, Never>?
     private var fontTask: Task<Data, Error>?
     private var saveTask: Task<Void, Never>?
     private var lastDeviceContact = Date.timeIntervalSinceReferenceDate
@@ -90,6 +103,16 @@ final class DeskModel: ObservableObject {
         refreshPermissions()
         transport.onEvent = { [weak self] event in self?.usbEvent(event) }
         transport.start()
+        performanceTask?.cancel()
+        performanceTask = Task { [weak self] in
+            while !Task.isCancelled {
+                // Keep collecting ACK metadata in the background. Sorting and
+                // publishing the full report is only needed by a visible editor.
+                if DeskEditorWindow.shared.isVisible { self?.refreshPerformance() }
+                do { try await Task.sleep(nanoseconds: 1_000_000_000) }
+                catch { return }
+            }
+        }
         let center = NSWorkspace.shared.notificationCenter
         observers.append(center.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
@@ -118,18 +141,46 @@ final class DeskModel: ObservableObject {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") { NSWorkspace.shared.open(url) }
     }
     func reconnect() { transport.reconnect() }
+    var usbSpeedDescription: String {
+        guard usbOpen else { return "尚未连接" }
+        switch usbSpeedMbps {
+        case 12: return "Full Speed · 12 Mbps"
+        case 480: return "High Speed · 480 Mbps"
+        case 5000: return "SuperSpeed · 5 Gbps"
+        case 10000: return "SuperSpeed+ · 10 Gbps"
+        default: return "已连接 · 协商速率未知"
+        }
+    }
+    var usbBandwidthHint: String? {
+        guard usbOpen, usbSpeedMbps == 12 else { return nil }
+        return "当前协商为 Full Speed（12 Mbps），理论带宽上限为 1.5 MB/s，实际还要扣除 USB 开销。整幅 JPEG 的大小会限制动态窗口帧率；使用 HS 接口不代表已协商到 480 Mbps。"
+    }
+    func refreshPerformance() {
+        let report = performance.report(nowNS: DispatchTime.now().uptimeNanoseconds)
+        performanceMetrics = report
+        captureToReceiptP95MS = report.captureToReceiptP95MS
+        effectivePresentedFPS = report.effectivePresentedFPS
+        performanceSampleCount = report.sampleCount
+        presentedFrames = presentedTotal
+        presentationMS = latestPresentationMS
+        if let capture { encoderQueueStatistics = capture.encoderStatistics }
+        if let delivery = encodedDelivery {
+            let statistics = delivery.statistics
+            jpegDeliveryStatistics = statistics; encodedTotal = statistics.submitted
+        }
+    }
     private func usbEvent(_ event: USBSession.Event) {
         switch event {
-        case .connected:
+        case .connected(let speedMbps):
             connectionEpoch &+= 1
             let epoch = connectionEpoch
-            usbOpen = true; connected = false; parser.reset(); connectionStatus = "USB 已打开，正在握手"
+            usbOpen = true; usbSpeedMbps = speedMbps; connected = false; parser.reset(); connectionStatus = "USB 已打开，正在握手"
             lastDeviceContact = Date.timeIntervalSinceReferenceDate
             startHeartbeat()
             Task { await establish(epoch: epoch) }
         case .disconnected:
             connectionEpoch &+= 1
-            usbOpen = false; connected = false; sdReady = false
+            usbOpen = false; usbSpeedMbps = 0; connected = false; sdReady = false; directJPEGRotationDegrees = 0
             deviceActions.removeAll()
             connectionStatus = "USB 已断开"; parser.reset(); failPending(DeskError.usbDisconnected)
             heartbeatTask?.cancel(); heartbeatTask = nil
@@ -139,10 +190,13 @@ final class DeskModel: ObservableObject {
             for packet in parser.feed(data) {
                 if packet.kind == .control, let fields = try? JSONControl.object(packet.payload) { receive(fields, sequence: packet.sequence) }
             }
-        case .sent(let token, let timeNS):
+        case .sent(let token, let timeNS, let transferUS):
             guard let sequence = frameTokens.removeValue(forKey: token) else { break }
-            if var timing = frameEnqueued[sequence] { timing.usbSentNS = timeNS; frameEnqueued[sequence] = timing }
-            else { performance.markSent(sequence: sequence, timeNS: timeNS) }
+            usbCompletedTotal &+= 1
+            if var timing = frameEnqueued[sequence] {
+                timing.usbSentNS = timeNS; timing.usbTransferUS = transferUS
+                frameEnqueued[sequence] = timing; performance.recordTransfer(timing)
+            } else { performance.markSent(sequence: sequence, timeNS: timeNS, transferUS: transferUS) }
         case .error(let reason):
             connectionStatus = "USB 未能打开"
             message = "\(reason) 请确认已允许 USB 配件访问，连接板上 Type-A USB-OTG 大接口（USB HS 数据口），并关闭占用设备的其他应用。Type-C 小接口用于供电／烧录调试。"
@@ -157,6 +211,7 @@ final class DeskModel: ObservableObject {
                   number(caps, "height") == 600, (number(caps, "max_jpeg") ?? 0) >= 1_048_576,
                   (number(caps, "max_control") ?? 0) >= 65_536 else { throw DeskError.invalidDevice }
             sdReady = caps["sd_ready"] as? Bool ?? false
+            directJPEGRotationDegrees = number(caps, "direct_jpeg_rotation_degrees") == 180 ? 180 : 0
             _ = try await request("time_sync", ["unix_ms": Int64(Date().timeIntervalSince1970 * 1000),
                                                 "timezone_minutes": TimeZone.current.secondsFromGMT() / 60], timeout: 2)
             guard currentConnection(epoch) else { return }
@@ -262,14 +317,15 @@ final class DeskModel: ObservableObject {
                   var timing = frameEnqueued.removeValue(forKey: UInt16(seq)) else { return }
             timing.receiptNS = DispatchTime.now().uptimeNanoseconds
             timing.devicePresentedUS = number(fields, "device_us")
-            presentationMS = timing.queueToReceiptMS
+            timing.deviceMetrics = DeviceFrameMetrics(fields: fields)
+            latestPresentationMS = timing.queueToReceiptMS
             _ = performance.record(timing)
-            let report = performance.report(nowNS: timing.receiptNS!)
-            captureToReceiptP95MS = report.captureToReceiptP95MS
-            effectivePresentedFPS = report.effectivePresentedFPS
-            performanceSampleCount = report.sampleCount
-            presentedFrames += 1
-            if let waiting = presentedWait { presentedWait = nil; waiting.1.resume() }
+            presentedTotal += 1
+            // Full reports sort up to 1800 samples. Compute on the 1s timer, plus the first ACK.
+            if let waiting = presentedWait {
+                refreshPerformance()
+                presentedWait = nil; waiting.1.resume()
+            }
         case "action":
             guard connected, !stopping, !sleeping, let id = fields["action_id"] as? String,
                   let action = deviceActions[id] else { return }
@@ -291,9 +347,7 @@ final class DeskModel: ObservableObject {
         }
     }
     private func number(_ object: [String: Any], _ key: String) -> UInt64? {
-        guard let value = object[key] as? NSNumber, CFGetTypeID(value) != CFBooleanGetTypeID(), value.doubleValue >= 0,
-              value.doubleValue.rounded(.towardZero) == value.doubleValue else { return nil }
-        return value.uint64Value
+        ControlNumber.unsigned(object[key])
     }
     private func failPending(_ error: Error) {
         let waiting = pending.values; pending.removeAll()
@@ -312,9 +366,16 @@ final class DeskModel: ObservableObject {
             changingMode = false; report(DeskError.displayUnavailable); return
         }
         displayHandle = handle; firstJPEG = nil
+        encodedTotal = 0; enqueuedTotal = 0; usbCompletedTotal = 0
+        encoderDiagnostics = nil; encoderQueueStatistics = nil; jpegDeliveryStatistics = nil
+        let delivery = LatestFrameDelivery<EncodedFrame>(); delivery.start(); encodedDelivery = delivery
         let stream = DisplayCapture(); capture = stream
         stream.onJPEG = { [weak self] data in
-            Task { @MainActor in self?.encoded(data, operation: operation) }
+            guard let token = delivery.submit(data) else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { delivery.stop(); return }
+                self.deliverEncoded(from: delivery, token: token, operation: operation)
+            }
         }
         stream.onFailure = { [weak self] in
             Task { @MainActor in
@@ -325,16 +386,21 @@ final class DeskModel: ObservableObject {
         stream.onBackend = { [weak self] backend in Task { @MainActor in
             guard let self, self.transition == operation else { return }; self.codec = backend
         } }
+        stream.onDiagnostics = { [weak self] diagnostics in Task { @MainActor in
+            guard let self, self.transition == operation else { return }; self.encoderDiagnostics = diagnostics
+        } }
         do {
-            try await stream.start(displayID: P4DisplayID(handle))
+            try await stream.start(displayID: P4DisplayID(handle), jpegRotationDegrees: directJPEGRotationDegrees)
             guard transition == operation else { return }
             let first = try await awaitJPEG()
             guard transition == operation, connected else { throw CancellationError() }
             activeSession = UInt32.random(in: 1...UInt32.max)
-            _ = try await request("set_mode", ["mode": "display", "session": activeSession], timeout: 3)
+            _ = try await request("set_mode", ["mode": "display", "session": activeSession,
+                                               "jpeg_rotation_degrees": directJPEGRotationDegrees], timeout: 3)
             guard transition == operation else { return }
-            videoEnabled = true; videoSequence = 0; presentedFrames = 0; frameEnqueued.removeAll(); frameTokens.removeAll()
-            performance.reset(); captureToReceiptP95MS = nil; presentationMS = nil
+            videoEnabled = true; videoSequence = 0; presentedTotal = 0; presentedFrames = 0; latestPresentationMS = nil
+            frameEnqueued.removeAll(); frameTokens.removeAll()
+            performance.reset(nowNS: DispatchTime.now().uptimeNanoseconds); captureToReceiptP95MS = nil; presentationMS = nil
             effectivePresentedFPS = 0; performanceSampleCount = 0
             try await waitForPresentation(first)
             guard transition == operation else { return }
@@ -342,6 +408,17 @@ final class DeskModel: ObservableObject {
             message = inputAllowed ? "USB 副屏已呈现，支持单指点击/拖动与双指滚动。" : "USB 副屏已呈现；开启辅助功能后可触摸操作。"
         } catch {
             if transition == operation { report(error); await endDisplay(sendPad: usbOpen) }
+        }
+    }
+    private func deliverEncoded(from delivery: LatestFrameDelivery<EncodedFrame>, token: LatestDeliveryToken, operation: Int) {
+        guard transition == operation, encodedDelivery === delivery else { delivery.stop(); return }
+        guard let jpeg = delivery.take(token) else { return }
+        encoded(jpeg, operation: operation)
+        if let next = delivery.complete(token) {
+            Task { @MainActor [weak self] in
+                guard let self else { delivery.stop(); return }
+                self.deliverEncoded(from: delivery, token: next, operation: operation)
+            }
         }
     }
     private func encoded(_ jpeg: EncodedFrame, operation: Int) {
@@ -369,13 +446,17 @@ final class DeskModel: ObservableObject {
         let token = 0x80000000 | nextFrameToken
         nextFrameToken = (nextFrameToken &+ 1) & 0x7fffffff
         try transport.send(Packet(kind: .jpeg, sequence: sequence, payload: frame.data), token: token)
+        enqueuedTotal &+= 1
         frameTokens[token] = sequence
         if frameTokens.count > 256 {
             for obsolete in frameTokens.keys.sorted().prefix(frameTokens.count - 256) { frameTokens.removeValue(forKey: obsolete) }
         }
         frameEnqueued[sequence] = FrameTiming(sequence: sequence, capturedNS: frame.capturedNS,
             encodeStartedNS: frame.encodeStartedNS, encodedNS: frame.encodedNS, enqueuedNS: time,
-            captureUsesPresentationTimestamp: frame.captureUsesPresentationTimestamp)
+            captureUsesPresentationTimestamp: frame.captureUsesPresentationTimestamp, jpegBytes: UInt64(frame.data.count),
+            captureTimestampSource: frame.captureTimestampSource, jpegQuality: frame.jpegQuality,
+            jpegSampling: frame.jpegSampling, jpegEncodingAttempts: frame.jpegEncodingAttempts,
+            jpegPayloadFallback: frame.jpegPayloadFallback)
         if frameEnqueued.count > 120 {
             frameEnqueued = frameEnqueued.filter { time >= $0.value.enqueuedNS && time - $0.value.enqueuedNS < 4_000_000_000 }
         }
@@ -398,6 +479,12 @@ final class DeskModel: ObservableObject {
         transition += 1; let operation = transition
         let epoch = connectionEpoch
         changingMode = true; videoEnabled = false; displayActive = false
+        if let delivery = encodedDelivery {
+            delivery.stop(); jpegDeliveryStatistics = delivery.statistics
+            encodedTotal = delivery.statistics.submitted
+        }
+        encodedDelivery = nil
+        performance.stop(); refreshPerformance()
         input.release(); transport.clearVideo()
         let waitingJPEG = jpegWait; jpegWait = nil; waitingJPEG?.1.resume(throwing: CancellationError())
         let waitingFrame = presentedWait; presentedWait = nil; waitingFrame?.1.resume(throwing: CancellationError())
@@ -405,6 +492,7 @@ final class DeskModel: ObservableObject {
         let handle = displayHandle; displayHandle = nil
         activeSession = 0; firstJPEG = nil; frameEnqueued.removeAll(); frameTokens.removeAll()
         if let stream { await stream.stop() }
+        if transition == operation, let stream { encoderQueueStatistics = stream.encoderStatistics }
         if let handle { P4DisplayDestroy(handle) }
         if sendPad, usbOpen, connectionEpoch == epoch { _ = try? await request("set_mode", ["mode": "pad", "session": UInt32(0)], timeout: 1.2) }
         if transition == operation { changingMode = false; codec = "尚未启动" }
@@ -479,21 +567,47 @@ final class DeskModel: ObservableObject {
         }
     }
     func exportPerformance() {
-        let panel = NSSavePanel(); panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "P4Desk-performance.json"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let data: Data
         do {
+            let observedNS = DispatchTime.now().uptimeNanoseconds
             let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.keyEncodingStrategy = .convertToSnakeCase
-            let metrics = try JSONSerialization.jsonObject(with: encoder.encode(performance.report(nowNS: DispatchTime.now().uptimeNanoseconds)))
-            let report: [String: Any] = ["schema": "p4desk.host-performance.v1", "os": ProcessInfo.processInfo.operatingSystemVersionString,
+            let metrics = try JSONSerialization.jsonObject(with: encoder.encode(performance.report(nowNS: observedNS)))
+            var report: [String: Any] = ["schema": "p4desk.host-performance.v1", "os": ProcessInfo.processInfo.operatingSystemVersionString,
+                "observed_ns": observedNS,
                 "display_width": 1024, "display_height": 600, "encoder": codec, "display_active": displayActive,
-                "presented_total": presentedFrames,
-                "measurement": "ScreenCaptureKit presentation timestamp (or capture callback) to host receipt of device LCD presentation ACK; includes USB return transit. Physical LCD latency is not measured.",
+                "usb_speed_mbps": usbSpeedMbps, "usb_speed": usbSpeedDescription,
+                "capture_target_fps": VideoProfile.framesPerSecond, "jpeg_requested_quality": VideoProfile.jpegQuality,
+                "presented_total": presentedTotal, "encoded_total": encodedDelivery?.statistics.submitted ?? encodedTotal,
+                "enqueued_total": enqueuedTotal, "usb_completed_total": usbCompletedTotal,
+                "measurement": "ScreenCaptureKit WindowServer display time, sample presentation timestamp, or capture callback to host receipt of device LCD presentation ACK; source is recorded per frame. Includes USB return transit. Physical LCD latency is not measured.",
+                "rates": "Successful JPEG packets and presentation ACKs divided by elapsed observation time, at most 30 seconds, including idle time. JPEG wire throughput includes each 16-byte header, excludes control/HID traffic. Stopped stream rates are zero; a static desktop normally generates fewer frames.",
+                "device_stages": "decode includes JPEG validation and hardware decode; copy includes crop/rotation, or is zero for negotiated direct decode; present includes LCD draw/cache writeback through the first full DMA source-read completion. DMA completion is not optical display completion. Separate host/device monotonic clocks are never subtracted.",
                 "metrics": metrics]
-            try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: url, options: .atomic)
-            message = "已导出性能元数据；文件不包含画面、便签或按钮内容。"
-        } catch { message = "性能诊断文件未能保存。" }
+            if let diagnostics = encoderDiagnostics {
+                report["encoder_diagnostics"] = try JSONSerialization.jsonObject(with: encoder.encode(diagnostics))
+            }
+            if let statistics = capture?.encoderStatistics ?? encoderQueueStatistics {
+                report["encoder_queue"] = try JSONSerialization.jsonObject(with: encoder.encode(statistics))
+            }
+            if let statistics = encodedDelivery?.statistics ?? jpegDeliveryStatistics {
+                report["main_actor_delivery"] = try JSONSerialization.jsonObject(with: encoder.encode(statistics))
+            }
+            // Freeze the observation before showing the picker. A blocking
+            // runModal stalls MainActor JPEG/USB delivery and biases the FPS.
+            data = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
+        } catch { message = "性能诊断数据未能生成。"; return }
+        let panel = NSSavePanel(); panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "P4Desk-performance.json"
+        let save: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try data.write(to: url, options: .atomic)
+                self?.message = "已导出性能元数据；文件不包含画面、便签或按钮内容。"
+            } catch { self?.message = "性能诊断文件未能保存。" }
+        }
+        if let window = NSApp.keyWindow { panel.beginSheetModal(for: window, completionHandler: save) }
+        else { panel.begin(completionHandler: save) }
     }
     func sync() async {
         guard connected, !syncing else { return }
@@ -550,7 +664,7 @@ final class DeskModel: ObservableObject {
         else { message = (error as? DeskError)?.errorDescription ?? "操作失败，请检查设备、权限与资源。" }
     }
     func shutdown() async {
-        stopping = true; heartbeatTask?.cancel(); fontTask?.cancel(); saveTask?.cancel()
+        stopping = true; heartbeatTask?.cancel(); performanceTask?.cancel(); fontTask?.cancel(); saveTask?.cancel()
         await endDisplay(sendPad: usbOpen)
         failPending(DeskError.usbDisconnected)
         transport.stop(); usbOpen = false; connected = false; save()

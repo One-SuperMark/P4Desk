@@ -53,7 +53,7 @@ UI 基于 [esp32-rust-ui](https://github.com/pomelos-on-sale/esp32-rust-ui) 的 
 ```mermaid
 flowchart LR
     V[macOS 虚拟屏 1024×600] --> S[ScreenCaptureKit]
-    S --> J[VideoToolbox JPEG / ImageIO]
+    S --> J[GPU 预旋转 / sRGB ImageIO JPEG]
     J --> U[IOUSBHost vendor bulk]
     U --> D[P4 JPEG 硬件解码]
     D --> O[唯一显示管理器]
@@ -68,7 +68,9 @@ flowchart LR
     SD --> R
 ```
 
-视频队列保留正在发送的帧和最新待发送帧；控制消息在完整帧之间优先发送。1024×600 的 JPEG 可能产生 MCU 对齐的 608 行，固件按实际 SOF 信息计算步长并裁剪到 600 行。Pad 和 JPEG 共用同一个面板提交者，按刷新事件回收缓冲。
+视频队列保留正在发送的帧和最新待发送帧；控制消息在完整帧之间优先发送。1024×600 的 JPEG 可能产生 MCU 对齐的 608 行。新会话由 Mac 预旋转可见画面，彩色 JPEG 直接解码到容量为 608 行的 LCD 缓冲，LCD 仍只扫描 600 行；旧主机与灰度帧保留裁切／旋转路径。Pad 和 JPEG 共用同一个面板提交者，按实际 DMA 完成与下一扫描缓冲回收三缓冲。
+
+副屏当前优先清晰度：Mac 使用明确的 sRGB 输入和最高质量 ImageIO baseline JPEG，正常画面保留 4:4:4 完整色度，减少细字和彩色边缘的模糊；单帧超过 1 MiB 时在有限梯度内降低压缩质量。P4 的项目内 JPEG 驱动扩展使用 JFIF 完整范围 BT.601 系数，统一主机与硬件解码颜色转换。RGB565 字节顺序和已确认的画面／触摸方向保持一致；实际画质及帧率见验收记录。
 
 ## TF 与数据
 
@@ -88,7 +90,7 @@ swift test --package-path desktop/macos
 ./scripts/probe-macos.sh
 ```
 
-本机验收首先针对 Apple Silicon 与 macOS 27.0。虚拟显示器桥接使用私有 CoreGraphics 接口，按个人／小范围自用分发。30 FPS、有效呈现 ≥25 FPS 和延迟 P95 ≤200 ms 是实机目标，结果以 [验收记录](docs/acceptance.md) 为准。
+本机验收首先针对 Apple Silicon 与 macOS 27.0。虚拟显示器桥接使用私有 CoreGraphics 接口，按个人／小范围自用分发。按当前需求，采集与编码目标提高为 60 FPS；实际有效更新率与回执延迟以 [验收记录](docs/acceptance.md) 为准，光学显示延迟单独验收。
 
 ## 来源与许可
 

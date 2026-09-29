@@ -4,13 +4,79 @@
 #import <IOKit/IOMessage.h>
 #import <IOKit/usb/USB.h>
 #import <IOUSBHost/IOUSBHost.h>
+#include <mach/mach_time.h>
 #import "P4DeskNative.h"
+
+// Device Speed and USBSpeed use different SDK enums. Neither is an endpoint
+// descriptor capability: both properties describe the current device link.
+static uint32_t P4DeviceSpeedMbps(uint32_t speed) {
+    switch (speed) {
+        case kUSBDeviceSpeedFull: return 12;
+        case kUSBDeviceSpeedHigh: return 480;
+        case kUSBDeviceSpeedSuper: return 5000;
+        case kUSBDeviceSpeedSuperPlus: return 10000;
+        default: return 0;
+    }
+}
+static uint32_t P4HostConnectionSpeedMbps(uint32_t speed) {
+    switch (speed) {
+        case kIOUSBHostConnectionSpeedFull: return 12;
+        case kIOUSBHostConnectionSpeedHigh: return 480;
+        case kIOUSBHostConnectionSpeedSuper: return 5000;
+        case kIOUSBHostConnectionSpeedSuperPlus: return 10000;
+        default: return 0;
+    }
+}
+static bool P4RegistryUInt32(io_registry_entry_t entry, CFStringRef key, uint32_t *value) {
+    CFTypeRef property = IORegistryEntryCreateCFProperty(entry, key, kCFAllocatorDefault, 0);
+    if (!property) return false;
+    int64_t number = 0;
+    bool valid = CFGetTypeID(property) == CFNumberGetTypeID() &&
+        CFNumberGetValue((CFNumberRef)property, kCFNumberSInt64Type, &number) &&
+        number >= 0 && number <= UINT32_MAX;
+    CFRelease(property);
+    if (valid) *value = (uint32_t)number;
+    return valid;
+}
+static uint32_t P4NegotiatedSpeedMbps(io_registry_entry_t interfaceService) {
+    io_registry_entry_t entry = interfaceService;
+    IOObjectRetain(entry);
+    for (unsigned depth = 0; entry && depth < 32; depth++) {
+        if (IOObjectConformsTo(entry, "IOUSBHostDevice")) {
+            uint32_t speed = 0, mbps = 0;
+            if (P4RegistryUInt32(entry, CFSTR(kUSBDevicePropertySpeed), &speed)) {
+                mbps = P4DeviceSpeedMbps(speed);
+            } else if (P4RegistryUInt32(entry, CFSTR(kUSBHostMatchingPropertySpeed), &speed)) {
+                mbps = P4HostConnectionSpeedMbps(speed);
+            }
+            // Stop at the interface's device, even if its speed is unavailable.
+            // An upstream hub can have a different negotiated link speed.
+            IOObjectRelease(entry);
+            return mbps;
+        }
+        io_registry_entry_t parent = 0;
+        kern_return_t result = IORegistryEntryGetParentEntry(entry, kIOServicePlane, &parent);
+        IOObjectRelease(entry);
+        entry = result == KERN_SUCCESS ? parent : 0;
+    }
+    if (entry) IOObjectRelease(entry);
+    return 0;
+}
+static uint64_t P4MonotonicNanoseconds(void) {
+    static const mach_timebase_info_data_t timebase = [] {
+        mach_timebase_info_data_t result;
+        mach_timebase_info(&result);
+        return result;
+    }();
+    return (uint64_t)(((__uint128_t)mach_absolute_time() * timebase.numer) / timebase.denom);
+}
 
 @interface P4Transfer : NSObject
 @property(nonatomic, strong) NSData *data;
 @property(nonatomic) NSUInteger offset;
 @property(nonatomic) uint32_t token;
 @property(nonatomic) BOOL video;
+@property(nonatomic) uint64_t outStartedNanoseconds;
 @end
 @implementation P4Transfer
 @end
@@ -71,6 +137,7 @@
                     });
                 }
             }];
+        uint32_t speedMbps = interface ? P4NegotiatedSpeedMbps(service) : 0;
         IOObjectRelease(service);
         if (!interface) {
             if (!self.reportedOpenError) {
@@ -97,7 +164,7 @@
         }
         self.interface = interface; self.output = output; self.input = input;
         self.reportedOpenError = NO; self.epoch++;
-        [self emit:P4USB_CONNECTED token:0 data:nil reason:nullptr];
+        [self emit:P4USB_CONNECTED token:speedMbps data:nil reason:nullptr];
         [self readNext];
         break;
     }
@@ -150,6 +217,9 @@
     NSError *error = nil;
     __weak P4USBSession *weakSelf = self;
     self.sending = YES;
+    // Start after the host queue wait and chunk preparation, immediately before
+    // submitting the first OUT. Subsequent partial completions share this start.
+    if (!transfer.outStartedNanoseconds) transfer.outStartedNanoseconds = P4MonotonicNanoseconds();
     BOOL enqueued = [self.output enqueueIORequestWithData:chunk completionTimeout:2.0 error:&error
         completionHandler:^(IOReturn status, NSUInteger actual) {
             P4USBSession *session = weakSelf;
@@ -161,7 +231,11 @@
             }
             transfer.offset += actual;
             if (transfer.offset == transfer.data.length) {
-                [session emit:P4USB_SENT token:transfer.token data:nil reason:nullptr];
+                uint64_t elapsedUS = (P4MonotonicNanoseconds() - transfer.outStartedNanoseconds) / 1000;
+                uint8_t metadata[8];
+                for (unsigned i = 0; i < 8; i++) metadata[i] = (uint8_t)(elapsedUS >> (i * 8));
+                [session emit:P4USB_SENT token:transfer.token
+                    data:[NSData dataWithBytes:metadata length:sizeof(metadata)] reason:nullptr];
                 session.inFlight = nil;
             }
             [session pump];

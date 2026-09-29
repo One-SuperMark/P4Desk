@@ -85,7 +85,7 @@ impl Snapshot {
 pub enum HostMessage {
     Hello { request_id: u16, version: u16 },
     Heartbeat { request_id: u16 },
-    SetMode { request_id: u16, mode: Mode, session: u32 },
+    SetMode { request_id: u16, mode: Mode, session: u32, #[serde(default)] jpeg_rotation_degrees: u16 },
     TimeSync { request_id: u16, unix_ms: i64, timezone_minutes: i32 },
     GetState { request_id: u16 },
     SyncBegin { request_id: u16, generation: u64, state: Snapshot, font_length: u32, font_sha256: String },
@@ -104,7 +104,7 @@ pub struct TouchPoint { pub id: u8, pub x: u16, pub y: u16 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum DeviceMessage {
-    Caps { request_id: u16, version: u16, width: u16, height: u16, max_jpeg: u32, max_control: u32, sd_ready: bool, mode: Mode },
+    Caps { request_id: u16, version: u16, width: u16, height: u16, max_jpeg: u32, max_control: u32, sd_ready: bool, mode: Mode, #[serde(default)] direct_jpeg_rotation_degrees: u16 },
     Ack { request_id: u16, acknowledged: String, ok: bool, #[serde(skip_serializing_if = "Option::is_none")] error: Option<String>, #[serde(skip_serializing_if = "Option::is_none")] generation: Option<u64> },
     State { request_id: u16, state: Snapshot },
     Touch { session: u32, sequence: u16, points: Vec<TouchPoint>, stamp_us: u64 },
@@ -203,4 +203,48 @@ mod tests {
     #[test] fn malicious_ids_and_duplicates(){let n=Note{id:"../bad".into(),title:"".into(),body:"".into(),updated_ms:0};assert!(Snapshot{notes:vec![n],..Default::default()}.validate().is_err());}
     #[test] fn aggregate_snapshot_is_bounded(){let notes=(0..32).map(|i|Note{id:format!("n{i}"),title:"便签".into(),body:"中".repeat(2000),updated_ms:0}).collect();assert_eq!(Snapshot{notes,..Default::default()}.validate(),Err("snapshot_bytes"));}
     #[test] fn shared_wire_fixture(){let fixture:serde_json::Value=serde_json::from_str(include_str!("../../../tests/fixtures/hello-v1.json")).unwrap();let payload=fixture["payload_utf8"].as_str().unwrap().as_bytes().to_vec();let encoded=Packet::new(KIND_CONTROL,7,payload).unwrap().encode().unwrap();let actual:String=encoded.iter().map(|b|format!("{b:02x}")).collect();assert_eq!(actual,fixture["packet_hex"].as_str().unwrap());}
+
+    #[test]
+    fn legacy_mode_request_keeps_unrotated_jpeg_contract() {
+        let message: HostMessage = serde_json::from_slice(
+            br#"{"op":"set_mode","request_id":8,"mode":"display","session":42}"#,
+        ).unwrap();
+        assert!(matches!(message, HostMessage::SetMode {
+            request_id: 8, mode: Mode::Display, session: 42, jpeg_rotation_degrees: 0,
+        }));
+    }
+
+    #[test]
+    fn legacy_caps_disable_direct_jpeg_rotation() {
+        let message: DeviceMessage = serde_json::from_slice(
+            br#"{"op":"caps","request_id":2,"version":1,"width":1024,"height":600,"max_jpeg":1048576,"max_control":65536,"sd_ready":true,"mode":"pad"}"#,
+        ).unwrap();
+        assert!(matches!(message, DeviceMessage::Caps {
+            direct_jpeg_rotation_degrees: 0, version: 1, ..
+        }));
+    }
+
+    #[test]
+    fn direct_jpeg_rotation_fields_round_trip_in_v1_controls() {
+        let mode = HostMessage::SetMode {
+            request_id: 3, mode: Mode::Display, session: 43, jpeg_rotation_degrees: 180,
+        };
+        let packet = Packet::control(3, &mode).unwrap();
+        let mut stream = StreamDecoder::default();
+        let received = stream.feed(&packet.encode().unwrap());
+        assert_eq!(received.len(), 1);
+        assert!(matches!(serde_json::from_slice::<HostMessage>(&received[0].payload).unwrap(),
+            HostMessage::SetMode { jpeg_rotation_degrees: 180, .. }));
+        assert_eq!(stream.errors, 0);
+
+        let caps = DeviceMessage::Caps {
+            request_id: 2, version: PROTOCOL_VERSION, width: SCREEN_WIDTH, height: SCREEN_HEIGHT,
+            max_jpeg: MAX_JPEG as u32, max_control: MAX_CONTROL as u32,
+            sd_ready: true, mode: Mode::Pad, direct_jpeg_rotation_degrees: 180,
+        };
+        let received: DeviceMessage = serde_json::from_slice(&serde_json::to_vec(&caps).unwrap()).unwrap();
+        assert!(matches!(received, DeviceMessage::Caps {
+            direct_jpeg_rotation_degrees: 180, version: 1, ..
+        }));
+    }
 }

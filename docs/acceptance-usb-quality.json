@@ -1,0 +1,388 @@
+{
+  "schema": "p4desk.usb-quality-acceptance.v1",
+  "recorded_date": "2026-09-29",
+  "synthetic_only": true,
+  "display": {
+    "width": 1024,
+    "height": 600,
+    "format": "RGB565",
+    "rotation_degrees": 180
+  },
+  "source": {
+    "capture": {
+      "bytes": 19387,
+      "sha256": "a06cc265e8ae407f679ebc11117561f063fc515e469fb6b1fc0bb86adb26cf21"
+    },
+    "jpeg_header": {
+      "bytes": 5924,
+      "sha256": "79f53c7bb318d171ae025c255e922b65bf7d576b9d5876e5e868e723172ba7b7"
+    },
+    "production_probe_result": {
+      "bytes": 7308,
+      "sha256": "6ef97c70365f5ac3fb6d214b7028437d5b03b81fab8306ec13db329e3a674640"
+    }
+  },
+  "encoding": {
+    "backend": "ImageIO JPEG",
+    "input_color_space": "sRGB",
+    "requested_quality": 1,
+    "maximum_jpeg_bytes": 1048576,
+    "fallback_quality_order": [
+      1,
+      0.99,
+      0.95,
+      0.78,
+      0.6,
+      0.4
+    ],
+    "contract": "JFIF full-range BT.601; baseline SOF0 8bit; canonical P4 sampling"
+  },
+  "host_regression": {
+    "swift_tests_passed": 49,
+    "new_jpeg_tests_passed": 8,
+    "production_synthetic_cases_passed": 5,
+    "cases": [
+      {
+        "attempts": 1,
+        "baseline_valid": true,
+        "bytes": 320875,
+        "diagnostic_matches": true,
+        "payload_fallback": false,
+        "quality": 1,
+        "rotation": 0,
+        "rotation_mae": 0,
+        "rotation_max_error": 0,
+        "sampling": "4:4:4",
+        "source": "synthetic",
+        "software_roundtrip": {
+          "mae_all": 0.1415625,
+          "max_abs_error": 6.0,
+          "rmse_all": 0.40204555090188476,
+          "orange_rgb_bias": [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          "gray_ramp_mae": 0.0,
+          "text_edge_mae": 0.391556409162043,
+          "color_line_mae": 0.5,
+          "orange_ycbcr_full601_bias": [
+            -0.38099999999989126,
+            0.4294719999999209,
+            0.09206399999997096
+          ],
+          "gray_y_min": 0.0,
+          "gray_y_max": 255.0
+        }
+      },
+      {
+        "attempts": 1,
+        "baseline_valid": true,
+        "bytes": 322083,
+        "diagnostic_matches": true,
+        "payload_fallback": false,
+        "quality": 1,
+        "rotation": 180,
+        "rotation_mae": 0,
+        "rotation_max_error": 0,
+        "sampling": "4:4:4",
+        "source": "synthetic",
+        "software_roundtrip": {
+          "mae_all": 0.1415625,
+          "max_abs_error": 6.0,
+          "rmse_all": 0.40204555090188476,
+          "orange_rgb_bias": [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          "gray_ramp_mae": 0.0,
+          "text_edge_mae": 0.391556409162043,
+          "color_line_mae": 0.5,
+          "orange_ycbcr_full601_bias": [
+            -0.38099999999989126,
+            0.4294719999999209,
+            0.09206399999997096
+          ],
+          "gray_y_min": 0.0,
+          "gray_y_max": 255.0
+        }
+      },
+      {
+        "attempts": 2,
+        "baseline_valid": true,
+        "bytes": 816558,
+        "diagnostic_matches": true,
+        "payload_fallback": true,
+        "quality": 0.99,
+        "rotation": 0,
+        "rotation_mae": 0,
+        "rotation_max_error": 0,
+        "sampling": "4:2:0",
+        "source": "noise",
+        "software_roundtrip": {
+          "mae_all": 46.02312717013889,
+          "max_abs_error": 249.0,
+          "rmse_all": 58.636923335146136
+        }
+      },
+      {
+        "attempts": 2,
+        "baseline_valid": true,
+        "bytes": 816756,
+        "diagnostic_matches": true,
+        "payload_fallback": true,
+        "quality": 0.99,
+        "rotation": 180,
+        "rotation_mae": 0,
+        "rotation_max_error": 0,
+        "sampling": "4:2:0",
+        "source": "noise",
+        "software_roundtrip": {
+          "mae_all": 46.02078342013889,
+          "max_abs_error": 249.0,
+          "rmse_all": 58.63622214390204
+        }
+      },
+      {
+        "attempts": 1,
+        "baseline_valid": true,
+        "bytes": 320875,
+        "diagnostic_matches": true,
+        "payload_fallback": false,
+        "quality": 1,
+        "rotation": 0,
+        "rotation_mae": 0,
+        "rotation_max_error": 0,
+        "sampling": "4:4:4",
+        "source": "synthetic",
+        "software_roundtrip": {
+          "mae_all": 0.1415625,
+          "max_abs_error": 6.0,
+          "rmse_all": 0.40204555090188476,
+          "orange_rgb_bias": [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          "gray_ramp_mae": 0.0,
+          "text_edge_mae": 0.391556409162043,
+          "color_line_mae": 0.5,
+          "orange_ycbcr_full601_bias": [
+            -0.38099999999989126,
+            0.4294719999999209,
+            0.09206399999997096
+          ],
+          "gray_y_min": 0.0,
+          "gray_y_max": 255.0
+        }
+      }
+    ]
+  },
+  "mac_release": {
+    "bytes": 1612624,
+    "sha256": "5d7e21674be665d01dc080ba0aef7f8f29e16cafe05e9516b08f9797e5de2d51"
+  },
+  "signature": {
+    "kind": "Developer ID Application",
+    "team_id": "322V86ZQ9K",
+    "hardened_runtime": true,
+    "timestamp": true,
+    "deep_strict_verified": true,
+    "notarized": false
+  },
+  "firmware_build": {
+    "status": "passed",
+    "sdk": "ESP-IDF 6.0.2",
+    "application": {
+      "bytes": 2186656,
+      "sha256": "77e46dca8e534c342fc57189e4308645932e1f6fd4d33521f9620048058dd5ee"
+    },
+    "elf": {
+      "bytes": 11831012,
+      "sha256": "7ebbbc0d3c948d274a23174fa31b61cb917520fc1dd1b6eb8d612c0e0dc70fbb"
+    },
+    "compile_checks": {
+      "jpeg_decode.c": {
+        "compiled_once": true,
+        "optimization": "O2",
+        "project_generated_source": true
+      },
+      "p4desk_runtime.c": {
+        "compiled_once": true,
+        "optimization": "O2",
+        "project_generated_source": false
+      },
+      "esp_lcd_panel_dpi.c": {
+        "compiled_once": true,
+        "optimization": "O2",
+        "project_generated_source": true
+      }
+    },
+    "jpeg_patch": {
+      "idf_version": "6.0.2",
+      "patch_version": 1,
+      "source_sha256": "fa4ce744bfaea32e9becbe93db14f65f8f9a4386e637dc83d031f7c3d194c488",
+      "dma2d_scheduler_sha256": "510355c193cc5c651e3b9158c1c38055b7a2e7a7df4d189e55530a9e54003f26",
+      "generated_sha256": "478051141639cbb0cab8d5212d1c01e59dc6aa6e7c52f89d52184141c877a3c2",
+      "source_bytes": 41704,
+      "generated_bytes": 44276,
+      "anchors": [
+        "dma_register_header",
+        "full_range_helper",
+        "scoped_matrix_override"
+      ],
+      "ownership_anchors": [
+        "pool_zero",
+        "rx_reorder_requirement",
+        "one_tx_one_rx_transaction",
+        "configure_before_start"
+      ],
+      "source_license": "Apache-2.0",
+      "scope": "JPEG BT.601 RGB565/RGB888 output only",
+      "coefficients_q8": [
+        [
+          256,
+          0,
+          359,
+          -45952
+        ],
+        [
+          256,
+          -88,
+          -183,
+          34688
+        ],
+        [
+          256,
+          454,
+          0,
+          -58112
+        ]
+      ],
+      "coefficient_field_bits": [
+        10,
+        11,
+        10,
+        18
+      ],
+      "channel": "pool 0 RX0, acquired in on_job_picked, before DMA start",
+      "byte_order_modified": false,
+      "extra_pixel_copy": false,
+      "hardware_color_validation": "pending"
+    },
+    "local_patch_tests_passed": 8,
+    "global_sdk_sources_unchanged": true
+  },
+  "device_flash": {
+    "exit_code": 0,
+    "device_write_hashes_verified": 3,
+    "uart_startup_log_observed": false,
+    "preserved_partitions": [
+      "nvs",
+      "storage",
+      "p4settings"
+    ],
+    "sd_format_invoked": false,
+    "status": "passed"
+  },
+  "mac_install": {
+    "status": "passed",
+    "path": "/Applications/P4Desk.app",
+    "sha256": "5d7e21674be665d01dc080ba0aef7f8f29e16cafe05e9516b08f9797e5de2d51",
+    "signature_verified": true,
+    "display_started": true
+  },
+  "physical_quality_acceptance": {
+    "status": "passed_for_requested_text_and_orange_checks",
+    "recorded_date": "2026-09-29",
+    "user_reply": "文字更清晰，橘色正常",
+    "scope": [
+      "中文细字清晰度改善",
+      "橘色色块不再明显发红"
+    ],
+    "not_expanded_to": [
+      "所有图片内容的逐像素色彩",
+      "独立光学延迟",
+      "本轮全部触摸手势和长期稳定性"
+    ]
+  },
+  "limits": [
+    "软件 roundtrip 不代表板上 LCD 实测。",
+    "ImageIO quality1仍为有损JPEG，未将它宣称为无损。",
+    "主机质量升高增大帧字节数，实际FPS需以新版设备回执为准。",
+    "面板原生1024×600 RGB565，不等同Retina显示。"
+  ],
+  "usb_quality_motion": {
+    "status": "passed",
+    "usb_speed_mbps": 480,
+    "encoder_diagnostics": {
+      "actual_quality": 1,
+      "actual_rotation_degrees": 180,
+      "actual_sampling": "4:4:4",
+      "backend": "ImageIO JPEG",
+      "capture_poll_frame_rate": 0,
+      "color_space": "sRGB",
+      "encoding_attempts": 1,
+      "jpeg_has_jfif": true,
+      "maximum_payload_bytes": 1048576,
+      "payload_fallback": false,
+      "property_status": {},
+      "quality_fallback_order": [
+        1,
+        0.99,
+        0.95,
+        0.78,
+        0.6,
+        0.4
+      ],
+      "requested_quality": 1,
+      "rotation_backend": "Core Image Metal",
+      "rotation_pool_capacity": 3,
+      "target_frame_rate": 60
+    },
+    "metrics": {
+      "capture_to_encode_start_p95ms": 0.09175,
+      "capture_to_receipt_p95ms": 100.656708,
+      "device_copy_p95ms": 0,
+      "device_decode_p95ms": 13.435,
+      "device_jpeg_byte_mismatch_count": 0,
+      "device_present_p95ms": 32.056,
+      "device_timing_samples": 1407,
+      "effective_presented_fps": 46.9,
+      "encoded_to_enqueue_p95ms": 0.094875,
+      "jpeg_encode_p95ms": 10.906041,
+      "jpeg_mean_bytes": 208473.94527363183,
+      "jpeg_p95_bytes": 230534,
+      "jpeg_wire_bytes_per_second": 9778178.433333334,
+      "observation_seconds": 30,
+      "queue_to_receipt_p95ms": 91.428583,
+      "queue_to_usb_sent_p95ms": 38.1625,
+      "sample_count": 1407,
+      "transmitted_sample_count": 1407,
+      "usb_completed_samples": 1407,
+      "usb_queue_wait_p95ms": 16.988084,
+      "usb_sent_to_receipt_p95ms": 58.710208,
+      "usb_transfer_p95ms": 23.7,
+      "window_seconds": 30,
+      "timestamp_sources": {
+        "callback": 1407
+      },
+      "app_sha256": "5d7e21674be665d01dc080ba0aef7f8f29e16cafe05e9516b08f9797e5de2d51"
+    },
+    "source_report_sha256": "69f42d66f7254857a92b49b96498bce8e7380867cdac191484dd51687f6f7948",
+    "fixture": {
+      "draws": 2693,
+      "duration_s": 45,
+      "finished_ns": 510649528942250,
+      "height": 600,
+      "placement_matches_target": true,
+      "requested_fps": 60,
+      "started_ns": 510604527136958,
+      "updates": 2692,
+      "width": 1024
+    },
+    "measurement": "捕获回调至主机收到首次完整LCD DMA source-read完成回执；包括USB回传，未测光学延迟。",
+    "frames_checked_for_quality_sampling_limit": 1407
+  }
+}

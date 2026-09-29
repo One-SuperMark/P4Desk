@@ -40,6 +40,8 @@ P4DESK_BUILD_DIR=/absolute/ascii/path/p4desk-build \
 
 构建过程由 CMake 统一传递 SDK、sdkconfig、include、链接依赖与 C 编译器给 Rust 的 `esp-idf-sys`／`embuild`，使用 `-Zbuild-std=std,panic_abort` 生成静态库。`espidf_time64` 在两侧统一启用，C／Rust 都检查 `time_t`、`timeval`、布尔值和整数 ABI。
 
+`sdkconfig.defaults` 默认选择 `CONFIG_COMPILER_OPTIMIZATION_PERF=y`，C、JPEG 驱动、LCD 驱动与旋转拷贝使用 `-O2`。已有 `firmware/sdkconfig` 会覆盖默认值；升级旧构建目录时，在 `menuconfig → Compiler options → Optimization Level` 选择性能优化，再重新构建。可从构建目录 `compile_commands.json` 核对实际参数，不能仅凭默认配置认定产物已启用 `-O2`。
+
 主要输出：
 
 ```text
@@ -52,15 +54,31 @@ flasher_args.json
 
 ## 屏幕方向
 
-本次按当前摆放，对送往 LCD 的画面像素进行 **180° 软件旋转**，Pad 与 USB 副屏统一生效。用户实板反馈 EK79007 MADCTL 命令返回成功后，屏幕没有实际旋转，因此采用最终帧缓冲反向拷贝。
+按当前摆放，送往 LCD 的可见像素整体旋转 **180°**。用户实板反馈 EK79007 MADCTL 命令返回成功后，屏幕没有实际旋转，因此使用实际像素旋转；Pad 与 USB 副屏最终方向一致。
 
-方向在 `firmware/components/board_p4/include/board_p4.h` 配置：`P4DESK_DISPLAY_ROTATION_DEGREES=180`、`P4DESK_TOUCH_ROTATION_DEGREES=0`。这与本机旧 `waveshare_touch_paint` 的实际编译配置一致：画面软件旋转 180°，GT911 使用原始坐标。面板扫描固定为 MADCTL `0x01`，软件旋转只作用于 display owner 拥有的 `FB_BUILDING` 目标。
+方向在 `firmware/components/board_p4/include/board_p4.h` 配置：`P4DESK_DISPLAY_ROTATION_DEGREES=180`、`P4DESK_TOUCH_ROTATION_DEGREES=0`。这与本机旧 `waveshare_touch_paint` 的实际编译配置一致：画面旋转 180°，GT911 使用原始坐标。面板扫描固定为 MADCTL `0x01`，写入只作用于 display owner 拥有的 BUILDING 目标。
 
-Pad 从未旋转的 Rust 画布反向拷贝；JPEG 按实际 stride 读取，只将可见的 600 行反向写入，解码到 608 行时末尾填充不会进入画面。RGB565 按 16 位像素处理，灰度先转换成 RGB565。旋转合并在原有拷贝中，不分配额外帧缓冲，不增加第二次全帧反转。
+Pad 从未旋转的 Rust 画布反向拷贝。新版 Mac 在能力协商后，用 GPU 将可见1024×600像素旋转180°再编码 JPEG，P4 直接硬件解码到 LCD 缓冲；旧主机仍走解码暂存、PPA 裁切旋转路径，PPA 提交失败才退回 CPU。灰度 JPEG 先转换成 RGB565，并按本 session 的实际方向处理，避免重复旋转。608行解码填充不会进入画面。
+
+项目内 `lcd_frame_observer` 组件固定 ESP-IDF 6.0.2 DPI 源码 SHA256，仅在构建目录生成扩展，不修改全局 SDK。三块 LCD 缓冲各预留608行（总增加48KiB），DMA／面板继续扫描600行；精确指针容量查询确认可写范围。显示 owner 依据真实 completed／next 指针及连续 counter 切换缓冲，准备下一帧可与扫描重叠；同缓冲重复扫描、模式变更和迟到事件不会提前释放 DMA 所有权。事件丢失、溢出或期限超时会停止重用。
 
 GT911 保留本次已经调整后的原始坐标，`touch_task` 将每个触点限制到有效像素范围，统一提供给 Pad、原始多点触摸帧和 USB 回传。触摸和面板原生轴向分别校准，不能直接用显示角度替代 GT911 校正值。Mac 侧按 1024×600 逻辑坐标处理输入和画面。
 
 运行 `./scripts/test-display.sh` 检查生产代码的 RGB565／灰度方向、重复帧重建、行填充、完整 600 行和边界保护，使用 ASan／UBSan。
+
+`./scripts/test-display-pipeline.sh` 检查三缓冲状态及模式切换。`python3 -m unittest discover -s firmware/components/lcd_frame_observer/tests -v` 检查固定 SDK 扩展、实际 DMA 回调、容量查询和扫描几何；可通过 `IDF_PATH` 指向本机6.0.2。缺 SDK 的局部测试会明确跳过，不视为固件构建成功。
+
+### JPEG 颜色范围
+
+`firmware/components/jpeg_full_range` 同样只在构建目录生成固定 ESP-IDF 6.0.2 的 `jpeg_decode.c` 副本。生成器校验原源 SHA256 和唯一锚点；SDK 漂移、DMA2D 通道约束不符或替源次数不是一时停止配置，不退回未校验源。原 Apache-2.0 头和源文件名保留，全局 SDK 不修改。
+
+JFIF JPEG 使用完整范围 BT.601，而该 SDK 的内置 DMA2D BT.601 参数为视频有限范围。局部扩展只在 JPEG 事务已独占 RX0、尚未启动 DMA 的原配置位置覆写硬件转换系数；此时不是持有 DMA2D 的 spinlock。灰度、BT.709、RGB565 字节顺序和其他 DMA 客户端保持原路径，每个新事务由自己的正常配置重新设定寄存器。无需增加全屏颜色修正或像素拷贝。
+
+```sh
+python3 -m unittest discover -s firmware/components/jpeg_full_range/tests -v
+```
+
+矩阵与寄存器测试证明生成源和 JFIF 数学／布局一致，完整固件构建证明 SDK 编译链接；实板颜色观感单独记录，不能用数学测试代替面板验收。
 
 ## 首次刷写与恢复备份
 

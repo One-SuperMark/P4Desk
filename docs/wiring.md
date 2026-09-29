@@ -53,7 +53,10 @@ TF 挂载／读写异常时，界面保留基础时钟、计算器和计时工�
 | USB 配件访问被拒绝 | 在 macOS 配件权限提示／系统设置允许设备，再点重新连接 |
 | 便签不能同步 | 检查 TF 就绪状态、空间、字形生成器与字体资源 |
 | 副屏进入失败 | 查看 Mac 提示中的录屏权限、虚拟屏登记、编码或设备呈现回执状态 |
+| 已连接，但电脑窗口更新慢 | 在 App“副屏”页检查实际 USB 速率。Full Speed 为 12 Mbps，High Speed 为 480 Mbps；端口支持 HS 不代表本次连接已达到 HS。使用上面的官方数据连接路径，重连后核对速率；若仍为 Full Speed，继续核对线材、转接头及 Hub 路径 |
 | 副屏可见、触摸无作用 | 授予 P4 Desk 辅助功能权限，检查当前屏幕排列 |
 | 手势退出后仍显示旧画面 | 检查主机退出流程与 Pad 完整重绘的实机验收记录 |
 
 资料：[微雪硬件说明](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-7B)、[USB 示例源码](https://github.com/waveshareteam/ESP32-P4-WIFI6-Touch-LCD-7B/tree/main/examples/esp-idf/12_usb_extend_screen)。
+
+副屏传输为 1024×600 的完整 JPEG 帧。Full Speed 的物理线速仅约 1.5 MB/s，实际有效吞吐还要扣除协议开销。例如每帧 100 KiB 时，即使忽略开销，传输上限也只有约 14.6 FPS。应在持续拖动／滚动或移动测试窗口时观察有效 FPS；静态画面不会持续产生新帧，静态低 FPS 不表示面板扫描频率降低。仅提高采集 FPS 无法增加 USB 链路带宽。

@@ -3,7 +3,11 @@ import P4DeskNative
 import P4DeskCore
 
 final class USBSession {
-    enum Event { case connected, disconnected, bytes(Data), sent(UInt32, UInt64), error(String) }
+    enum Event {
+        case connected(speedMbps: UInt64), disconnected, bytes(Data)
+        case sent(UInt32, atNanoseconds: UInt64, transferMicroseconds: UInt64?)
+        case error(String)
+    }
     var onEvent: ((Event) -> Void)?
     private var handle: UnsafeMutableRawPointer?
     func start() {
@@ -13,12 +17,20 @@ final class USBSession {
             let session = Unmanaged<USBSession>.fromOpaque(context).takeUnretainedValue()
             let value: Event
             switch event {
-            case UInt32(P4USB_CONNECTED): value = .connected
+            case UInt32(P4USB_CONNECTED): value = .connected(speedMbps: UInt64(token))
             case UInt32(P4USB_DISCONNECTED): value = .disconnected
             case UInt32(P4USB_BYTES):
                 guard let bytes, length <= 65_536 else { return }
                 value = .bytes(Data(bytes: bytes, count: length))
-            case UInt32(P4USB_SENT): value = .sent(token, DispatchTime.now().uptimeNanoseconds)
+            case UInt32(P4USB_SENT):
+                let completedNS = DispatchTime.now().uptimeNanoseconds
+                var transferUS: UInt64?
+                if let bytes, length == 8 {
+                    var decoded: UInt64 = 0
+                    for index in 0..<8 { decoded |= UInt64(bytes[index]) << (index * 8) }
+                    transferUS = decoded
+                }
+                value = .sent(token, atNanoseconds: completedNS, transferMicroseconds: transferUS)
             default: value = .error(reason.map { String(cString: $0) } ?? "USB 操作失败")
             }
             DispatchQueue.main.async { [weak session] in session?.onEvent?(value) }
@@ -46,7 +58,7 @@ enum DeskError: LocalizedError {
          permission(String), displayUnavailable, captureUnavailable, encodingFailed, fontUnavailable, fontBakeFailed, invalidFont
     var errorDescription: String? {
         switch self {
-        case .usbDisconnected: return "USB HS 未连接。请连接板上 Type-A USB-OTG 大接口；Type-C 小接口仅用于供电／烧录调试。"
+        case .usbDisconnected: return "USB 未连接。请连接板上 Type-A USB-OTG 大接口；Type-C 小接口仅用于供电／烧录调试。"
         case .usbQueueUnavailable: return "USB 发送队列不可用，请重新连接。"
         case .timeout(let op): return "设备操作超时：\(op)。"
         case .deviceRejected(let op): return "设备未接受操作：\(op)。请查看 TF 卡与设备状态。"

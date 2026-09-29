@@ -46,6 +46,12 @@ extern "C" {
     fn p4desk_pad_frame_end();
     fn p4desk_get_mode() -> u32;
     fn p4desk_set_mode(mode: u32, session: u32) -> bool;
+    fn p4desk_direct_jpeg_rotation_degrees() -> u32;
+    fn p4desk_set_mode_with_jpeg_rotation(
+        mode: u32,
+        session: u32,
+        jpeg_rotation_degrees: u32,
+    ) -> bool;
     fn p4desk_set_brightness(percent: u8);
     fn p4desk_monotonic_us() -> i64;
     fn p4desk_delay_ms(ms: u32);
@@ -90,6 +96,12 @@ impl Hal for EspHal {
     }
     fn set_mode(&mut self, m: Mode, s: u32) -> bool {
         unsafe { p4desk_set_mode(m.as_u32(), s) }
+    }
+    fn direct_jpeg_rotation_degrees(&self) -> u16 {
+        u16::try_from(unsafe { p4desk_direct_jpeg_rotation_degrees() }).unwrap_or(0)
+    }
+    fn set_mode_with_jpeg_rotation(&mut self, m: Mode, s: u32, degrees: u16) -> bool {
+        unsafe { p4desk_set_mode_with_jpeg_rotation(m.as_u32(), s, u32::from(degrees)) }
     }
     fn heartbeat(&mut self) {
         unsafe { p4desk_heartbeat_received() }

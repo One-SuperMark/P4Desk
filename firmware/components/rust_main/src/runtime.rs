@@ -18,6 +18,17 @@ pub trait Hal {
     fn sd_free_bytes(&self) -> u64;
     fn mode(&self) -> Mode;
     fn set_mode(&mut self, mode: Mode, session: u32) -> bool;
+    fn direct_jpeg_rotation_degrees(&self) -> u16 {
+        0
+    }
+    fn set_mode_with_jpeg_rotation(
+        &mut self,
+        mode: Mode,
+        session: u32,
+        jpeg_rotation_degrees: u16,
+    ) -> bool {
+        jpeg_rotation_degrees == 0 && self.set_mode(mode, session)
+    }
     fn heartbeat(&mut self);
     fn unix_ms(&self) -> i64;
     fn set_time(&mut self, unix_ms: i64);
@@ -122,6 +133,7 @@ impl<H: Hal> DeviceRuntime<H> {
                         max_control: MAX_CONTROL as u32,
                         sd_ready: self.hal.sd_ready(),
                         mode: self.hal.mode(),
+                        direct_jpeg_rotation_degrees: self.hal.direct_jpeg_rotation_degrees(),
                     },
                     id,
                 );
@@ -130,10 +142,23 @@ impl<H: Hal> DeviceRuntime<H> {
                 self.hal.heartbeat();
                 self.ack(id, "heartbeat", Ok(()), None);
             }
-            HostMessage::SetMode { mode, session, .. } => {
+            HostMessage::SetMode {
+                mode,
+                session,
+                jpeg_rotation_degrees,
+                ..
+            } => {
                 let result = if self.store.pending_generation().is_some() {
                     Err("sync_busy")
-                } else if self.hal.set_mode(mode, session) {
+                } else if (mode == Mode::Pad && jpeg_rotation_degrees != 0)
+                    || (jpeg_rotation_degrees != 0
+                        && jpeg_rotation_degrees != self.hal.direct_jpeg_rotation_degrees())
+                {
+                    Err("jpeg_rotation")
+                } else if self
+                    .hal
+                    .set_mode_with_jpeg_rotation(mode, session, jpeg_rotation_degrees)
+                {
                     self.hal.screen(true);
                     Ok(())
                 } else {
@@ -416,6 +441,10 @@ mod tests {
         wall: i64,
         connected: bool,
         mode: Mode,
+        direct_rotation: u16,
+        mode_ready: bool,
+        mode_requests: Vec<(Mode, u32, u16)>,
+        screen_calls: usize,
         send_ready: bool,
         send_attempts: usize,
         messages: Vec<(u16, DeviceMessage)>,
@@ -436,7 +465,25 @@ mod tests {
         fn mode(&self) -> Mode {
             self.mode
         }
-        fn set_mode(&mut self, m: Mode, _: u32) -> bool {
+        fn set_mode(&mut self, m: Mode, session: u32) -> bool {
+            self.mode_requests.push((m, session, 0));
+            if !self.mode_ready {
+                return false;
+            }
+            self.mode = m;
+            true
+        }
+        fn direct_jpeg_rotation_degrees(&self) -> u16 {
+            self.direct_rotation
+        }
+        fn set_mode_with_jpeg_rotation(&mut self, m: Mode, session: u32, degrees: u16) -> bool {
+            if degrees == 0 {
+                return self.set_mode(m, session);
+            }
+            self.mode_requests.push((m, session, degrees));
+            if !self.mode_ready || m == Mode::Pad || degrees != self.direct_rotation {
+                return false;
+            }
             self.mode = m;
             true
         }
@@ -451,7 +498,9 @@ mod tests {
             self.now
         }
         fn brightness(&mut self, _: u8) {}
-        fn screen(&mut self, _: bool) {}
+        fn screen(&mut self, _: bool) {
+            self.screen_calls += 1;
+        }
         fn media(&mut self, _: u16) {}
         fn send(&mut self, m: &DeviceMessage, s: u16) -> bool {
             self.send_attempts += 1;
@@ -470,6 +519,10 @@ mod tests {
                 wall: 0,
                 connected: true,
                 mode: Mode::Pad,
+                direct_rotation: 0,
+                mode_ready: true,
+                mode_requests: vec![],
+                screen_calls: 0,
                 send_ready: true,
                 send_attempts: 0,
                 messages: vec![],
@@ -484,7 +537,14 @@ mod tests {
         r.control(27, br#"{"op":"hello","request_id":27,"version":1}"#);
         assert!(matches!(
             r.hal.messages[0],
-            (27, DeviceMessage::Caps { request_id: 27, .. })
+            (
+                27,
+                DeviceMessage::Caps {
+                    request_id: 27,
+                    direct_jpeg_rotation_degrees: 0,
+                    ..
+                }
+            )
         ));
         r.control(3, br#"{"op":"get_state","request_id":3}"#);
         assert!(matches!(
@@ -496,6 +556,174 @@ mod tests {
             r.hal.messages.last().unwrap(),
             (4, DeviceMessage::Ack { ok: false, .. })
         ));
+    }
+
+    fn assert_mode_ack(runtime: &DeviceRuntime<Mock>, id: u16, ok: bool, error: Option<&str>) {
+        match runtime.hal.messages.last().unwrap() {
+            (
+                sequence,
+                DeviceMessage::Ack {
+                    request_id,
+                    acknowledged,
+                    ok: actual_ok,
+                    error: actual_error,
+                    ..
+                },
+            ) => {
+                assert_eq!(*sequence, id);
+                assert_eq!(*request_id, id);
+                assert_eq!(acknowledged, "set_mode");
+                assert_eq!(*actual_ok, ok);
+                assert_eq!(actual_error.as_deref(), error);
+            }
+            other => panic!("expected set_mode ACK, received {other:?}"),
+        }
+    }
+
+    #[test]
+    fn legacy_mode_request_forwards_zero_rotation_even_when_direct_decode_is_available() {
+        let mut r = runtime();
+        r.hal.direct_rotation = 180;
+        r.control(1, br#"{"op":"hello","request_id":1,"version":1}"#);
+        r.control(
+            2,
+            br#"{"op":"set_mode","request_id":2,"mode":"display","session":41}"#,
+        );
+        assert_mode_ack(&r, 2, true, None);
+        assert_eq!(r.hal.mode_requests, [(Mode::Display, 41, 0)]);
+        assert_eq!(r.hal.mode, Mode::Display);
+        r.control(
+            3,
+            br#"{"op":"set_mode","request_id":3,"mode":"pad","session":0}"#,
+        );
+        assert_mode_ack(&r, 3, true, None);
+        assert_eq!(r.hal.mode_requests.last(), Some(&(Mode::Pad, 0, 0)));
+        assert_eq!(r.hal.mode, Mode::Pad);
+    }
+
+    #[test]
+    fn direct_jpeg_rotation_requires_advertised_capability_and_pad_keeps_zero() {
+        let mut r = runtime();
+        r.hal.direct_rotation = 180;
+        r.control(1, br#"{"op":"hello","request_id":1,"version":1}"#);
+        assert!(matches!(
+            r.hal.messages[0],
+            (
+                1,
+                DeviceMessage::Caps {
+                    direct_jpeg_rotation_degrees: 180,
+                    ..
+                }
+            )
+        ));
+        r.control(2, br#"{"op":"set_mode","request_id":2,"mode":"display","session":42,"jpeg_rotation_degrees":180}"#);
+        assert_mode_ack(&r, 2, true, None);
+        assert_eq!(r.hal.mode_requests, [(Mode::Display, 42, 180)]);
+        r.tick();
+        assert_eq!(r.state.lock().unwrap().mode, Mode::Display);
+
+        for (index, (mode, degrees)) in
+            [(Mode::Display, 90), (Mode::Display, 360), (Mode::Pad, 180)]
+                .into_iter()
+                .enumerate()
+        {
+            let id = index as u16 + 3;
+            let request = HostMessage::SetMode {
+                request_id: id,
+                mode,
+                session: 42,
+                jpeg_rotation_degrees: degrees,
+            };
+            r.control(id, &serde_json::to_vec(&request).unwrap());
+            assert_mode_ack(&r, id, false, Some("jpeg_rotation"));
+            assert_eq!(r.hal.mode_requests, [(Mode::Display, 42, 180)]);
+            assert_eq!(r.hal.mode, Mode::Display);
+            assert_eq!(r.hal.screen_calls, 1);
+            r.tick();
+            assert_eq!(r.state.lock().unwrap().mode, Mode::Display);
+        }
+        r.control(6, br#"{"op":"set_mode","request_id":6,"mode":"pad","session":0,"jpeg_rotation_degrees":0}"#);
+        assert_mode_ack(&r, 6, true, None);
+        assert_eq!(r.hal.mode, Mode::Pad);
+    }
+
+    #[test]
+    fn absent_capability_and_hal_rejection_do_not_change_mode() {
+        let mut r = runtime();
+        r.control(1, br#"{"op":"hello","request_id":1,"version":1}"#);
+        r.control(2, br#"{"op":"set_mode","request_id":2,"mode":"display","session":42,"jpeg_rotation_degrees":180}"#);
+        assert_mode_ack(&r, 2, false, Some("jpeg_rotation"));
+        assert!(r.hal.mode_requests.is_empty());
+        assert_eq!(r.hal.mode, Mode::Pad);
+
+        r.hal.direct_rotation = 180;
+        r.hal.mode_ready = false;
+        r.control(3, br#"{"op":"hello","request_id":3,"version":1}"#);
+        r.control(4, br#"{"op":"set_mode","request_id":4,"mode":"display","session":42,"jpeg_rotation_degrees":180}"#);
+        assert_mode_ack(&r, 4, false, Some("mode_rejected"));
+        assert_eq!(r.hal.mode_requests, [(Mode::Display, 42, 180)]);
+        assert_eq!(r.hal.mode, Mode::Pad);
+        assert_eq!(r.hal.screen_calls, 0);
+    }
+
+    // A pre-extension HAL inherits the zero-only defaults; it must never be
+    // called for already-rotated JPEGs merely because the protocol has a field.
+    struct LegacyHal(Mock);
+    impl Hal for LegacyHal {
+        fn connected(&self) -> bool {
+            self.0.connected()
+        }
+        fn host_active(&self) -> bool {
+            self.0.host_active()
+        }
+        fn sd_ready(&self) -> bool {
+            self.0.sd_ready()
+        }
+        fn sd_free_bytes(&self) -> u64 {
+            self.0.sd_free_bytes()
+        }
+        fn mode(&self) -> Mode {
+            self.0.mode()
+        }
+        fn set_mode(&mut self, mode: Mode, session: u32) -> bool {
+            self.0.set_mode(mode, session)
+        }
+        fn heartbeat(&mut self) {
+            self.0.heartbeat();
+        }
+        fn unix_ms(&self) -> i64 {
+            self.0.unix_ms()
+        }
+        fn set_time(&mut self, unix_ms: i64) {
+            self.0.set_time(unix_ms);
+        }
+        fn monotonic_ms(&self) -> u64 {
+            self.0.monotonic_ms()
+        }
+        fn brightness(&mut self, percent: u8) {
+            self.0.brightness(percent);
+        }
+        fn screen(&mut self, on: bool) {
+            self.0.screen(on);
+        }
+        fn media(&mut self, usage: u16) {
+            self.0.media(usage);
+        }
+        fn send(&mut self, message: &DeviceMessage, sequence: u16) -> bool {
+            self.0.send(message, sequence)
+        }
+    }
+
+    #[test]
+    fn legacy_hal_defaults_reject_rotated_input_without_calling_set_mode() {
+        let mut legacy = LegacyHal(runtime().hal);
+        assert_eq!(legacy.direct_jpeg_rotation_degrees(), 0);
+        assert!(!legacy.set_mode_with_jpeg_rotation(Mode::Display, 42, 180));
+        assert!(legacy.0.mode_requests.is_empty());
+        assert_eq!(legacy.0.mode, Mode::Pad);
+        assert!(legacy.set_mode_with_jpeg_rotation(Mode::Display, 42, 0));
+        assert_eq!(legacy.0.mode_requests, [(Mode::Display, 42, 0)]);
+        assert_eq!(legacy.0.mode, Mode::Display);
     }
     #[test]
     fn desktop_usb_status_tracks_enumeration_without_companion_handshake() {

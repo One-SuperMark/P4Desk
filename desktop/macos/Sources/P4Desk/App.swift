@@ -26,6 +26,7 @@ final class DeskEditorWindow {
     static let shared = DeskEditorWindow()
     private var controller: NSWindowController?
     private init() {}
+    var isVisible: Bool { controller?.window?.isVisible == true && !NSApp.isHidden }
 
     func show() {
         if controller == nil {
@@ -48,6 +49,7 @@ final class DeskEditorWindow {
         controller.showWindow(nil)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        DeskModel.shared.refreshPerformance()
     }
 }
 
@@ -66,6 +68,7 @@ struct MenuContent: View {
     @ObservedObject var model: DeskModel
     var body: some View {
         Text(model.connectionStatus)
+        Text(model.usbSpeedDescription)
         Text(model.displayActive ? "当前模式：USB 副屏" : "当前模式：Pad")
         Button(model.displayActive ? "切回 Pad" : "开启 USB 副屏") {
             Task { if model.displayActive { await model.endDisplay(sendPad: true) } else { await model.beginDisplay() } }
@@ -219,18 +222,45 @@ struct DisplayStatus: View {
     var body: some View {
         Form {
             LabeledContent("当前模式", value: model.displayActive ? "USB 副屏" : "Pad")
+            LabeledContent("USB 实际协商速率", value: model.usbSpeedDescription)
+            if let hint = model.usbBandwidthHint { Text(hint).font(.caption).foregroundStyle(.orange) }
             LabeledContent("画面", value: "1024 × 600，1 倍桌面比例")
+            LabeledContent("采集 / 编码目标", value: "\(VideoProfile.framesPerSecond) FPS")
             LabeledContent("编码", value: model.codec)
+            LabeledContent("目标 JPEG 质量", value: String(format: "%.2f", VideoProfile.jpegQuality))
             LabeledContent("LCD 呈现回执", value: "\(model.presentedFrames) 帧")
             if let ms = model.presentationMS { LabeledContent("最近发送至呈现回执", value: String(format: "%.1f ms", ms)) }
             if let ms = model.captureToReceiptP95MS { LabeledContent("采集至呈现回执 P95（近 30 秒）", value: String(format: "%.1f ms · %d 样本", ms, model.performanceSampleCount)) }
             LabeledContent("有效呈现帧率（近 30 秒）", value: String(format: "%.1f FPS", model.effectivePresentedFPS))
+            Text("这是实际画面更新帧率。静态桌面没有新帧时降低属于正常现象；统计每秒刷新，停止副屏后归零。").font(.caption).foregroundStyle(.secondary)
+            if let metrics = model.performanceMetrics {
+                if let mean = metrics.jpegMeanBytes, let p95 = metrics.jpegP95Bytes {
+                    LabeledContent("已发送 JPEG（均值 / P95）", value: String(format: "%.1f / %.1f KiB", mean / 1024, p95 / 1024))
+                }
+                LabeledContent("JPEG 发送吞吐（含帧头）", value: String(format: "%.2f MB/s", metrics.jpegWireBytesPerSecond / 1_000_000))
+                if let ms = metrics.captureToEncodeStartP95MS { LabeledContent("采集至编码等待 P95", value: String(format: "%.1f ms", ms)) }
+                if let ms = metrics.jpegEncodeP95MS { LabeledContent("JPEG 编码 P95", value: String(format: "%.1f ms", ms)) }
+                if let ms = metrics.usbQueueWaitP95MS { LabeledContent("USB 发送前等待 P95", value: String(format: "%.1f ms", ms)) }
+                if let ms = metrics.usbTransferP95MS { LabeledContent("完整 OUT 传输 P95", value: String(format: "%.1f ms", ms)) }
+                if let ms = metrics.usbSentToReceiptP95MS { LabeledContent("OUT 完成至呈现回执 P95", value: String(format: "%.1f ms", ms)) }
+                if let ms = metrics.deviceDecodeP95MS { LabeledContent("板端 JPEG 解码 P95", value: String(format: "%.1f ms", ms)) }
+                if let ms = metrics.deviceCopyP95MS { LabeledContent("板端裁切 / 旋转 P95", value: String(format: "%.1f ms", ms)) }
+                if let ms = metrics.devicePresentP95MS { LabeledContent("板端提交 / DMA 完成 P95", value: String(format: "%.1f ms", ms)) }
+            }
+            if let statistics = model.encoderQueueStatistics {
+                LabeledContent("编码等待中替换旧帧", value: "\(statistics.replaced) 帧")
+            }
+            if let statistics = model.jpegDeliveryStatistics {
+                LabeledContent("主界面繁忙时替换旧帧", value: "\(statistics.replaced) 帧")
+            }
             Text("回执耗时含采集、编码、USB 发送及设备回传；不代表 LCD 光学实测延迟。").font(.caption).foregroundStyle(.secondary)
+            Text("发送吞吐只统计成功发出的 JPEG 及 16 字节帧头，不含控制或 HID 数据。新版固件的回执基于 LCD 完整 DMA 读取完成；旧固件使用刷新安全等待。").font(.caption).foregroundStyle(.secondary)
+            Text("发送前等待由入队至 OUT 完成减去传输耗时计算，包含包编码、复制和发送队列等待。").font(.caption).foregroundStyle(.secondary)
             Button("导出性能诊断 JSON…") { model.exportPerformance() }
             LabeledContent("屏幕录制", value: model.screenAllowed ? "已允许" : "未允许")
             LabeledContent("辅助功能", value: model.inputAllowed ? "已允许" : "未允许")
             Text("开启后在系统显示设置中排列 P4 Desk，可将任意普通窗口拖入。单指点击或拖动、双指滚动；板上三指长按退出。断线或睡眠后回到 Pad。").foregroundStyle(.secondary)
-            Text("仅连接 USB HS 数据接口。应用在收到设备 LCD 呈现回执后显示副屏已开启。").font(.caption).foregroundStyle(.secondary)
+            Text("连接板上 Type-A USB-OTG 数据接口，实际速度以上方协商结果为准。应用在收到设备 LCD 呈现回执后显示副屏已开启。").font(.caption).foregroundStyle(.secondary)
         }.formStyle(.grouped)
     }
 }
@@ -259,6 +289,8 @@ struct DeskSettings: View {
             }
             Section("连接") {
                 LabeledContent("USB", value: model.connectionStatus)
+                LabeledContent("实际协商速率", value: model.usbSpeedDescription)
+                if let hint = model.usbBandwidthHint { Text(hint).font(.caption).foregroundStyle(.orange) }
                 LabeledContent("TF 卡", value: model.sdReady ? "就绪" : "未就绪")
                 Button("重新连接并读取设备状态") { model.reconnect() }
             }
