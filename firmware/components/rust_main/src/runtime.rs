@@ -12,6 +12,12 @@ const MIN_UNIX_MS: i64 = 946_684_800_000;
 const MAX_UNIX_MS: i64 = 4_102_444_800_000;
 
 pub trait Hal {
+    fn radio_snapshot(&self, _revision: u32) -> Option<app_launcher::radio::RadioSnapshot> {
+        None
+    }
+    fn radio_command(&mut self, _command: &app_launcher::radio::RadioCommand) -> bool {
+        false
+    }
     fn connected(&self) -> bool;
     fn host_active(&self) -> bool;
     fn reset_reason(&self) -> u32 {
@@ -61,6 +67,7 @@ pub struct DeviceRuntime<H: Hal> {
     was_active: bool,
     pending_activity: u64,
     last_battery_poll_ms: Option<u64>,
+    last_radio_poll_ms: Option<u64>,
     status: Option<(Mode, bool, bool, u64)>,
 }
 impl<H: Hal> DeviceRuntime<H> {
@@ -91,6 +98,7 @@ impl<H: Hal> DeviceRuntime<H> {
             was_active: false,
             pending_activity: 0,
             last_battery_poll_ms: None,
+            last_radio_poll_ms: None,
             status: None,
         }
     }
@@ -326,6 +334,26 @@ impl<H: Hal> DeviceRuntime<H> {
         let mut state = self.state.lock().unwrap();
         let before = state.revision;
         if self
+            .last_radio_poll_ms
+            .is_none_or(|last| now.saturating_sub(last) >= 250)
+        {
+            self.last_radio_poll_ms = Some(now);
+            if let Some(next) = self.hal.radio_snapshot(state.radio.revision) {
+                let wifi_changed = next.wifi_status_changed(&state.radio)
+                    || (state.status_panel_open
+                        && state.status_panel_kind
+                            == app_launcher::status_bar::StatusPanelKind::Wifi
+                        && next.wifi_rssi_dbm != state.radio.wifi_rssi_dbm);
+                state.radio = next;
+                if matches!(state.active_app, app_launcher::ActiveApp::Settings)
+                    || (wifi_changed
+                        && matches!(state.active_app, app_launcher::ActiveApp::Launcher))
+                {
+                    state.changed();
+                }
+            }
+        }
+        if self
             .last_battery_poll_ms
             .is_none_or(|last| now.saturating_sub(last) >= 2000)
         {
@@ -377,6 +405,13 @@ impl<H: Hal> DeviceRuntime<H> {
         let changed = !commands.is_empty();
         for command in commands {
             let result = match command {
+                UiCommand::Radio(command) => {
+                    if self.hal.radio_command(&command) {
+                        Ok(())
+                    } else {
+                        Err("radio_busy")
+                    }
+                }
                 UiCommand::DeleteNote(id) => {
                     let current = self.state.lock().unwrap().snapshot.clone();
                     match self.store.delete_note(&current, &id) {
@@ -487,6 +522,7 @@ impl<H: Hal> DeviceRuntime<H> {
                     "操作未完成，请重试"
                 });
                 state.notice = match code {
+                    "radio_busy" => "无线任务繁忙，请稍后重试",
                     "mac_offline" => "Mac 未连接，请连接 USB 和 Mac 应用",
                     "note_not_found" => "便签已不存在",
                     "storage_create" | "state_write" | "state_fsync" | "state_rename" => {
@@ -520,8 +556,12 @@ mod tests {
         send_attempts: usize,
         messages: Vec<(u16, DeviceMessage)>,
         battery: app_launcher::battery::BatteryReading,
+        radio: app_launcher::radio::RadioSnapshot,
     }
     impl Hal for Mock {
+        fn radio_snapshot(&self, last: u32) -> Option<app_launcher::radio::RadioSnapshot> {
+            (self.radio.revision != last).then_some(self.radio)
+        }
         fn connected(&self) -> bool {
             self.connected
         }
@@ -618,10 +658,70 @@ mod tests {
                 send_attempts: 0,
                 messages: vec![],
                 battery: app_launcher::battery::BatteryReading::default(),
+                radio: app_launcher::radio::RadioSnapshot::default(),
             },
             path.join("sd"),
             path.join("flash"),
         )
+    }
+    #[test]
+    fn wifi_changes_refresh_desktop_without_waiting_for_clock_but_ble_does_not() {
+        use app_launcher::radio::WifiIndicator;
+        let mut r = runtime();
+        r.tick();
+        let rev = r.state.lock().unwrap().revision;
+        r.hal.now = 250;
+        r.hal.radio.revision = 1;
+        r.hal.radio.backend = 2;
+        r.hal.radio.wifi_on = 1;
+        r.hal.radio.wifi_phase = 5;
+        assert!(r.tick());
+        assert!(r.state.lock().unwrap().revision > rev);
+        assert_eq!(
+            r.state.lock().unwrap().radio.wifi_indicator(),
+            WifiIndicator::Connected
+        );
+        let rev = r.state.lock().unwrap().revision;
+        r.hal.now = 500;
+        r.hal.radio.revision = 2;
+        r.hal.radio.ble_count = 3;
+        assert!(!r.tick());
+        assert_eq!(r.state.lock().unwrap().revision, rev);
+        r.hal.now = 750;
+        r.hal.radio.revision = 3;
+        r.hal.radio.wifi_on = 0;
+        r.hal.radio.wifi_phase = 0;
+        assert!(r.tick());
+        assert_eq!(
+            r.state.lock().unwrap().radio.wifi_indicator(),
+            WifiIndicator::Disabled
+        );
+    }
+    #[test]
+    fn wifi_signal_level_refreshes_connected_desktop_without_ble_noise() {
+        let mut r = runtime();
+        r.hal.radio.revision = 1;
+        r.hal.radio.backend = 2;
+        r.hal.radio.wifi_on = 1;
+        r.hal.radio.wifi_phase = 5;
+        r.hal.radio.wifi_rssi_valid = 1;
+        r.hal.radio.wifi_rssi_dbm = -48;
+        r.tick();
+        assert_eq!(r.state.lock().unwrap().radio.wifi_signal_level(), Some(3));
+        r.hal.now = 250;
+        r.hal.radio.revision = 2;
+        r.hal.radio.wifi_rssi_dbm = -74;
+        assert!(r.tick());
+        assert_eq!(r.state.lock().unwrap().radio.wifi_signal_level(), Some(1));
+        r.hal.now = 500;
+        r.hal.radio.revision = 3;
+        r.hal.radio.wifi_rssi_dbm = -75;
+        assert!(!r.tick(), "same bar level does not redraw the desktop");
+        r.hal.now = 750;
+        r.hal.radio.revision = 4;
+        r.hal.radio.wifi_rssi_valid = 0;
+        assert!(r.tick());
+        assert_eq!(r.state.lock().unwrap().radio.wifi_signal_level(), None);
     }
     #[test]
     fn battery_is_polled_offline_and_in_display_without_inventing_charging() {

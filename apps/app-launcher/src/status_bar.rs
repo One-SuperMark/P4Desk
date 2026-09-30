@@ -7,6 +7,7 @@
 use crate::app_icons::get_app_icon_asset;
 use crate::battery::{BatteryState, ChargeState};
 use crate::launcher_state::LauncherState;
+use crate::radio::{self, RadioSnapshot, SettingsSection, WifiIndicator};
 use crate::widgets::AppIconPainter;
 use std::sync::{Arc, Mutex};
 use tiny_flutter::graphics::svg_icons_generated::*;
@@ -14,8 +15,14 @@ use tiny_flutter::prelude::*;
 
 pub const STATUS_BAR_HEIGHT: f32 = 56.0;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum StatusPanelKind {
+    Device,
+    Wifi,
+}
+
 pub fn build_status_bar(state: Arc<Mutex<LauncherState>>, width: f32) -> impl Widget {
-    let (clock, valid, usb, connected, sd, battery, running) = {
+    let (clock, valid, usb, connected, sd, battery, wifi, running) = {
         let s = state.lock().unwrap();
         let mut running: Vec<String> = s.running_apps.keys().cloned().collect();
         running.sort();
@@ -26,6 +33,7 @@ pub fn build_status_bar(state: Arc<Mutex<LauncherState>>, width: f32) -> impl Wi
             s.connected,
             s.sd_ready,
             s.battery.clone(),
+            s.radio,
             running,
         )
     };
@@ -87,6 +95,17 @@ pub fn build_status_bar(state: Arc<Mutex<LauncherState>>, width: f32) -> impl Wi
     bar.push(
         Positioned::new(status_button(
             state.clone(),
+            StatusPanelKind::Wifi,
+            44.0,
+            wifi_glyph(&wifi, 30.0),
+        ))
+        .left(width - 288.0)
+        .top(6.0),
+    )
+    .push(
+        Positioned::new(status_button(
+            state.clone(),
+            StatusPanelKind::Device,
             44.0,
             glyph(&UI_USB, usb_color, !usb, 30.0),
         ))
@@ -96,6 +115,7 @@ pub fn build_status_bar(state: Arc<Mutex<LauncherState>>, width: f32) -> impl Wi
     .push(
         Positioned::new(status_button(
             state.clone(),
+            StatusPanelKind::Device,
             44.0,
             glyph(&UI_SD_CARD, if sd { MINT } else { MUTED }, !sd, 30.0),
         ))
@@ -105,6 +125,7 @@ pub fn build_status_bar(state: Arc<Mutex<LauncherState>>, width: f32) -> impl Wi
     .push(
         Positioned::new(status_button(
             state,
+            StatusPanelKind::Device,
             124.0,
             Row::new()
                 .main_axis_alignment(MainAxisAlignment::Center)
@@ -130,6 +151,42 @@ const INK: Color = Color::from_hex(0xe8edf2);
 const MUTED: Color = Color::from_hex(0x94a4b6);
 const MINT: Color = Color::from_hex(0x8edbc5);
 const AMBER: Color = Color::from_hex(0xffbe82);
+
+fn wifi_color(wifi: WifiIndicator) -> Color {
+    if wifi == WifiIndicator::Connected {
+        MINT
+    } else {
+        MUTED
+    }
+}
+fn wifi_glyph(radio: &RadioSnapshot, side: f32) -> CustomPaint {
+    let wifi = radio.wifi_indicator();
+    let icon = if wifi == WifiIndicator::Connected {
+        match radio.wifi_signal_level() {
+            Some(3) => &UI_WIFI_3,
+            Some(2) => &UI_WIFI_2,
+            Some(1) => &UI_WIFI_1,
+            _ => &UI_WIFI_0,
+        }
+    } else {
+        &UI_WIFI_3
+    };
+    CustomPaint::new(StatusGlyph {
+        icon,
+        color: wifi_color(wifi),
+        unavailable: wifi == WifiIndicator::Disabled,
+        // SVG layers are the dot followed by the three arcs. Paint each layer
+        // once so gray underpainting cannot leave fringes on green AA edges.
+        underlay: (wifi == WifiIndicator::Connected).then_some((
+            VectorIcon {
+                layers: &UI_WIFI_3.layers[icon.layers.len()..],
+                ..UI_WIFI_3
+            },
+            MUTED,
+        )),
+    })
+    .size(Size::new(side, side))
+}
 
 pub fn battery_icon(b: &BatteryState) -> &'static VectorIcon {
     if matches!(
@@ -166,10 +223,14 @@ struct StatusGlyph {
     icon: &'static VectorIcon,
     color: Color,
     unavailable: bool,
+    underlay: Option<(VectorIcon, Color)>,
 }
 impl CustomPainter for StatusGlyph {
     fn paint(&self, canvas: &mut Canvas, size: Size) {
         let r = Rect::from_ltwh(0.0, 0.0, size.width, size.height);
+        if let Some((icon, color)) = self.underlay {
+            icon.paint(canvas, r, color);
+        }
         self.icon.paint(canvas, r, self.color);
         if self.unavailable {
             UI_STATUS_SLASH.paint(canvas, r, self.color);
@@ -181,11 +242,13 @@ fn glyph(icon: &'static VectorIcon, color: Color, unavailable: bool, side: f32) 
         icon,
         color,
         unavailable,
+        underlay: None,
     })
     .size(Size::new(side, side))
 }
 fn status_button(
     state: Arc<Mutex<LauncherState>>,
+    kind: StatusPanelKind,
     width: f32,
     child: impl Widget + 'static,
 ) -> ElevatedButton {
@@ -200,7 +263,8 @@ fn status_button(
         )
         .on_pressed(move || {
             let mut s = state.lock().unwrap();
-            s.status_panel_open = !s.status_panel_open;
+            s.status_panel_open = !s.status_panel_open || s.status_panel_kind != kind;
+            s.status_panel_kind = kind;
             s.changed();
         })
 }
@@ -211,6 +275,9 @@ pub fn with_status_panel(
     root: Box<dyn Widget>,
     size: Size,
 ) -> Box<dyn Widget> {
+    if state.lock().unwrap().status_panel_kind == StatusPanelKind::Wifi {
+        return with_wifi_panel(state, root, size);
+    }
     let (b, usb, connected, sd, reset_reason, uptime) = {
         let s = state.lock().unwrap();
         (
@@ -362,6 +429,154 @@ pub fn with_status_panel(
                     .on_tap(|| {}),
                 )
                 .left(size.width - w - 24.0)
+                .top(STATUS_BAR_HEIGHT + 8.0),
+            ),
+    )
+}
+
+fn fit_network_name(name: &str, max_width: f32) -> String {
+    let font = Font::default_font();
+    if font.measure_text(name, 22.0).width <= max_width {
+        return name.to_owned();
+    }
+    let mut shown = name.to_owned();
+    while !shown.is_empty() {
+        shown.pop();
+        let candidate = format!("{shown}…");
+        if font.measure_text(&candidate, 22.0).width <= max_width {
+            return candidate;
+        }
+    }
+    "…".into()
+}
+
+fn wifi_card(radio: RadioSnapshot, state: Arc<Mutex<LauncherState>>, width: f32) -> Stack {
+    let wifi = radio.wifi_indicator();
+    let connected = wifi == WifiIndicator::Connected;
+    let connecting = wifi == WifiIndicator::Connecting;
+    let name = if connected || connecting {
+        radio::label(&radio.ssid)
+    } else {
+        String::new()
+    };
+    let network = if name.is_empty() {
+        "未连接网络".into()
+    } else {
+        fit_network_name(&name, width - 48.0)
+    };
+    let ip = if connected {
+        radio::label(&radio.ip)
+    } else {
+        String::new()
+    };
+    let at = |child: Box<dyn Widget>, x, y| Positioned::new(child).left(x).top(y);
+    let text = |s: String, px, c| Box::new(Text::new(s).font_size(px).color(c)) as Box<dyn Widget>;
+    Stack::new()
+        .push(
+            Container::new()
+                .width(width)
+                .height(308.0)
+                .border_radius(20.0)
+                .color(Color::from_hex(0x202a37))
+                .border(Color::from_hex(0x344252), 1.0),
+        )
+        .push(at(Box::new(wifi_glyph(&radio, 34.0)), 24.0, 22.0))
+        .push(at(text("Wi-Fi".into(), 26.0, INK), 76.0, 22.0))
+        .push(at(
+            text(wifi.label().into(), 18.0, wifi_color(wifi)),
+            width - 104.0,
+            29.0,
+        ))
+        .push(at(text(network, 22.0, INK), 24.0, 91.0))
+        .push(at(
+            text(
+                format!("IP 地址：{}", if ip.is_empty() { "—" } else { &ip }),
+                18.0,
+                MUTED,
+            ),
+            24.0,
+            131.0,
+        ))
+        .push(at(
+            text(radio.wifi_status().into(), 16.0, MUTED),
+            24.0,
+            175.0,
+        ))
+        .push(at(
+            text(
+                if connected && radio.wifi_signal_level().is_some() {
+                    format!("信号：{} dBm", radio.wifi_rssi_dbm)
+                } else if connected {
+                    "信号：读取中".into()
+                } else {
+                    String::new()
+                },
+                16.0,
+                MUTED,
+            ),
+            24.0,
+            201.0,
+        ))
+        .push(at(
+            Box::new(
+                ElevatedButton::new(Text::new("Wi-Fi 设置").font_size(18.0).color(INK))
+                    .style(
+                        ButtonStyle::new()
+                            .size(width - 48.0, 48.0)
+                            .color(Color::from_hex(0x344252))
+                            .pressed_color(Color::from_hex(0x45586b))
+                            .border_radius(10.0),
+                    )
+                    .on_pressed(move || {
+                        let mut s = state.lock().unwrap();
+                        s.settings_view.section = SettingsSection::Wifi;
+                        s.settings_view.page = 0;
+                        s.settings_view.selected_ble = None;
+                        s.settings_view.confirm_forget = false;
+                        s.manual_time_open = false;
+                        s.open_app("settings");
+                    }),
+            ),
+            24.0,
+            232.0,
+        ))
+}
+
+fn with_wifi_panel(
+    state: Arc<Mutex<LauncherState>>,
+    root: Box<dyn Widget>,
+    size: Size,
+) -> Box<dyn Widget> {
+    let radio = state.lock().unwrap().radio;
+    let width = 376.0f32.min(size.width - 32.0);
+    let dismiss = state.clone();
+    Box::new(
+        Stack::new()
+            .push(root)
+            .push(
+                GestureDetector::new(
+                    Container::new()
+                        .width(size.width)
+                        .height(size.height)
+                        .color(Color::from_rgba(0, 0, 0, 40)),
+                )
+                .on_tap(move || {
+                    let mut s = dismiss.lock().unwrap();
+                    s.status_panel_open = false;
+                    s.changed();
+                }),
+            )
+            .push(
+                Positioned::new(
+                    GestureDetector::new(
+                        Container::new()
+                            .width(width)
+                            .height(308.0)
+                            .child(wifi_card(radio, state, width)),
+                    )
+                    .on_tap(|| {}),
+                )
+                .left(size.width - width - 24.0)
                 .top(STATUS_BAR_HEIGHT + 8.0),
             ),
     )

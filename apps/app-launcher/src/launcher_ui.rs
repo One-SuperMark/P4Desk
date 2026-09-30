@@ -14,7 +14,6 @@ use crate::pomodoro_ui::{build_timer_navigation, build_timer_ui, TIMER_BG};
 use crate::status_bar::{build_status_bar, STATUS_BAR_HEIGHT};
 use crate::timer_completion::TimerCompletionOverlay;
 use crate::widgets::{build_app_icon, make_dot, WallpaperPainter};
-use p4desk_protocol::Mode;
 use std::sync::{Arc, Mutex};
 use tiny_flutter::prelude::*;
 
@@ -185,7 +184,12 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
     };
     let w = size.width.max(1.0);
     let h = size.height.max(1.0);
-    let mut root: Box<dyn Widget> = if matches!(active, ActiveApp::Launcher) {
+    let mut root: Box<dyn Widget> = if matches!(active, ActiveApp::Settings) {
+        Box::new(crate::settings_ui::build_settings(
+            state.clone(),
+            Size::new(w, h),
+        ))
+    } else if matches!(active, ActiveApp::Launcher) {
         Box::new(build_desktop(state.clone(), Size::new(w, h)))
     } else {
         let title = match &active {
@@ -216,7 +220,7 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
                 Size::new(content_w, content_h),
             )),
             ActiveApp::MacControls => Box::new(mac_page(state.clone(), content_w)),
-            ActiveApp::Settings => Box::new(settings_page(state.clone(), content_w)),
+            ActiveApp::Settings => unreachable!(),
             ActiveApp::DisplaySetup => Box::new(display_setup_page(
                 state.clone(),
                 Size::new(content_w, content_h),
@@ -675,99 +679,7 @@ fn mac_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
     }
     p
 }
-fn settings_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
-    if state.lock().unwrap().manual_time_open {
-        return manual_time_page(state, w);
-    }
-    let (brightness, sd, valid, generation, connected) = {
-        let s = state.lock().unwrap();
-        (
-            s.settings.brightness,
-            s.sd_ready,
-            s.time_valid,
-            s.snapshot.generation,
-            s.connected,
-        )
-    };
-    let mut p = Stack::new()
-        .push(panel(w, 180.0))
-        .push(at(text("屏幕亮度", 28.0, INK), 24.0, 18.0))
-        .push(at(
-            text(format!("{brightness}%"), 36.0, MINT),
-            w - 145.0,
-            17.0,
-        ));
-    for (i, value) in [25u8, 50, 75, 100].into_iter().enumerate() {
-        let s = state.clone();
-        p = p.push(at(
-            button(
-                format!("{value}%"),
-                150.0,
-                54.0,
-                value == brightness,
-                move || edit(&s, |s| s.queue(UiCommand::Brightness(value))),
-            ),
-            24.0 + i as f32 * 169.0,
-            88.0,
-        ));
-    }
-    let s = state.clone();
-    p = p.push(at(
-        button("关闭屏幕", 220.0, 58.0, false, move || {
-            edit(&s, |s| s.queue(UiCommand::Screen(false)))
-        }),
-        0.0,
-        200.0,
-    ));
-    let s = state.clone();
-    p = p.push(at(
-        button("手动校时", 220.0, 58.0, false, move || {
-            edit(&s, |s| s.manual_time_open = true)
-        }),
-        236.0,
-        200.0,
-    ));
-    let s = state.clone();
-    p = p.push(at(
-        button("进入 USB 副屏", w, 68.0, true, move || {
-            edit(&s, |s| s.queue(UiCommand::RequestMode(Mode::Display)))
-        }),
-        0.0,
-        280.0,
-    ));
-    p = p
-        .push(at(
-            text("副屏中三指长按 1 秒可回到 Pad", 22.0, MUTED),
-            0.0,
-            364.0,
-        ))
-        .push(at(
-            text(
-                format!(
-                    "Mac：{}    校时：{}    TF：{}",
-                    if connected { "已连接" } else { "未连接" },
-                    if valid { "有效" } else { "等待" },
-                    if sd { "就绪" } else { "未挂载" }
-                ),
-                18.0,
-                MUTED,
-            ),
-            0.0,
-            411.0,
-        ))
-        .push(at(
-            text(
-                format!("资源代次：{generation}    轻触屏幕可唤醒    字体：HarmonyOS Sans"),
-                18.0,
-                MUTED,
-            ),
-            0.0,
-            448.0,
-        ));
-    p
-}
-
-fn manual_time_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
+pub(crate) fn manual_time_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
     let (values, timezone) = {
         let s = state.lock().unwrap();
         (s.manual_clock.values(), s.settings.timezone_minutes)

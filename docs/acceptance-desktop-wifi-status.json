@@ -1,0 +1,82 @@
+{
+  "schema": "p4desk.desktop-wifi-status.acceptance.v1",
+  "recorded_at": "2026-09-30T10:04:57.262851+08:00",
+  "request": "桌面首页 Wi-Fi 纯图标；未连接灰色，连接后按信号强度显示；不显示已连接文字；未达到的弧线灰色，最弱只有圆点绿色",
+  "source_state": "working tree on top of settings-wireless changes; not committed",
+  "implementation": {
+    "position": "Wi-Fi before USB, TF and battery; existing status positions retained",
+    "states": [
+      "disconnected/connecting/off/error: gray",
+      "connected: mint with RSSI arcs"
+    ],
+    "popup": "network name, IPv4 address, state, RSSI dBm, shortcut to Wi-Fi settings",
+    "update_ms": 250,
+    "desktop_refresh": "connection/level change only; exact RSSI while popup open; BLE-only or same-level noise does not trigger desktop repaint",
+    "signals": "current association from esp_wifi_sta_get_ap_info, C/Rust snapshot extended to 2456 bytes with RSSI and valid flag",
+    "wifi_bars": "full gray outline plus green dot and 0..3 active green arcs from live RSSI; each SVG path painted once",
+    "internet_reachability": "not probed",
+    "rssi_sampling_ms": 5000
+  },
+  "host_tests": {
+    "status": "passed",
+    "ui": 8,
+    "runtime": 19,
+    "logs": [
+      ".cache/wifi-status/ui-tests.log",
+      ".cache/wifi-status/runtime-tests.log"
+    ],
+    "checks": [
+      "popup hit regions and no click-through",
+      "direct route to Wi-Fi settings",
+      "Wi-Fi event redraw before clock tick",
+      "BLE-only event does not redraw desktop",
+      "RSSI level changes redraw desktop without clock tick",
+      "same-level RSSI noise does not redraw desktop",
+      "invalid RSSI clears stale level"
+    ]
+  },
+  "previews": {
+    "status": "visually checked",
+    "data": "synthetic fixtures through actual Rust UI",
+    "files": [
+      "docs/images/desktop-wifi-connected.png",
+      "docs/images/desktop-wifi-details.png"
+    ],
+    "long_ssid": "32 byte name elides inside card",
+    "visually_checked": [
+      "strong connected icon without text",
+      "weak connected icon",
+      "details card",
+      "long-name elision",
+      "weakest: green dot and three gray arcs",
+      "medium: two green arcs and gray outer arc"
+    ]
+  },
+  "build": {
+    "status": "passed",
+    "sdk": "ESP-IDF 6.0.2",
+    "firmware_bytes": 4310976,
+    "firmware_sha256": "f833a5571e51f4305213c3beffeb0e4df3db2d7a85c0b788670fa0db4683a511",
+    "log": ".cache/wifi-status/build.log",
+    "sha256_matches_artifact": true
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/wifi-status/flash.log",
+    "verification": "esptool Hash of data verified"
+  },
+  "hardware_acceptance": "boot and actual C6 RSSI read verified; desktop icon display and touch confirmed by user",
+  "hardware": {
+    "boot": "p4desk / ESP-IDF 6.0.2",
+    "tf": "mounted FAT32; read/write check passed",
+    "wifi_saved_reconnect": "associated after reboot without new credential entry; current AP info returned",
+    "rssi_sample_dbm": -54,
+    "rssi_source": "live esp_wifi_sta_get_ap_info",
+    "log": ".cache/wifi-status/monitor.log",
+    "visual_touch_acceptance": "passed: user confirmed 图标和点击都正常",
+    "user_confirmation": {
+      "response": "图标和点击都正常",
+      "scope": "桌面 Wi-Fi 图标显示与点击交互"
+    }
+  }
+}

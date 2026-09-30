@@ -54,6 +54,7 @@ impl Default for NotesView {
 }
 #[derive(Debug, Clone)]
 pub enum UiCommand {
+    Radio(crate::radio::RadioCommand),
     DeleteNote(String),
     Action(String),
     Media(u16),
@@ -78,11 +79,14 @@ pub struct LauncherState {
     pub app_launch: AppLaunchState,
     pub desktop_backdrop: DesktopBackdropCache,
     pub settings: LocalSettings,
+    pub radio: crate::radio::RadioSnapshot,
+    pub settings_view: crate::radio::SettingsView,
     pub usb_connected: bool,
     pub connected: bool,
     pub sd_ready: bool,
     pub battery: crate::battery::BatteryState,
     pub status_panel_open: bool,
+    pub status_panel_kind: crate::status_bar::StatusPanelKind,
     pub reset_reason: u32,
     pub time_valid: bool,
     pub mode: Mode,
@@ -122,11 +126,14 @@ impl LauncherState {
             app_launch: AppLaunchState::default(),
             desktop_backdrop: Arc::new(Mutex::new(None)),
             settings: LocalSettings::default(),
+            radio: crate::radio::RadioSnapshot::default(),
+            settings_view: crate::radio::SettingsView::default(),
             usb_connected: false,
             connected: false,
             sd_ready: false,
             battery: crate::battery::BatteryState::default(),
             status_panel_open: false,
+            status_panel_kind: crate::status_bar::StatusPanelKind::Device,
             reset_reason: 0,
             time_valid: false,
             mode: Mode::Pad,
@@ -180,6 +187,7 @@ impl LauncherState {
                 self.notice.clear();
             }
         }
+        self.settings_view.join = None;
         self.app_launch.cancel();
         self.display_request_pending = false;
         self.display_started_connected = false;
@@ -223,6 +231,7 @@ impl LauncherState {
                 self.notice.clear();
             }
         }
+        self.settings_view.join = None;
         self.app_launch.cancel();
         self.display_request_pending = false;
         self.display_started_connected = false;

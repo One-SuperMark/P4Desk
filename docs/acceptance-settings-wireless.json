@@ -1,0 +1,106 @@
+{
+  "schema": "p4desk.settings-wireless.acceptance.v1",
+  "recorded_at": "2026-09-30T09:55:50.408783+08:00",
+  "source_base_commit": "ad1e19a8bac080af9c101009af03c833d10d2586",
+  "source_state": "working tree; not committed or pushed",
+  "scope": "macOS 风格横屏设置；板载 C6 Wi-Fi 与手机／其他 BLE 设备连接",
+  "build": {
+    "status": "passed",
+    "sdk": "ESP-IDF 6.0.2",
+    "esp_hosted": "1.4.7",
+    "esp_wifi_remote": "1.2.5",
+    "firmware_bytes": 4296928,
+    "firmware_sha256": "38fe1b0920975b9c2329b5a06781af907a74fef5415aa634420e1c29878a9473",
+    "log": ".cache/settings-build.log",
+    "clean_config": "passed: fresh sdkconfig radio and console values match flashed config"
+  },
+  "host_tests": {
+    "status": "passed",
+    "command": "cargo test -p app-launcher -p rust_main",
+    "passed": 109,
+    "failed": 0,
+    "log": ".cache/settings-all-tests.log",
+    "settings_cases": [
+      "Wi-Fi/BLE toggles queue commands",
+      "password dialog hit regions, modal behavior, invalid/valid submission",
+      "Home/close lifecycle",
+      "password bound and redacted Debug",
+      "bounded radio snapshot data"
+    ],
+    "vector_icons": {
+      "check": "passed",
+      "icons": 41,
+      "bitmap_bytes_embedded": 0
+    }
+  },
+  "previews": {
+    "source": "same Rust UI with synthetic fixtures; not hardware screenshots",
+    "path": "artifacts/settings",
+    "visually_checked": [
+      "Wi-Fi",
+      "Wi-Fi password keyboard",
+      "Bluetooth",
+      "date/time"
+    ]
+  },
+  "flash": {
+    "status": "passed",
+    "verification": "esptool Hash of data verified",
+    "full_backup_verified": true,
+    "log": ".cache/settings-flash.log",
+    "c6_firmware_written": false
+  },
+  "hardware": {
+    "boot": {
+      "project": "p4desk",
+      "sdk": "v6.0.2",
+      "chip_revision": "3.2",
+      "console": "native USB Serial/JTAG diagnostic mirror"
+    },
+    "tf": {
+      "mounted": true,
+      "format": "FAT32",
+      "total_bytes": 63833325568,
+      "read_write_check": "passed before radio startup; post-start concurrent workload not yet tested"
+    },
+    "wifi": {
+      "transport_initialized": true,
+      "scan_networks": 8,
+      "join_dhcp": "passed: user confirmed 已连接，能看到 IP 地址",
+      "saved_reconnect": "pending hardware test",
+      "wrong_password": "pending hardware test"
+    },
+    "ble": {
+      "controller_synchronized": true,
+      "scan_devices": 16,
+      "max_list": 16,
+      "central_connect_services": "pending user test",
+      "phone_peripheral_connection": "pending user test",
+      "pairing_and_bonds": "pending hardware test",
+      "scan_user_confirmation": "能扫描，但暂时没有合适的设备测试"
+    },
+    "usb": "vendor/media HS enumerated at boot; display throughput not retested",
+    "log": ".cache/settings-monitor.log",
+    "uptime_30s": {
+      "mode": "pad",
+      "internal_free": 37307,
+      "internal_largest": 34816,
+      "psram_free": 19156852,
+      "bad_jpeg": 0,
+      "parser_errors": 0
+    },
+    "settings_ui": "user operated Wi-Fi and BLE lists; layout-specific full acceptance not separately recorded"
+  },
+  "pending": [
+    "Wi-Fi forget/reconnect/reboot",
+    "BLE central connection/service discovery and phone BLE client",
+    "BLE pairing/bond persistence",
+    "Wi-Fi/BLE concurrent load with TF and USB display"
+  ],
+  "limits": [
+    "2.4 GHz Wi-Fi, last successful network only",
+    "BLE GAP + primary-service discovery + read-only Device Information; no arbitrary characteristic control",
+    "Just Works pairing only",
+    "no classic Bluetooth audio or phone notification/file services"
+  ]
+}

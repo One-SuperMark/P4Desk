@@ -21,6 +21,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ("unknown", None, false, false, false, false),
         ("usb-wait", Some(3900), true, false, true, true),
         ("typec-charge", Some(4140), false, false, true, true),
+        ("wifi-connected", Some(4140), true, true, true, false),
+        ("wifi-connecting", Some(4140), true, true, true, false),
+        ("wifi-offline", Some(4140), true, true, true, false),
+        ("wifi-error", Some(4140), true, true, true, false),
+        ("wifi-details", Some(4140), true, true, true, true),
+        ("wifi-long-name", Some(4140), true, true, true, true),
+        ("wifi-medium", Some(4140), true, true, true, false),
+        ("wifi-weak", Some(4140), true, true, true, false),
+        ("wifi-very-weak", Some(4140), true, true, true, false),
     ] {
         let mut state = LauncherState::new();
         state.tick(123_000, 1_790_712_418_000);
@@ -36,6 +45,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ChargeState::Unknown
             },
         });
+        if name.starts_with("wifi-") {
+            state.radio.backend = 2;
+            state.radio.wifi_rssi_valid = 1;
+            state.radio.wifi_rssi_dbm = match name {
+                "wifi-medium" => -63,
+                "wifi-weak" => -74,
+                "wifi-very-weak" => -88,
+                _ => -42,
+            };
+            state.radio.wifi_on = 1;
+            state.radio.wifi_phase = match name {
+                "wifi-connecting" => 4,
+                "wifi-offline" | "wifi-error" => 2,
+                _ => 5,
+            };
+            if name == "wifi-error" {
+                state.radio.wifi_error = 4;
+            }
+            state.radio.ssid[..8].copy_from_slice(b"Home LAN");
+            state.radio.ip[..12].copy_from_slice(b"192.168.1.23");
+            if name == "wifi-long-name" {
+                state.radio.ssid[..32].fill(b'W');
+            }
+            state.status_panel_kind = app_launcher::status_bar::StatusPanelKind::Wifi;
+        }
         state.status_panel_open = panel;
         let state = Arc::new(Mutex::new(state));
         let size = Size::new(1024.0, 600.0);

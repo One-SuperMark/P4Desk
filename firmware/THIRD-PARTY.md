@@ -7,3 +7,6 @@
 - `components/fatfs` 是 ESP-IDF 6.0.2 的项目局部覆盖，保留 FatFs 与 Espressif 各文件原始许可证，仅启用 exFAT；详见该组件内的说明。
 - `components/lcd_frame_observer` 在构建目录生成固定 ESP-IDF 6.0.2 `esp_lcd_panel_dpi.c` 的项目扩展，保留原 Apache-2.0 头和来源 SHA256；增加 DMA 源缓冲观察与仅分配容量的 MCU 行填充，不修改全局 SDK。补丁生成器与本项目接口使用 MIT。
 - `components/jpeg_full_range` 在构建目录生成固定 ESP-IDF 6.0.2 `jpeg_decode.c` 的项目副本，保留原 Apache-2.0 头、basename 和来源 SHA256；仅为 JPEG BT.601 RGB 输出配置 JFIF 全范围转换矩阵，不修改全局 SDK，硬件颜色验证待完成。生成器、构建配置和项目测试使用 MIT。
+
+- 板载 ESP32-C6 通过 `espressif/esp_hosted 1.4.7` / `esp_wifi_remote 1.2.5` 接入，版本参考微雪 7B Wi-Fi 示例，Apache-2.0。`compat/esp_hosted_sdio.c` 保留上游声明，并适配 IDF 6.0.2 的共享控制器与错误返回；`compat/hosted_errors.cmake` 生成 API 副本保留版权头，使无线初始化失败可返回设置页。禁用 Hosted 的自动构造初始化，由无线任务在 TF 完成挂载后调用。
+- BLE 主机使用固定 ESP-IDF 中的 Apache NimBLE，Apache-2.0；板载 C6 运行控制器，通过 SDIO VHCI 通信。

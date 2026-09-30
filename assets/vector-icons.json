@@ -5,7 +5,7 @@
   "vertical_coverage_samples": 8,
   "bitmap_bytes_embedded": 0,
   "generated_file": "crates/tiny-flutter/src/graphics/svg_icons_generated.rs",
-  "generated_sha256": "157f5ef3421b05c3b55473d528a16b24fc02a3fd08f8a78debde85e27d9b3e2d",
+  "generated_sha256": "13a543f81e96e3c74f6f39993a6e6777aeca46dfa91212fe7af1d9368c64d3b2",
   "icons": [
     {
       "name": "DESKTOP_CALCULATOR",
@@ -104,6 +104,18 @@
       "layers": 3
     },
     {
+      "name": "UI_BLUETOOTH",
+      "source": "assets/ui_icons/source/bluetooth.svg",
+      "source_sha256": "b146e8b018e096e0a8e531e3b53f47e87e3b549c33e232828d323d12d51fab5a",
+      "layers": 1
+    },
+    {
+      "name": "UI_CALENDAR",
+      "source": "assets/ui_icons/source/calendar.svg",
+      "source_sha256": "af3100ec4e0203bf642819382e777018c4e1c3b4c1fcb9fbc4c63779109bfc10",
+      "layers": 2
+    },
+    {
       "name": "UI_CAPSLOCK",
       "source": "assets/ui_icons/source/capslock.svg",
       "source_sha256": "29d68302a6279bf80e4e9a57f80cb8c2107799546f6d18a3ad65e406ef97967c",
@@ -144,6 +156,18 @@
       "source": "assets/ui_icons/source/home.svg",
       "source_sha256": "280d7ac62fdaa96136e91a45a2edc9ad549cc4182deafc1bbf8792a7e1a4b8fc",
       "layers": 1
+    },
+    {
+      "name": "UI_INFO",
+      "source": "assets/ui_icons/source/info.svg",
+      "source_sha256": "d77d1a224c985ec7402a528e372a9970ca175a3b1af91ad1b4244f31b1df8bab",
+      "layers": 3
+    },
+    {
+      "name": "UI_LOCK",
+      "source": "assets/ui_icons/source/lock.svg",
+      "source_sha256": "f31d55bd7841e98af65c46625e46d87d17eb7f902639a5817af67f0eba3c8d03",
+      "layers": 2
     },
     {
       "name": "UI_PALETTE",

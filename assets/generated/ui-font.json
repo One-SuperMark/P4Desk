@@ -19,9 +19,9 @@
     34,
     36
   ],
-  "glyph_count": 3456,
+  "glyph_count": 4104,
   "text_path": "assets/generated/ui-text.txt",
-  "text_sha256": "16fb65db028a47de9766050d6e8cbfb96afb5047c2e5a0c38e8ab7099ae38ba3",
-  "bytes": 1694180,
-  "sha256": "b6f4dea2a0bbadd90a3cea0af662b761c878d3979901c7c32f0683f54b0d4d6f"
+  "text_sha256": "c64066e924039b188ed7fce3e875919aab41564ebf338ce910fb5c346027dae4",
+  "bytes": 2047230,
+  "sha256": "47fc9a412aa03ca010da43e5151672d58c7ab43aefa3a4face91190dac578bc7"
 }

@@ -137,7 +137,7 @@ fn tap(
 #[test]
 fn status_buttons_open_panel_outside_tap_only_dismisses_and_cache_stays_clean() {
     let size = Size::new(1024.0, 600.0);
-    for x in [806.0, 854.0, 942.0] {
+    for x in [758.0, 806.0, 854.0, 942.0] {
         let s = Arc::new(Mutex::new(LauncherState::new()));
         let mut app = App::new(build_launcher_ui(s.clone(), size), size);
         let mut backend = HeadlessBackend::new(1024, 600);
@@ -173,4 +173,21 @@ fn back_closes_status_card_and_mode_switch_cannot_leave_hidden_popup() {
     s.mode = p4desk_protocol::Mode::Display;
     s.tick(100, 0);
     assert!(!s.status_panel_open);
+}
+
+#[test]
+fn wifi_status_card_opens_wifi_settings_and_closes_overlay() {
+    let size = Size::new(1024.0, 600.0);
+    let s = Arc::new(Mutex::new(LauncherState::new()));
+    s.lock().unwrap().settings_view.section = app_launcher::radio::SettingsSection::Bluetooth;
+    let mut app = App::new(build_launcher_ui(s.clone(), size), size);
+    let mut backend = HeadlessBackend::new(1024, 600);
+    app.step(&mut backend);
+    tap(&s, &mut app, &mut backend, 758.0, 28.0);
+    assert!(s.lock().unwrap().status_panel_open);
+    tap(&s, &mut app, &mut backend, 810.0, 318.0);
+    let state = s.lock().unwrap();
+    assert!(!state.status_panel_open);
+    assert!(matches!(state.active_app, ActiveApp::Settings));
+    assert!(state.settings_view.section == app_launcher::radio::SettingsSection::Wifi);
 }

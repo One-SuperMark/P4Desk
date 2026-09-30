@@ -7,6 +7,7 @@
 #include "board_p4.h"
 #include "p4desk_hal.h"
 #include "p4desk_runtime.h"
+#include "p4desk_radio.h"
 #include "esp_check.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
@@ -124,6 +125,7 @@ void app_main(void)
     flash_mount();
     p4desk_runtime_init(&board);
     p4desk_usb_init();
+    p4desk_radio_init();
     ESP_LOGI(TAG, "Rust UI starting");
     rust_main_entry();
     ESP_LOGE(TAG, "Rust UI returned unexpectedly");

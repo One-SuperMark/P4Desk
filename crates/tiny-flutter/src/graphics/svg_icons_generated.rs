@@ -1137,6 +1137,70 @@ pub static UI_BATTERY_BOLT: VectorIcon = VectorIcon {
         },
     ],
 };
+pub static UI_BLUETOOTH: VectorIcon = VectorIcon {
+    width: 32.0,
+    height: 32.0,
+    layers: &[VectorLayer {
+        shape: VectorShape::Path(&[
+            VectorCommand::Move(16.0, 3.0),
+            VectorCommand::Line(24.0, 10.0),
+            VectorCommand::Line(8.0, 23.0),
+            VectorCommand::Move(16.0, 3.0),
+            VectorCommand::Line(16.0, 29.0),
+            VectorCommand::Line(24.0, 22.0),
+            VectorCommand::Line(8.0, 9.0),
+        ]),
+        fill: None,
+        stroke: Some(VectorPaint::Tint(1.0)),
+        stroke_width: 2.4,
+        line_cap: LineCap::Round,
+        line_join: LineJoin::Round,
+        fill_rule: FillRule::Winding,
+    }],
+};
+pub static UI_CALENDAR: VectorIcon = VectorIcon {
+    width: 32.0,
+    height: 32.0,
+    layers: &[
+        VectorLayer {
+            shape: VectorShape::Rect {
+                x: 5.0,
+                y: 6.0,
+                width: 22.0,
+                height: 23.0,
+                radius: 4.0,
+            },
+            fill: None,
+            stroke: Some(VectorPaint::Tint(1.0)),
+            stroke_width: 2.0,
+            line_cap: LineCap::Butt,
+            line_join: LineJoin::Miter,
+            fill_rule: FillRule::Winding,
+        },
+        VectorLayer {
+            shape: VectorShape::Path(&[
+                VectorCommand::Move(5.0, 13.0),
+                VectorCommand::Line(27.0, 13.0),
+                VectorCommand::Move(11.0, 3.0),
+                VectorCommand::Line(11.0, 9.0),
+                VectorCommand::Move(21.0, 3.0),
+                VectorCommand::Line(21.0, 9.0),
+                VectorCommand::Move(11.0, 19.0),
+                VectorCommand::Line(14.0, 19.0),
+                VectorCommand::Move(19.0, 19.0),
+                VectorCommand::Line(22.0, 19.0),
+                VectorCommand::Move(11.0, 24.0),
+                VectorCommand::Line(14.0, 24.0),
+            ]),
+            fill: None,
+            stroke: Some(VectorPaint::Tint(1.0)),
+            stroke_width: 2.0,
+            line_cap: LineCap::Round,
+            line_join: LineJoin::Miter,
+            fill_rule: FillRule::Winding,
+        },
+    ],
+};
 pub static UI_CAPSLOCK: VectorIcon = VectorIcon {
     width: 32.0,
     height: 32.0,
@@ -1356,6 +1420,85 @@ pub static UI_HOME: VectorIcon = VectorIcon {
         line_join: LineJoin::Round,
         fill_rule: FillRule::Winding,
     }],
+};
+pub static UI_INFO: VectorIcon = VectorIcon {
+    width: 32.0,
+    height: 32.0,
+    layers: &[
+        VectorLayer {
+            shape: VectorShape::Circle {
+                x: 16.0,
+                y: 16.0,
+                radius: 12.0,
+            },
+            fill: None,
+            stroke: Some(VectorPaint::Tint(1.0)),
+            stroke_width: 2.2,
+            line_cap: LineCap::Butt,
+            line_join: LineJoin::Miter,
+            fill_rule: FillRule::Winding,
+        },
+        VectorLayer {
+            shape: VectorShape::Circle {
+                x: 16.0,
+                y: 10.0,
+                radius: 1.6,
+            },
+            fill: Some(VectorPaint::Tint(1.0)),
+            stroke: None,
+            stroke_width: 1.0,
+            line_cap: LineCap::Butt,
+            line_join: LineJoin::Miter,
+            fill_rule: FillRule::Winding,
+        },
+        VectorLayer {
+            shape: VectorShape::Path(&[
+                VectorCommand::Move(16.0, 15.0),
+                VectorCommand::Line(16.0, 23.0),
+            ]),
+            fill: None,
+            stroke: Some(VectorPaint::Tint(1.0)),
+            stroke_width: 2.6,
+            line_cap: LineCap::Round,
+            line_join: LineJoin::Miter,
+            fill_rule: FillRule::Winding,
+        },
+    ],
+};
+pub static UI_LOCK: VectorIcon = VectorIcon {
+    width: 32.0,
+    height: 32.0,
+    layers: &[
+        VectorLayer {
+            shape: VectorShape::Rect {
+                x: 8.0,
+                y: 14.0,
+                width: 16.0,
+                height: 14.0,
+                radius: 3.0,
+            },
+            fill: Some(VectorPaint::Tint(1.0)),
+            stroke: None,
+            stroke_width: 1.0,
+            line_cap: LineCap::Butt,
+            line_join: LineJoin::Miter,
+            fill_rule: FillRule::Winding,
+        },
+        VectorLayer {
+            shape: VectorShape::Path(&[
+                VectorCommand::Move(11.0, 14.0),
+                VectorCommand::Line(11.0, 10.0),
+                VectorCommand::Cubic(11.0, 3.0, 21.0, 3.0, 21.0, 10.0),
+                VectorCommand::Line(21.0, 14.0),
+            ]),
+            fill: None,
+            stroke: Some(VectorPaint::Tint(1.0)),
+            stroke_width: 2.4,
+            line_cap: LineCap::Round,
+            line_join: LineJoin::Miter,
+            fill_rule: FillRule::Winding,
+        },
+    ],
 };
 pub static UI_PALETTE: VectorIcon = VectorIcon {
     width: 32.0,
@@ -1946,6 +2089,8 @@ pub static ALL_VECTOR_ICONS: &[(&str, &VectorIcon)] = &[
     ("UI_BATTERY_50", &UI_BATTERY_50),
     ("UI_BATTERY_75", &UI_BATTERY_75),
     ("UI_BATTERY_BOLT", &UI_BATTERY_BOLT),
+    ("UI_BLUETOOTH", &UI_BLUETOOTH),
+    ("UI_CALENDAR", &UI_CALENDAR),
     ("UI_CAPSLOCK", &UI_CAPSLOCK),
     ("UI_CHECK_CIRCLE", &UI_CHECK_CIRCLE),
     ("UI_CLOSE", &UI_CLOSE),
@@ -1953,6 +2098,8 @@ pub static ALL_VECTOR_ICONS: &[(&str, &VectorIcon)] = &[
     ("UI_FORWARD_FILL", &UI_FORWARD_FILL),
     ("UI_HELLO", &UI_HELLO),
     ("UI_HOME", &UI_HOME),
+    ("UI_INFO", &UI_INFO),
+    ("UI_LOCK", &UI_LOCK),
     ("UI_PALETTE", &UI_PALETTE),
     ("UI_PAUSE_CIRCLE", &UI_PAUSE_CIRCLE),
     ("UI_PLAY_CIRCLE", &UI_PLAY_CIRCLE),

@@ -49,6 +49,8 @@ const _: () = {
 };
 
 extern "C" {
+    fn p4desk_radio_snapshot(out: *mut app_launcher::radio::RadioSnapshot, last: u32) -> bool;
+    fn p4desk_radio_submit(op: u32, id: u32, data: *const u8, length: usize) -> bool;
     fn host_lcd_draw_bitmap(x1: i32, y1: i32, x2: i32, y2: i32, pixels: *const u16);
     fn p4desk_poll_pad_touch(event: *mut CPadTouchEvent) -> bool;
     fn host_lcd_set_power(on: bool);
@@ -91,6 +93,14 @@ extern "C" {
 }
 pub struct EspHal;
 impl Hal for EspHal {
+    fn radio_snapshot(&self, revision: u32) -> Option<app_launcher::radio::RadioSnapshot> {
+        let mut out = app_launcher::radio::RadioSnapshot::default();
+        unsafe { p4desk_radio_snapshot(&mut out, revision) }.then_some(out)
+    }
+    fn radio_command(&mut self, c: &app_launcher::radio::RadioCommand) -> bool {
+        let (op, id, data) = c.parts();
+        unsafe { p4desk_radio_submit(op, id, data.as_ptr(), data.len()) }
+    }
     fn connected(&self) -> bool {
         unsafe { p4desk_usb_connected() }
     }

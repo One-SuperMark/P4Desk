@@ -6,6 +6,7 @@
 | 7B GPIO、DSI 供电、EK79007 时序、SDMMC 引脚初始化 | 微雪 BSP 3.0.1，提取到 `firmware/components/board_p4` | Apache-2.0，原 SPDX 与 `Espressif-Apache-2.0.txt` |
 | EK79007 驱动 | espressif/esp_lcd_ek79007 2.0.2~1 | Apache-2.0，`EK79007-Apache-2.0.txt` |
 | GT911 与触摸接口 | espressif/esp_lcd_touch_gt911 1.2.1、esp_lcd_touch 1.2.1 | Apache-2.0，各 `*-Apache-2.0.txt` |
+| ESP-Hosted SDIO Wi-Fi / BLE、Wi-Fi Remote | espressif/esp_hosted 1.4.7、esp_wifi_remote 1.2.5，按微雪 Wi-Fi 示例锁定 | Apache-2.0，组件原许可证与 `third_party/licenses/Espressif-Apache-2.0.txt`；局部兼容副本见 `firmware/compat` |
 | TinyUSB | espressif/tinyusb 0.21.0~2 | MIT，`TinyUSB-MIT.txt` |
 | FatFs 局部 exFAT 覆盖 | ESP-IDF 6.0.2 的 components/fatfs | 各源文件的 FatFs／Espressif 声明；说明在 `P4DESK-OVERRIDE.md` |
 | Rust CMake 混合构建 | esp-rs/esp-idf-template CMake 模板 | 生成模板 MIT-0，来源在 `firmware/THIRD-PARTY.md` |
