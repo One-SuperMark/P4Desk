@@ -18,6 +18,14 @@
 #include "driver/usb_serial_jtag.h"
 
 static const char *TAG = "p4desk";
+
+void p4desk_log_diagnostic(const uint8_t *data, size_t length)
+{
+    if (!data || !length) return;
+    if (length > 512) length = 512;
+    ESP_LOGI("p4desk_rust", "%.*s", (int)length, (const char *)data);
+}
+
 _Static_assert(ESP_RST_POWERON == 1 && ESP_RST_BROWNOUT == 9 && ESP_RST_USB == 11 &&
                ESP_RST_PWR_GLITCH == 14 && ESP_RST_CPU_LOCKUP == 15, "reset-reason HAL ABI");
 
@@ -121,6 +129,8 @@ void app_main(void)
     static board_p4_t board;
     ESP_LOGI(TAG, "P4Desk starting, protocol v1");
     ESP_LOGI(TAG, "boot reset_reason=%" PRIu32, p4desk_reset_reason());
+    ESP_LOGI(TAG, "diagnostic route=esp_log stdout_fd=%d stderr_fd=%d native_usb_host=%u",
+             fileno(stdout), fileno(stderr), (unsigned)p4desk_typec_host_connected());
     ESP_ERROR_CHECK(board_p4_init(&board));
     flash_mount();
     p4desk_runtime_init(&board);

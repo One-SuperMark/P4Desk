@@ -1,0 +1,169 @@
+{
+  "schema": "p4desk.acceptance.reboot-stdout.v1",
+  "date": "2026-09-30",
+  "base_commit": "5543711",
+  "reported_setup": "Mac only; repeated screen flashing and reboot",
+  "device_before_fix": {
+    "status": "reproduced",
+    "log": ".cache/reboot-diagnosis/passive-monitor.log",
+    "observation_seconds": 50,
+    "reset_requested": false,
+    "idf_version": "6.0.2",
+    "app_compile_time": "Sep 30 2026 13:51:31",
+    "elf_sha256_prefix": "2e155e270",
+    "panic_count": 19,
+    "panic_interval_median_seconds": 2.545,
+    "panic_message": "failed printing to stdout: No such file or directory (os error 2)",
+    "software_reset_count": 19,
+    "app_reported_panic_reset_count": 18,
+    "initial_reset_reason": "POWERON",
+    "psram_self_test": "passed before panic",
+    "tf_read_write": "passed before each panic",
+    "settings_read_write": "passed before each panic",
+    "stack_symbolication": "unavailable: matching ELF not present"
+  },
+  "source_fix": {
+    "runtime_println_calls_replaced": 10,
+    "policy": "Firmware diagnostics use the existing ESP-IDF C log route with a 512-byte UTF-8-safe stack buffer; host output IO errors are ignored",
+    "underlying_stdout_error": "Confirmed by pinned SDK and Rust source plus device stdout_fd=3, stderr_fd=3, native_usb_host=0: Rust fixed fd 1 addressed disconnected secondary native USB; IDF 6.0.2 returned -1 without setting errno. Firmware diagnostics now use C ESP_LOGI through its actual stdio stream.",
+    "storage_changes": false,
+    "firmware_logging_backend": "p4desk_log_diagnostic -> ESP_LOGI",
+    "maximum_line_bytes": 512
+  },
+  "tests": {
+    "status": "passed",
+    "rust_toolchain": "nightly-2026-09-27 (75a75c3e0 2026-09-26)",
+    "host_target": "aarch64-apple-darwin",
+    "runtime_command": "cargo test --locked -p rust_main --lib",
+    "runtime_passed": 35,
+    "runtime_log": ".cache/reboot-diagnosis/rust-tests-final.log",
+    "panic_abort_command": "rustc --edition 2021 --test -C panic=abort -Z panic-abort-tests firmware/components/rust_main/src/diagnostics.rs -o .cache/reboot-diagnosis/diagnostics-tests",
+    "panic_abort_passed": 6,
+    "panic_abort_log": ".cache/reboot-diagnosis/diagnostics-tests-final.log",
+    "coverage": [
+      "ENOENT=2 (captured device error)",
+      "EIO=5",
+      "EBADF=9",
+      "WriteZero on full buffer",
+      "successful formatting and newline",
+      "existing runtime and persistence regressions",
+      "firmware fixed-capacity formatting",
+      "UTF-8 truncation boundaries",
+      "exact 512-byte capacity"
+    ],
+    "diff_check": "passed",
+    "firmware_target_compiled": true
+  },
+  "build": {
+    "status": "passed",
+    "sdk_path": "/Users/yanglinghui/esp/esp-idf-v6.0.2",
+    "sdk_commit": "7101770dc6db2667b3c477cc31365dd1acd6db4e",
+    "sdk_version": "v6.0.2",
+    "log": ".cache/reboot-diagnosis/build.log",
+    "build_dir": ".cache/reboot-diagnosis/build",
+    "idf_version": "v6.0.2",
+    "images": [
+      {
+        "offset": "0x2000",
+        "file": "bootloader/bootloader.bin",
+        "bytes": 23888,
+        "sha256": "eca099ba3ac53d8fc73f3f8bd3b5121e96eb0993bf7bf287ca6c4a6e1a6c1e30"
+      },
+      {
+        "offset": "0x8000",
+        "file": "partition_table/partition-table.bin",
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      {
+        "offset": "0x10000",
+        "file": "p4desk.bin",
+        "bytes": 5431232,
+        "sha256": "37250240cca04b9fa67be6afb0e79a254c1f2960bc885aef1963078235800e9b"
+      }
+    ],
+    "elf_sha256": "b122030b691b2de6eda3d9a459fed80f6d691990e0acdd20edc0d9da3221f9e3",
+    "partition_table_matches_device_backup": true,
+    "flash_ranges_preserve_nvs_and_storage": true,
+    "image_info_log": ".cache/reboot-diagnosis/image-info.log"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/reboot-diagnosis/flash.log",
+    "baud": 230400,
+    "verified_images": 3,
+    "hard_reset": true,
+    "full_backup_sha256_rechecked": true
+  },
+  "device_after_fix": {
+    "status": "boot_and_runtime_verified_user_display_confirmed",
+    "log": ".cache/reboot-diagnosis/monitor-fixed.log",
+    "expected_elf_sha256_prefix": "b122030b6",
+    "diagnostic_route": "esp_log",
+    "c_stdout_fd": 3,
+    "c_stderr_fd": 3,
+    "native_usb_host_connected": false,
+    "session_restore": "ok",
+    "writer": "ready",
+    "observation_seconds": 158.0,
+    "requested_observation_seconds": 180,
+    "last_log_elapsed_seconds": 152.88,
+    "boot_count": 1,
+    "panic_abort_or_watchdog_observed": false,
+    "spontaneous_reboot_observed": false,
+    "restored_app_count": 2,
+    "restored_recent_count": 4,
+    "restored_clock": true,
+    "restored_timer": "paused",
+    "successful_saves": 5,
+    "save_elapsed_ms": [
+      141,
+      95,
+      154,
+      131,
+      133
+    ],
+    "writer_stack_min_free_bytes": 1888,
+    "tf_read_write": "passed",
+    "settings_read_write": "passed",
+    "wifi_time_sync": "succeeded",
+    "last_health": {
+      "uptime_s": 150,
+      "mode": "pad",
+      "internal_free": 29999,
+      "internal_largest": 24576,
+      "psram_free": 10590528,
+      "psram_largest": 6553600,
+      "presented": 445,
+      "bad_jpeg": 0,
+      "parser_errors": 0,
+      "control_queue": 0,
+      "jpeg_received": 0,
+      "jpeg_dropped": 0,
+      "frame_ack_dropped": 0
+    },
+    "end_reason": "User intentionally unplugged or changed USB connection and confirmed display remained normal",
+    "full_180_second_observation_completed": false
+  },
+  "backup": {
+    "model": "ESP32-P4-WIFI6-Touch-LCD-7B",
+    "bytes": 33554432,
+    "sha256": "d948d627cc33179e97ecd0707f8d6bc7c867ab47fdd2a617cd950045e299d9f5",
+    "elapsed_seconds": 810.27,
+    "status": "device_md5_and_file_sha256_verified",
+    "baud": 230400,
+    "read_window_frames": 1,
+    "erased_chunks_verified_by_device_md5": 13,
+    "file": "backups/reboot-20260930/p4-before-stdout-fix.bin",
+    "nvs_file": "backups/reboot-20260930/p4-before-stdout-fix-nvs.bin",
+    "log": ".cache/reboot-diagnosis/backup-windowed.log",
+    "all_32_chunks_reverified_locally": true
+  },
+  "user_acceptance": {
+    "stable_display": "passed",
+    "usb_disconnect_cause": "user_intentionally_unplugged_or_changed_interface",
+    "confirmation": "刚拔线或换接口，界面正常",
+    "touch": "not_explicitly_confirmed",
+    "cold_power_cycle_and_power_handover": "not_part_of_this_acceptance"
+  }
+}

@@ -96,31 +96,31 @@ impl<H: Hal> DeviceRuntime<H> {
             Ok(Some(session)) => {
                 session.restore(&mut state);
                 recovered_clock = session.unix_ms.map(|ms| (ms, hal.monotonic_ms()));
-                println!(
+                crate::diagnostics::diagnostic!(
                     "p4desk_session: restore=ok apps={} recent={} clock={} timer=paused",
                     session.background.len() + usize::from(session.foreground.is_some()),
                     session.recent.len(),
                     session.unix_ms.is_some()
                 );
             }
-            Ok(None) => println!("p4desk_session: restore=empty"),
+            Ok(None) => crate::diagnostics::diagnostic!("p4desk_session: restore=empty"),
             Err(_) => {
                 state.persistence_status = app_launcher::session::PersistenceStatus::Failed;
                 state.notice = "应用状态恢复失败，请检查存储".into();
-                println!("p4desk_session: restore=failed");
+                crate::diagnostics::diagnostic!("p4desk_session: restore=failed");
             }
         }
         let session_writer = match crate::persistence::SessionWriter::new(session_store) {
             Ok(writer) => Some(writer),
             Err(error) => {
-                println!("p4desk_session: thread_start_error={error}");
+                crate::diagnostics::diagnostic!("p4desk_session: thread_start_error={error}");
                 None
             }
         };
         if session_writer.is_none() {
             state.persistence_status = app_launcher::session::PersistenceStatus::Failed;
         }
-        println!(
+        crate::diagnostics::diagnostic!(
             "p4desk_session: writer={}",
             if session_writer.is_some() {
                 "ready"

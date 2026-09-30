@@ -36,7 +36,7 @@ impl SessionWriter {
                 esp_idf_sys::MALLOC_CAP_INTERNAL | esp_idf_sys::MALLOC_CAP_8BIT;
             let error = esp_idf_sys::esp_pthread_set_cfg(&config);
             if error != 0 {
-                println!("p4desk_session: thread_config_error={error}");
+                crate::diagnostics::diagnostic!("p4desk_session: thread_config_error={error}");
                 return Err(std::io::Error::other("checkpoint thread config"));
             }
             previous
@@ -58,7 +58,7 @@ impl SessionWriter {
                     #[cfg(not(target_os = "espidf"))]
                     let stack_free = 0;
                     // Counts and outcome only; never log persisted inputs or contents.
-                    println!(
+                    crate::diagnostics::diagnostic!(
                         "p4desk_session: save={} apps={} recent={} clock={} elapsed_ms={} stack_free={}",
                         if ok { "ok" } else { "failed" },
                         session.background.len() + usize::from(session.foreground.is_some()),

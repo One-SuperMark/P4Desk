@@ -370,16 +370,16 @@ pub extern "C" fn rust_main_entry() {
             let m = app.take_frame_metrics();
             if m.frames > 0 {
                 let (entries, bytes, hits, misses) = tiny_flutter::vector_cache_stats();
-                println!("p4desk_ui_perf: frames={} draw_avg_us={} output_avg_us={} draw_max_us={} total_max_us={} render_cache_entries={} render_cache_bytes={} cache_hits={} cache_misses={}",
+                crate::diagnostics::diagnostic!("p4desk_ui_perf: frames={} draw_avg_us={} output_avg_us={} draw_max_us={} total_max_us={} render_cache_entries={} render_cache_bytes={} cache_hits={} cache_misses={}",
                     m.frames, m.draw_us / m.frames, m.output_us / m.frames,
                     m.max_draw_us, m.max_total_us, entries, bytes, hits, misses);
                 if m.drag_frames > 0 {
-                    println!("p4desk_drag_perf: frames={} draw_avg_us={} output_avg_us={} total_max_us={} opaque_frames={}",
+                    crate::diagnostics::diagnostic!("p4desk_drag_perf: frames={} draw_avg_us={} output_avg_us={} total_max_us={} opaque_frames={}",
                         m.drag_frames, m.drag_draw_us / m.drag_frames, m.drag_output_us / m.drag_frames, m.drag_max_us, m.opaque_frames);
                 }
                 let s = tiny_flutter::widgets::take_scroll_metrics();
                 if s.paints > 0 {
-                    println!("p4desk_scroll_perf: builds={} build_us={} paints={} blit_avg_us={} blit_max_us={}",
+                    crate::diagnostics::diagnostic!("p4desk_scroll_perf: builds={} build_us={} paints={} blit_avg_us={} blit_max_us={}",
                         s.builds, s.build_us, s.paints, s.blit_us/s.paints, s.blit_max_us);
                 }
             }
