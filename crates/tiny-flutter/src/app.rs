@@ -8,6 +8,21 @@ use crate::rendering::render_box::{RenderBox, TouchEvent};
 use crate::tiny_gfx::Pixmap565;
 use crate::widgets::widget::Widget;
 
+/// Aggregate timings only: no framebuffer content or input coordinates.
+#[derive(Default)]
+pub struct FrameMetrics {
+    pub frames: u64,
+    pub draw_us: u64,
+    pub output_us: u64,
+    pub max_draw_us: u64,
+    pub max_total_us: u64,
+    pub drag_frames: u64,
+    pub drag_draw_us: u64,
+    pub drag_output_us: u64,
+    pub drag_max_us: u64,
+    pub opaque_frames: u64,
+}
+
 /// Main application runner and state orchestrator for tiny-flutter.
 pub struct App {
     root: Box<dyn RenderBox>,
@@ -19,6 +34,8 @@ pub struct App {
     pub screen_on: bool,
     touch_down: Option<Point>,
     rebuild_requested: bool,
+    frame_metrics: FrameMetrics,
+    drag_frame: bool,
 }
 
 impl App {
@@ -42,6 +59,8 @@ impl App {
             screen_on: true,
             touch_down: None,
             rebuild_requested: false,
+            frame_metrics: FrameMetrics::default(),
+            drag_frame: false,
         }
     }
 
@@ -80,6 +99,10 @@ impl App {
 
     pub fn framebuffer(&self) -> &[u16] {
         self.pixmap.data()
+    }
+
+    pub fn take_frame_metrics(&mut self) -> FrameMetrics {
+        std::mem::take(&mut self.frame_metrics)
     }
 
     /// Re-mount or update the root widget hierarchy.
@@ -175,10 +198,12 @@ impl App {
         mut builder: impl ResponsiveBuilder<M, Output = W>,
     ) {
         let mut needs_rebuild = std::mem::take(&mut self.rebuild_requested);
+        self.drag_frame = false;
         #[cfg(feature = "profile")]
         let mut event_count = 0;
 
         while let Some(event) = backend.poll_touch() {
+            self.drag_frame = matches!(event, TouchEvent::Move(_));
             #[cfg(feature = "profile")]
             {
                 event_count += 1;
@@ -209,6 +234,9 @@ impl App {
                     log::debug!("[App-Event] Down at ({:.1}, {:.1})", p.x, p.y);
                     if self.root.dispatch_touch(&event) {
                         if let Some(hit_r) = self.root.hit_rect(p) {
+                            if hit_r.width <= 0.0 || hit_r.height <= 0.0 {
+                                continue;
+                            }
                             let x1 = ((hit_r.x - 2.0).max(0.0) as u32 / 2 * 2) as f32;
                             let y1 = ((hit_r.y - 2.0).max(0.0) as u32 / 2 * 2) as f32;
                             let x2 = (((hit_r.right() + 2.0).min(self.size.width) as u32 + 1) / 2
@@ -247,7 +275,12 @@ impl App {
                     }
                     log::debug!("[App-Event] Move at ({:.1}, {:.1})", p.x, p.y);
                     if self.root.dispatch_touch(&event) {
-                        if let Some(hit_r) = self.root.hit_rect(p) {
+                        if let Some(r) = self.root.drag_dirty() {
+                            self.dirty.mark_dirty(r);
+                        } else if let Some(hit_r) = self.root.hit_rect(p) {
+                            if hit_r.width <= 0.0 || hit_r.height <= 0.0 {
+                                continue;
+                            }
                             let x1 = ((hit_r.x - 2.0).max(0.0) as u32 / 2 * 2) as f32;
                             let y1 = ((hit_r.y - 2.0).max(0.0) as u32 / 2 * 2) as f32;
                             let x2 = (((hit_r.right() + 2.0).min(self.size.width) as u32 + 1) / 2
@@ -296,11 +329,23 @@ impl App {
             return;
         }
 
+        // Advance before deciding to defer: the final frame must rebuild and
+        // refresh page indicators / launch backdrop even if a new tap follows.
+        if let Some(rect) = self.root.animation_dirty() {
+            self.dirty.mark_dirty(rect);
+            self.root.layout(&BoxConstraints::tight(self.size));
+        }
+        let animation_dirty = self.root.animation_dirty();
+        if let Some(rect) = animation_dirty {
+            self.dirty.mark_dirty(rect);
+        }
         if needs_rebuild || self.root.needs_rebuild() {
             #[cfg(feature = "profile")]
             let t0 = std::time::Instant::now();
 
-            if self.touch_down.is_none() {
+            // Retain the drag tree through settling. Deferred clock/status/page
+            // revisions are applied once the local animation has reached rest.
+            if self.touch_down.is_none() && animation_dirty.is_none() {
                 self.set_root(builder.build(self.size));
                 self.dirty.mark_all_dirty(self.size);
             } else {
@@ -397,6 +442,7 @@ impl App {
         };
 
         if let Some(rect) = dirty_rect {
+            let measured_start = std::time::Instant::now();
             #[cfg(feature = "profile")]
             let t_start = std::time::Instant::now();
 
@@ -406,14 +452,20 @@ impl App {
             #[cfg(feature = "profile")]
             let t_layout = std::time::Instant::now();
 
-            {
+            let opaque_repainted = {
                 let mut canvas = Canvas::new(self.pixmap.as_mut());
                 canvas.save();
                 canvas.clip_rect(rect);
-                canvas.clear(Color::BLACK);
-                self.root.paint(&mut canvas, Offset::ZERO);
+                let replaced = self
+                    .root
+                    .paint_opaque_region(&mut canvas, Offset::ZERO, rect);
+                if !replaced {
+                    canvas.clear(Color::BLACK);
+                    self.root.paint(&mut canvas, Offset::ZERO);
+                }
                 canvas.restore();
-            }
+                replaced
+            };
 
             #[cfg(feature = "profile")]
             let t_paint = std::time::Instant::now();
@@ -424,23 +476,8 @@ impl App {
                 rect.width,
                 rect.height,
             ));
+            let measured_draw_us = measured_start.elapsed().as_micros() as u64;
             let count = (x2 - x1) as usize * (y2 - y1) as usize;
-            // Whole-width rows are already tightly packed. The synchronous
-            // backend may borrow them directly; cropped columns still pack.
-            let pixels = if x1 == 0 && x2 == self.pixmap.width() as i32 {
-                let stride = self.pixmap.width() as usize;
-                &self.pixmap.data()[y1 as usize * stride..y2 as usize * stride]
-            } else {
-                if self.scratch_rgb565.len() < count {
-                    self.scratch_rgb565.resize(count, 0);
-                }
-                extract_rect_to_rgb565(&self.pixmap, rect, &mut self.scratch_rgb565);
-                &self.scratch_rgb565[..count]
-            };
-
-            #[cfg(feature = "profile")]
-            let t_extract = std::time::Instant::now();
-
             log::trace!(
                 "[Render-Dirty] rect: {:?}, extract: ({},{})-({},{}) count: {}",
                 rect,
@@ -453,9 +490,42 @@ impl App {
 
             if count > 0 {
                 let actual_flush_rect = Rect::from_ltrb(x1 as f32, y1 as f32, x2 as f32, y2 as f32);
+                let stride = self.pixmap.width() as usize;
+                let first = y1 as usize * stride + x1 as usize;
+                let end = (y2 as usize - 1) * stride + x2 as usize;
                 backend.begin_frame();
-                backend.flush(actual_flush_rect, pixels);
+                if !backend.flush_strided(
+                    actual_flush_rect,
+                    &self.pixmap.data()[first..end],
+                    stride,
+                ) {
+                    let pixels = if x1 == 0 && x2 == self.pixmap.width() as i32 {
+                        &self.pixmap.data()[first..end]
+                    } else {
+                        if self.scratch_rgb565.len() < count {
+                            self.scratch_rgb565.resize(count, 0);
+                        }
+                        extract_rect_to_rgb565(&self.pixmap, rect, &mut self.scratch_rgb565);
+                        &self.scratch_rgb565[..count]
+                    };
+                    backend.flush(actual_flush_rect, pixels);
+                }
                 backend.end_frame();
+            }
+
+            let measured_total_us = measured_start.elapsed().as_micros() as u64;
+            let m = &mut self.frame_metrics;
+            m.frames += 1;
+            m.draw_us += measured_draw_us;
+            m.output_us += measured_total_us.saturating_sub(measured_draw_us);
+            m.max_draw_us = m.max_draw_us.max(measured_draw_us);
+            m.max_total_us = m.max_total_us.max(measured_total_us);
+            m.opaque_frames += u64::from(opaque_repainted);
+            if self.drag_frame {
+                m.drag_frames += 1;
+                m.drag_draw_us += measured_draw_us;
+                m.drag_output_us += measured_total_us.saturating_sub(measured_draw_us);
+                m.drag_max_us = m.drag_max_us.max(measured_total_us);
             }
 
             #[cfg(feature = "profile")]
@@ -463,11 +533,10 @@ impl App {
 
             #[cfg(feature = "profile")]
             log::info!(
-                "[App-Render] layout: {:?}, paint: {:?}, extract: {:?}, flush: {:?}",
+                "[App-Render] layout: {:?}, paint: {:?}, output: {:?}",
                 t_layout.duration_since(t_start),
                 t_paint.duration_since(t_layout),
-                t_extract.duration_since(t_paint),
-                t_flush.duration_since(t_extract)
+                t_flush.duration_since(t_paint)
             );
         }
     }

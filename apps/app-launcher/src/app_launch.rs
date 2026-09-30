@@ -2,6 +2,7 @@
 //! Reuses a normal desktop RGB565 backdrop during expansion, released on exit.
 use crate::app_icons::get_app_icon_asset;
 use crate::launcher_state::LauncherState;
+use crate::live_clock_icon::{paint_app_icon, ClockTime};
 use p4desk_protocol::Mode;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -26,6 +27,7 @@ pub struct AppLaunchFrame {
     pub id: &'static str,
     pub source: Rect,
     pub elapsed_ms: u64,
+    pub clock: Option<ClockTime>,
 }
 
 #[derive(Default)]
@@ -38,6 +40,8 @@ pub struct AppLaunchState {
     // not release onto an app control (for example the timer's Start button).
     touch_owned: bool,
     display_hold: bool,
+    desktop_dock: Option<Vec<String>>,
+    desktop_clock: Option<ClockTime>,
 }
 impl AppLaunchState {
     pub fn start(&mut self, id: &'static str, source: Rect, now_ms: u64) {
@@ -46,6 +50,17 @@ impl AppLaunchState {
         self.started_ms = Some(now_ms);
         self.last_frame = None;
         self.display_hold = false;
+        self.desktop_dock = None;
+        self.desktop_clock = None;
+    }
+    pub(crate) fn set_desktop_dock(&mut self, ids: Vec<String>) {
+        self.desktop_dock = Some(ids);
+    }
+    pub(crate) fn set_desktop_clock(&mut self, clock: Option<ClockTime>) {
+        self.desktop_clock = clock;
+    }
+    pub(crate) fn desktop_dock(&self) -> Option<&[String]> {
+        self.desktop_dock.as_deref()
     }
     pub fn hold_for_display(&mut self) {
         self.display_hold = true;
@@ -70,6 +85,7 @@ impl AppLaunchState {
     }
     pub fn cancel(&mut self) {
         self.started_ms = None;
+        self.desktop_dock = None;
         self.display_hold = false;
         self.last_frame = None;
     }
@@ -79,6 +95,7 @@ impl AppLaunchState {
             id: self.id?,
             source: self.source,
             elapsed_ms,
+            clock: self.desktop_clock,
         })
     }
     pub fn take_dirty(&mut self, now_ms: u64, size: Size) -> Option<Rect> {
@@ -171,7 +188,13 @@ impl RenderAppLaunchOverlay {
         let state = self.state.lock().unwrap();
         state.app_launch.touch_owned || sample(&state).is_some()
     }
-    fn paint_cached_desktop(&self, canvas: &mut Canvas, offset: Offset, source: Rect) -> bool {
+    fn paint_cached_desktop(
+        &self,
+        canvas: &mut Canvas,
+        offset: Offset,
+        source: Rect,
+        dock_count: usize,
+    ) -> bool {
         let mut cache = self.backdrop.lock().unwrap();
         if let Some(image) = cache.as_mut().filter(|image| image.size == self.size) {
             if image.erased_source != Some(source) {
@@ -185,6 +208,7 @@ impl RenderAppLaunchOverlay {
                     )),
                     self.size,
                     source,
+                    dock_count,
                 );
                 image.erased_source = Some(source);
             }
@@ -257,11 +281,18 @@ impl RenderBox for RenderAppLaunchOverlay {
         self.size
     }
     fn paint(&self, canvas: &mut Canvas, offset: Offset) {
-        let animation = sample(&self.state.lock().unwrap());
+        let (animation, dock_count) = {
+            let state = self.state.lock().unwrap();
+            (
+                sample(&state),
+                state.app_launch.desktop_dock().map_or(0, |ids| ids.len()),
+            )
+        };
         let mut cached_desktop = false;
         match animation {
             Some(frame) if frame.elapsed_ms < EXPAND_END_MS => {
-                cached_desktop = self.paint_cached_desktop(canvas, offset, frame.source);
+                cached_desktop =
+                    self.paint_cached_desktop(canvas, offset, frame.source, dock_count);
                 if cached_desktop {
                     // Reuse the last complete desktop; no vector/gradient work.
                 } else if let Some(desktop) = &self.desktop {
@@ -327,7 +358,7 @@ impl RenderBox for RenderAppLaunchOverlay {
             canvas.translate(offset.dx, offset.dy);
             canvas.clip_rect(self.bounds());
             if frame.elapsed_ms < EXPAND_END_MS && !cached_desktop {
-                erase_source_icon(canvas, self.size, frame.source);
+                erase_source_icon(canvas, self.size, frame.source, dock_count);
             }
             paint_launch(canvas, self.size, frame);
             canvas.restore();
@@ -397,6 +428,28 @@ impl RenderBox for RenderAppLaunchOverlay {
             self.child.dispatch_touch(event)
         }
     }
+    fn captures_touch(&self) -> bool {
+        !self.intercepting() && self.child.captures_touch()
+    }
+    fn drag_dirty(&self) -> Option<Rect> {
+        if self.intercepting() {
+            None
+        } else {
+            self.child.drag_dirty()
+        }
+    }
+    fn paint_opaque_region(&self, canvas: &mut Canvas, offset: Offset, dirty: Rect) -> bool {
+        !self.intercepting()
+            && !self.capture_desktop
+            && self.child.paint_opaque_region(canvas, offset, dirty)
+    }
+    fn animation_dirty(&self) -> Option<Rect> {
+        if self.intercepting() {
+            None
+        } else {
+            self.child.animation_dirty()
+        }
+    }
     fn needs_rebuild(&self) -> bool {
         self.child.needs_rebuild()
     }
@@ -409,19 +462,11 @@ fn smooth(t: f32) -> f32 {
 fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
-/// Launcher colors follow the desktop SVG palette; timer keeps its accepted coral.
+/// Launcher colors follow the Folio circular SVG disks.
 fn theme_color(id: &str) -> Color {
-    Color::from_hex(match id {
-        "clock" => 0x626bd8,
-        "timer" => 0xf18b77,
-        "calculator" => 0x3faa80,
-        "notes" => 0xedb247,
-        "mac" => 0x409bdb,
-        "settings" => 0x687c9c,
-        "display" => 0x509faf,
-        _ => 0x409bdb,
-    })
+    crate::app_icons::launch_color(id)
 }
+
 fn circle_geometry(size: Size, frame: AppLaunchFrame) -> (Point, f32, f32) {
     let scale = (size.width / 1024.0).min(size.height / 600.0);
     let revealing = frame.elapsed_ms >= REVEAL_START_MS;
@@ -459,7 +504,7 @@ fn circle_geometry(size: Size, frame: AppLaunchFrame) -> (Point, f32, f32) {
     };
     (center, radius, 8.0 * scale)
 }
-fn erase_source_icon(canvas: &mut Canvas, size: Size, source: Rect) {
+fn erase_source_icon(canvas: &mut Canvas, size: Size, source: Rect, dock_count: usize) {
     // The recorded source is the 94% pressed SVG. Restore only its unpressed
     // bounds from the procedural wallpaper, so its normal-size edge cannot peek around the pressed SVG.
     // Labels and neighboring icons are outside this patch. No second frame cache.
@@ -471,7 +516,7 @@ fn erase_source_icon(canvas: &mut Canvas, size: Size, source: Rect) {
         (source.right() + padding).ceil(),
         (source.bottom() + padding).ceil(),
     ));
-    crate::widgets::WallpaperPainter.paint(canvas, size);
+    crate::folio_desktop::paint_source_background(canvas, size, source, dock_count);
     canvas.restore();
 }
 fn paint_launch(canvas: &mut Canvas, size: Size, frame: AppLaunchFrame) {
@@ -499,7 +544,7 @@ fn paint_launch(canvas: &mut Canvas, size: Size, frame: AppLaunchFrame) {
                 / (REVEAL_START_MS - EXPAND_END_MS) as f32,
         );
     if let Some(icon) = get_app_icon_asset(frame.id) {
-        icon.paint_with_opacity(canvas, frame.source, Color::WHITE, opacity);
+        paint_app_icon(icon, canvas, frame.source, frame.clock, opacity);
     }
 }
 
@@ -511,6 +556,8 @@ pub fn paint_usb_display_reveal(
     size: Size,
     elapsed_ms: u32,
     duration_ms: u32,
+    light_icons: bool,
+    icon_theme: crate::icon_theme::IconTheme,
 ) {
     if duration_ms == 0 || elapsed_ms >= duration_ms {
         return;
@@ -523,7 +570,7 @@ pub fn paint_usb_display_reveal(
         canvas.glass_circle(
             center,
             radius,
-            theme_color("display"),
+            crate::app_icons::launch_color_for_theme("display", light_icons, icon_theme),
             tiny_gfx::GlassFill::Inside,
             8.0 * scale,
             1.0,
@@ -559,6 +606,7 @@ mod occlusion_tests {
                         id,
                         source: Rect::from_ltwh(x - 68.62, y - 68.62, 137.24, 137.24),
                         elapsed_ms,
+                        clock: None,
                     },
                 );
                 pixels
@@ -694,24 +742,37 @@ mod occlusion_tests {
     #[test]
     fn cached_desktop_matches_full_vector_backdrop_at_every_app_position() {
         let size = Size::new(1024.0, 600.0);
-        for (id, x, y) in [
-            ("clock", 151.0, 177.0),
-            ("timer", 392.0, 177.0),
-            ("notes", 632.0, 177.0),
-            ("calculator", 873.0, 177.0),
-            ("mac", 151.0, 403.0),
-            ("settings", 392.0, 403.0),
-            ("display", 632.0, 403.0),
+        for (id, x, y, side, count) in [
+            ("clock", 132.0, 278.0, 131.6, 0),
+            ("timer", 348.0, 278.0, 131.6, 0),
+            ("notes", 564.0, 278.0, 131.6, 0),
+            ("calculator", 780.0, 278.0, 131.6, 0),
+            ("mac", 132.0, 466.0, 131.6, 0),
+            ("settings", 348.0, 466.0, 131.6, 0),
+            ("display", 564.0, 466.0, 131.6, 0),
+            ("clock", 395.0, 77.0, 58.0, 0),
+            ("timer", 835.0, 77.0, 58.0, 0),
+            ("settings", 954.0, 310.0, 63.92, 1),
+            ("settings", 954.0, 310.0, 63.92, 4),
+            ("calculator", 954.0, 526.0, 63.92, 4),
         ] {
             let state = Arc::new(Mutex::new(LauncherState::new()));
+            for id in ["settings", "clock", "timer", "calculator", "mac", "notes"]
+                .into_iter()
+                .take(count)
+            {
+                let mut s = state.lock().unwrap();
+                s.open_app(id);
+                s.background_active_app();
+            }
             let mut desktop = crate::build_launcher_ui(state.clone(), size).create_render_object();
             desktop.layout(&BoxConstraints::tight(size));
             let mut normal = tiny_gfx::Pixmap565::new(1024, 600).unwrap();
             desktop.paint(&mut Canvas::new(normal.as_mut()), Offset::ZERO);
-            state
-                .lock()
-                .unwrap()
-                .launch_app(id, Rect::from_ltwh(x - 68.62, y - 68.62, 137.24, 137.24));
+            state.lock().unwrap().launch_app(
+                id,
+                Rect::from_ltwh(x - side * 0.5, y - side * 0.5, side, side),
+            );
             let mut live = crate::build_launcher_ui(state.clone(), size).create_render_object();
             live.layout(&BoxConstraints::tight(size));
             for ms in [0, 40, 80, 120, 160, 200, 240, EXPAND_END_MS - 1] {
@@ -721,7 +782,12 @@ mod occlusion_tests {
                     s.app_launch.frame(ms).unwrap()
                 };
                 let mut expected = normal.clone();
-                erase_source_icon(&mut Canvas::new(expected.as_mut()), size, frame.source);
+                erase_source_icon(
+                    &mut Canvas::new(expected.as_mut()),
+                    size,
+                    frame.source,
+                    count,
+                );
                 paint_launch(&mut Canvas::new(expected.as_mut()), size, frame);
                 let mut actual = tiny_gfx::Pixmap565::new(1024, 600).unwrap();
                 live.paint(&mut Canvas::new(actual.as_mut()), Offset::ZERO);
@@ -737,23 +803,36 @@ mod occlusion_tests {
     #[test]
     fn uncached_circular_occlusion_matches_full_backdrop_for_every_app_position() {
         let size = Size::new(1024.0, 600.0);
-        for (id, x, y) in [
-            ("clock", 151.0, 177.0),
-            ("timer", 392.0, 177.0),
-            ("notes", 632.0, 177.0),
-            ("calculator", 873.0, 177.0),
-            ("mac", 151.0, 403.0),
-            ("settings", 392.0, 403.0),
-            ("display", 632.0, 403.0),
+        for (id, x, y, side, count) in [
+            ("clock", 132.0, 278.0, 131.6, 0),
+            ("timer", 348.0, 278.0, 131.6, 0),
+            ("notes", 564.0, 278.0, 131.6, 0),
+            ("calculator", 780.0, 278.0, 131.6, 0),
+            ("mac", 132.0, 466.0, 131.6, 0),
+            ("settings", 348.0, 466.0, 131.6, 0),
+            ("display", 564.0, 466.0, 131.6, 0),
+            ("clock", 395.0, 77.0, 58.0, 0),
+            ("timer", 835.0, 77.0, 58.0, 0),
+            ("settings", 954.0, 310.0, 63.92, 1),
+            ("settings", 954.0, 310.0, 63.92, 4),
+            ("calculator", 954.0, 526.0, 63.92, 4),
         ] {
             let state = Arc::new(Mutex::new(LauncherState::new()));
+            for id in ["settings", "clock", "timer", "calculator", "mac", "notes"]
+                .into_iter()
+                .take(count)
+            {
+                let mut s = state.lock().unwrap();
+                s.open_app(id);
+                s.background_active_app();
+            }
             let mut desktop =
                 crate::launcher_ui::build_desktop(state.clone(), size).create_render_object();
             desktop.layout(&BoxConstraints::tight(size));
-            state
-                .lock()
-                .unwrap()
-                .launch_app(id, Rect::from_ltwh(x - 68.62, y - 68.62, 137.24, 137.24));
+            state.lock().unwrap().launch_app(
+                id,
+                Rect::from_ltwh(x - side * 0.5, y - side * 0.5, side, side),
+            );
             let mut live = crate::build_launcher_ui(state.clone(), size).create_render_object();
             live.layout(&BoxConstraints::tight(size));
             for ms in [0, 40, 80, 120, 160, 200, 240, EXPAND_END_MS - 1] {
@@ -766,7 +845,7 @@ mod occlusion_tests {
                 let mut actual = expected.clone();
                 let mut canvas = Canvas::new(expected.as_mut());
                 desktop.paint(&mut canvas, Offset::ZERO);
-                erase_source_icon(&mut canvas, size, frame.source);
+                erase_source_icon(&mut canvas, size, frame.source, count);
                 paint_launch(&mut canvas, size, frame);
                 live.paint(&mut Canvas::new(actual.as_mut()), Offset::ZERO);
                 assert_eq!(

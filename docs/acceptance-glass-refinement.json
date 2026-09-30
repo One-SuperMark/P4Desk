@@ -1,0 +1,134 @@
+{
+  "schema": "p4desk.acceptance.glass-refinement.v1",
+  "date": "2026-09-30",
+  "branch": "codex/folio-ui",
+  "request": {
+    "previous_sidebar": "用户确认圆角和留白正常",
+    "application_glass": "不露出桌面图片",
+    "desktop_cards": "增强两个小卡片的 Liquid Glass 效果"
+  },
+  "implementation": {
+    "application_material": "theme page solid background; no desktop texture sampling",
+    "desktop_cards": "lower tint opacity, 15px edge refraction, mild center magnification, top and lower-edge reflections",
+    "status_rail_and_dock": "existing soft wallpaper material",
+    "launch_cache": "source erasure and fallback use the same explicit desktop material",
+    "new_fullscreen_buffers": 0
+  },
+  "tests": {
+    "workspace_passed": 256,
+    "log": ".cache/folio/tests-glass-v2.log",
+    "regressions": [
+      "red/blue wallpaper replacement leaves all 7 app pages pixel-identical in both appearances",
+      "two desktop cards respond to wallpaper source replacement",
+      "lens material clipped refresh equals full frame",
+      "existing desktop/card/Dock cached launch and fallback comparisons"
+    ],
+    "previews": "actual Rust RGB565 synthetic scenes checked: dark settings and dark/light desktop"
+  },
+  "build": {
+    "status": "passed",
+    "esp_idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "bytes": 4888400,
+    "sha256": "e7af6e21249321f6baa6975c5eb93ddb0d5dd1e013569dc614112311d142126a",
+    "log": ".cache/folio/build-glass-v2.log"
+  },
+  "host_benchmark": {
+    "glass_amount": 65,
+    "results": [
+      {
+        "allocated_bytes_per_paint": 156606,
+        "allocations_per_paint": 937,
+        "case": "desktop",
+        "median_us": 4488.291,
+        "p95_us": 6299.834
+      },
+      {
+        "allocated_bytes_per_paint": 16560,
+        "allocations_per_paint": 3,
+        "case": "wallpaper",
+        "median_us": 408.417,
+        "p95_us": 433.833
+      },
+      {
+        "allocated_bytes_per_paint": 6644,
+        "allocations_per_paint": 51,
+        "case": "circle_150ms",
+        "median_us": 347.292,
+        "p95_us": 368.084
+      },
+      {
+        "allocated_bytes_per_paint": 6644,
+        "allocations_per_paint": 51,
+        "case": "circle_220ms",
+        "median_us": 301.458,
+        "p95_us": 308.291
+      },
+      {
+        "allocated_bytes_per_paint": 4596,
+        "allocations_per_paint": 50,
+        "case": "bridge_300ms",
+        "median_us": 188.958,
+        "p95_us": 212.042
+      },
+      {
+        "allocated_bytes_per_paint": 10145,
+        "allocations_per_paint": 83,
+        "case": "reveal_640ms",
+        "median_us": 564.083,
+        "p95_us": 614.917
+      },
+      {
+        "allocated_bytes_per_paint": 8097,
+        "allocations_per_paint": 82,
+        "case": "timer",
+        "median_us": 286.125,
+        "p95_us": 309.334
+      }
+    ],
+    "samples_per_case": 40,
+    "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/folio/flash-glass-v2.log",
+    "hash_verifications": 3,
+    "existing_full_backup_verified": true,
+    "hard_reset": true
+  },
+  "device": {
+    "status": "startup_observed",
+    "observation_seconds": 45,
+    "log": ".cache/folio/monitor-glass-v2.log",
+    "tf_read_write_passed": true,
+    "session_writer": "ready",
+    "session_restore": "ok",
+    "save_success_count": 4,
+    "save_elapsed_ms": [
+      115,
+      95,
+      99,
+      94
+    ],
+    "writer_stack_min_free_bytes": 3924,
+    "ntp_synced": true,
+    "uptime_30s": {
+      "uptime_s": 30,
+      "internal_free": 30859,
+      "internal_largest": 19456,
+      "psram_free": 20200224,
+      "psram_largest": 17825792,
+      "presented": 65,
+      "bad_jpeg": 0,
+      "parser_errors": 0,
+      "control_queue": 0
+    },
+    "panic_or_watchdog_observed": false
+  },
+  "user_acceptance": {
+    "no_wallpaper_in_apps": "passed: 应用内不再透出桌面，效果正常",
+    "desktop_card_material": "passed: 玻璃感合适",
+    "touch_and_animation": "passed: 操作顺畅",
+    "previous_sidebar_geometry": "passed: 圆角和留白正常"
+  }
+}

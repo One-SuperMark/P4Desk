@@ -8,6 +8,7 @@ description = "A sleek, responsive calculator app built with tiny-flutter for ES
 crate-type = ["rlib"]
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 tiny-flutter = { path = "../../crates/tiny-flutter", default-features = false }
 
 [features]

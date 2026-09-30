@@ -3,6 +3,7 @@ use crate::graphics::color::Color;
 use crate::graphics::geometry::{EdgeInsets, Offset, Point, RRect, Rect, Size};
 use crate::rendering::constraints::BoxConstraints;
 use crate::rendering::render_box::{RenderBox, TouchEvent};
+use crate::theme::GlassMaterial;
 use crate::widgets::text::Text;
 use crate::widgets::widget::Widget;
 use std::sync::Arc;
@@ -14,6 +15,7 @@ pub struct ButtonStyle {
     pub pressed_color: Color,
     pub border_radius: f32,
     pub antialias: bool,
+    pub glass: Option<GlassMaterial>,
     pub padding: EdgeInsets,
     pub width: Option<f32>,
     pub height: Option<f32>,
@@ -26,6 +28,7 @@ impl Default for ButtonStyle {
             pressed_color: Color::from_rgb(21, 101, 192),
             border_radius: 8.0,
             antialias: false,
+            glass: None,
             padding: EdgeInsets::symmetric(8.0, 16.0),
             width: None,
             height: None,
@@ -53,6 +56,16 @@ impl ButtonStyle {
         self
     }
     /// Coverage rendering for capsule edges. Existing app styles retain their raster path.
+    pub fn glass_material(mut self, material: GlassMaterial) -> Self {
+        self.glass = Some(material);
+        self
+    }
+
+    pub fn glass(mut self, enabled: bool) -> Self {
+        self.glass = enabled.then_some(GlassMaterial::Page);
+        self
+    }
+
     pub fn antialias(mut self, enabled: bool) -> Self {
         self.antialias = enabled;
         self
@@ -89,6 +102,7 @@ pub struct ElevatedButton {
     pub padding: EdgeInsets,
     pub border_radius: f32,
     pub antialias: bool,
+    pub glass: Option<GlassMaterial>,
     pub width: Option<f32>,
     pub height: Option<f32>,
     pub trigger_on_down: bool,
@@ -105,6 +119,7 @@ impl ElevatedButton {
             padding: EdgeInsets::symmetric(8.0, 16.0),
             border_radius: 8.0,
             antialias: false,
+            glass: None,
             width: None,
             height: None,
             trigger_on_down: false,
@@ -117,6 +132,7 @@ impl ElevatedButton {
         self.pressed_color = style.pressed_color;
         self.border_radius = style.border_radius;
         self.antialias = style.antialias;
+        self.glass = style.glass;
         self.padding = style.padding;
         if style.width.is_some() {
             self.width = style.width;
@@ -188,6 +204,7 @@ impl Widget for ElevatedButton {
             padding: self.padding,
             border_radius: self.border_radius,
             antialias: self.antialias,
+            glass: self.glass,
             width: self.width,
             height: self.height,
             trigger_on_down: self.trigger_on_down,
@@ -207,6 +224,7 @@ pub struct RenderElevatedButton {
     pub padding: EdgeInsets,
     pub border_radius: f32,
     pub antialias: bool,
+    pub glass: Option<GlassMaterial>,
     pub width: Option<f32>,
     pub height: Option<f32>,
     pub trigger_on_down: bool,
@@ -277,7 +295,9 @@ impl RenderBox for RenderElevatedButton {
         };
 
         let shape = RRect::from_rect_circular(btn_rect, self.border_radius);
-        if self.antialias {
+        if let Some(material) = self.glass {
+            canvas.liquid_glass_material(shape, self.color, self.is_pressed, material);
+        } else if self.antialias {
             canvas.draw_rrect_aa(shape, active_color);
         } else {
             canvas.draw_rrect(shape, active_color);

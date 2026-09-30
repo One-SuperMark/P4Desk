@@ -1,0 +1,198 @@
+{
+  "schema": "p4desk.acceptance.numix-performance.v1",
+  "date": "2026-09-30",
+  "request": "Optimize Pad after user reports paging lag; keep accepted dark and light icon appearance",
+  "implementation": {
+    "vector_cache_pixel_budget_bytes": 2097152,
+    "vector_cache_entry_limit": 96,
+    "cache_validation": "exact background pixels, geometry, tint, clip containment; fallback on allocation failure and unsupported transforms",
+    "gesture": "handled stationary swipe moves use zero damage; release remains owned",
+    "device_metrics": "aggregate render and output timings and cache counts every 30 seconds, no content"
+  },
+  "tests": {
+    "workspace_passed": 264,
+    "workspace_failed": 0,
+    "log": ".cache/folio/tests-numix-performance.log",
+    "added_regressions": [
+      "42 themed vectors: cache vs direct pixels, changed backdrop, clip and transform",
+      "partial warmup followed by larger clip",
+      "cache capacity and LRU eviction",
+      "held page swipe does not repaint repeated samples or activate apps"
+    ],
+    "resource_reproducibility": "passed"
+  },
+  "host_before": {
+    "glass_amount": 65,
+    "results": [
+      {
+        "allocated_bytes_per_paint": 418210,
+        "allocations_per_paint": 1794,
+        "case": "desktop",
+        "median_us": 9041.333,
+        "p95_us": 9419.542
+      },
+      {
+        "allocated_bytes_per_paint": 16560,
+        "allocations_per_paint": 3,
+        "case": "wallpaper",
+        "median_us": 421.542,
+        "p95_us": 450.25
+      },
+      {
+        "allocated_bytes_per_paint": 42188,
+        "allocations_per_paint": 185,
+        "case": "circle_150ms",
+        "median_us": 901.875,
+        "p95_us": 972.708
+      },
+      {
+        "allocated_bytes_per_paint": 42188,
+        "allocations_per_paint": 185,
+        "case": "circle_220ms",
+        "median_us": 858.166,
+        "p95_us": 884.542
+      },
+      {
+        "allocated_bytes_per_paint": 40140,
+        "allocations_per_paint": 184,
+        "case": "bridge_300ms",
+        "median_us": 737.667,
+        "p95_us": 777.917
+      },
+      {
+        "allocated_bytes_per_paint": 10145,
+        "allocations_per_paint": 83,
+        "case": "reveal_640ms",
+        "median_us": 586.459,
+        "p95_us": 612.542
+      },
+      {
+        "allocated_bytes_per_paint": 8097,
+        "allocations_per_paint": 82,
+        "case": "timer",
+        "median_us": 300.0,
+        "p95_us": 331.542
+      }
+    ],
+    "samples_per_case": 40,
+    "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+  },
+  "host_after": {
+    "glass_amount": 65,
+    "results": [
+      {
+        "allocated_bytes_per_paint": 16734,
+        "allocations_per_paint": 8,
+        "case": "desktop",
+        "median_us": 2937.083,
+        "p95_us": 3997.417
+      },
+      {
+        "allocated_bytes_per_paint": 16560,
+        "allocations_per_paint": 3,
+        "case": "wallpaper",
+        "median_us": 404.125,
+        "p95_us": 455.333
+      },
+      {
+        "allocated_bytes_per_paint": 2224,
+        "allocations_per_paint": 3,
+        "case": "circle_150ms",
+        "median_us": 246.625,
+        "p95_us": 272.042
+      },
+      {
+        "allocated_bytes_per_paint": 2224,
+        "allocations_per_paint": 3,
+        "case": "circle_220ms",
+        "median_us": 198.167,
+        "p95_us": 240.0
+      },
+      {
+        "allocated_bytes_per_paint": 40140,
+        "allocations_per_paint": 184,
+        "case": "bridge_300ms",
+        "median_us": 610.542,
+        "p95_us": 719.625
+      },
+      {
+        "allocated_bytes_per_paint": 3809,
+        "allocations_per_paint": 42,
+        "case": "reveal_640ms",
+        "median_us": 545.5,
+        "p95_us": 609.917
+      },
+      {
+        "allocated_bytes_per_paint": 1761,
+        "allocations_per_paint": 41,
+        "case": "timer",
+        "median_us": 266.333,
+        "p95_us": 321.584
+      }
+    ],
+    "samples_per_case": 40,
+    "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+  },
+  "build": {
+    "status": "passed",
+    "esp_idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "bytes": 5025600,
+    "sha256": "07c07cb1cb5e9cea7ee09ade7dc7d2b558f4409b543dbfd4a7a4c75ce669b1f9",
+    "log": ".cache/folio/build-numix-performance.log"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/folio/flash-numix-performance.log",
+    "hash_verifications": 3,
+    "existing_full_backup_verified": true,
+    "hard_reset": true
+  },
+  "device": {
+    "status": "observed_with_remaining_lag",
+    "observation_seconds": 75,
+    "log": ".cache/folio/monitor-numix-performance.log",
+    "ui_metrics": [
+      {
+        "frames": 1,
+        "draw_avg_us": 816014,
+        "output_avg_us": 16142,
+        "draw_max_us": 816014,
+        "total_max_us": 832156,
+        "icon_cache_entries": 22,
+        "icon_cache_bytes": 818032,
+        "cache_hits": 0,
+        "cache_misses": 22
+      },
+      {
+        "frames": 111,
+        "draw_avg_us": 191969,
+        "output_avg_us": 14882,
+        "draw_max_us": 409514,
+        "total_max_us": 425982,
+        "icon_cache_entries": 65,
+        "icon_cache_bytes": 2044232,
+        "cache_hits": 1234,
+        "cache_misses": 72
+      },
+      {
+        "frames": 64,
+        "draw_avg_us": 332940,
+        "output_avg_us": 17011,
+        "draw_max_us": 350230,
+        "total_max_us": 366535,
+        "icon_cache_entries": 65,
+        "icon_cache_bytes": 2044232,
+        "cache_hits": 2706,
+        "cache_misses": 72
+      }
+    ],
+    "tf_read_write_passed": true,
+    "session_writer": "ready",
+    "panic_or_watchdog_observed": false
+  },
+  "user_acceptance": {
+    "icon_appearance": "previous version passed and unchanged",
+    "paging_and_responsiveness": "improved but still lagging; add static surface caching follow-up"
+  }
+}

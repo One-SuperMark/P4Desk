@@ -36,6 +36,17 @@ int main(void)
     assert(!p4desk_pad_touch_queue_push(&queue, (p4desk_pad_touch_event_t){3, 99, 100}));
     expect(&queue, P4DESK_PAD_TOUCH_CANCEL, 0, 0);
     assert(!p4desk_pad_touch_queue_pop(&queue, &event));
+    // A long redraw must not leave dozens of old coordinates to replay.
+    assert(p4desk_pad_touch_queue_push(&queue,(p4desk_pad_touch_event_t){1,700,200}));
+    for (int32_t x=699;x>=200;--x)
+        assert(p4desk_pad_touch_queue_push(&queue,(p4desk_pad_touch_event_t){2,x,200}));
+    assert(queue.count==3); // Down, first slop crossing, latest position.
+    assert(p4desk_pad_touch_queue_push(&queue,(p4desk_pad_touch_event_t){3,200,200}));
+    expect(&queue,1,700,200);
+    expect(&queue,2,691,200);
+    expect(&queue,2,200,200);
+    expect(&queue,3,200,200);
+    assert(!p4desk_pad_touch_queue_pop(&queue,&event));
     // Mode reset discards old contacts. Invalid pointers cannot consume an event.
     assert(p4desk_pad_touch_queue_push(&queue, (p4desk_pad_touch_event_t){1, 10, 20}));
     assert(!p4desk_pad_touch_queue_pop(&queue, NULL));

@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" data-theme="dark">
+ <title>P4Desk WhiteSur · 显示器 · 深色主题</title>
+ <desc>WhiteSur derivative, modified 2026-09-30 by P4Desk asset adaptation. dark palette, bitmap shadows/glow and blur filters removed, vector gradients retained, 64x64 normalization, inner rounded boundary. Original: alternative/apps/scalable/preferences-desktop-display.svg; commit 73d8040da51a9ed74e47c7366e7e9ff437601a5c; GPL-3.0. Local vector geometry retained. </desc>
+ <g id="p4desk-source-vector" transform="scale(1)">
+  <defs>
+   <linearGradient id="a" x1="27.5" x2="27.5" y1="4" y2="60" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#56667b" />
+    <stop offset="1" stop-color="#29394e" />
+   </linearGradient>
+   <linearGradient id="d" x1="-233.34" x2="-233.34" y1="-23.763" y2="-63.812" gradientTransform="matrix(.67667 0 0 .665 193.32 58.103)" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#3c73b6" />
+    <stop offset="1" stop-color="#91d0fb" />
+   </linearGradient>
+   <linearGradient id="c" x1="32" x2="32" y1="58" y2="45" gradientTransform="matrix(1.2857 0 0 .7 -9.143 10.4)" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#8facca" />
+    <stop offset=".346" stop-color="#d9e8f6" />
+    <stop offset="1" stop-color="#6e89a7" />
+   </linearGradient>
+  </defs>
+  <rect width="55.999" height="55.999" x="4" y="4" fill="url(#a)" rx="14" ry="14" />
+  <path d="M18 4C10.244 4 4 10.244 4 18v27.998c0 7.756 6.244 14 14 14h27.998c7.756 0 14-6.244 14-14V18c0-7.756-6.244-14-14-14zm0 .3h27.998A13.664 13.664 0 0 1 59.699 18v27.998a13.665 13.665 0 0 1-13.701 13.7H18a13.664 13.664 0 0 1-13.699-13.7V18A13.66 13.66 0 0 1 18 4.3" color="#000" opacity="0.045" />
+  <rect width="18" height="22.4" x="23" y="29.6" opacity="0.036" rx="3" ry="3" paint-order="stroke fill markers" />
+  <rect width="18" height="22.4" x="23" y="28.6" fill="url(#c)" rx="3" ry="3" paint-order="stroke fill markers" />
+  <rect width="42" height="28" x="11" y="15" fill="#1b2c43" rx="3.5" ry="3.5" />
+  <rect width="40.6" height="26.6" x="11.7" y="15.7" fill="url(#d)" rx="2.8" ry="2.752" />
+ </g>
+ <rect id="p4desk-theme-rim" x="4.2" y="4.2" width="55.6" height="55.6" rx="13.8" fill="none" stroke="#d4e6ff" stroke-opacity="0.16" stroke-width="0.4" />
+</svg>

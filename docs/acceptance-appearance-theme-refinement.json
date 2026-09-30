@@ -1,0 +1,206 @@
+{
+  "schema": "p4desk.acceptance.appearance-theme-refinement.v1",
+  "date": "2026-09-30",
+  "changes": {
+    "location": "Settings > Appearance > Icon theme (vertical scrolling), removed separate sidebar entry",
+    "preview_clock": "10:09:30, hands sized to each theme dial",
+    "legacy_session": "Theme section deserializes as Appearance",
+    "touch_queue": "coalesce intermediate movement, preserve Down / first slop crossing / latest Move / Up and Cancel",
+    "page_cache": "sparse horizontal spans; skip transparent pixels, copy opaque rows, blend only partial alpha; 4 MiB capacity bound"
+  },
+  "tests": {
+    "rust_passed": 229,
+    "rust_failed": 0,
+    "rust_log": ".cache/folio/tests-appearance-sparse-final.log",
+    "touch_queue": "ASan/UBSan passed, quick taps, out-and-back, 500-point backlog, overflow, reset",
+    "touch_log": ".cache/folio/tests-touch-coalesce.log",
+    "render_equivalence": "desktop, half-page slide, and control center PNG output byte-identical to previous build"
+  },
+  "benchmark": {
+    "glass_amount": 65,
+    "results": [
+      {
+        "allocated_bytes_per_paint": 350,
+        "allocations_per_paint": 7,
+        "case": "desktop",
+        "first_paint_us": 36844,
+        "median_us": 123.583,
+        "p95_us": 240.084
+      },
+      {
+        "allocated_bytes_per_paint": 350,
+        "allocations_per_paint": 7,
+        "case": "slide-quarter",
+        "first_paint_us": 16374,
+        "median_us": 104.625,
+        "p95_us": 113.833
+      },
+      {
+        "allocated_bytes_per_paint": 350,
+        "allocations_per_paint": 7,
+        "case": "slide-half",
+        "first_paint_us": 14279,
+        "median_us": 100.666,
+        "p95_us": 226.166
+      },
+      {
+        "allocated_bytes_per_paint": 176,
+        "allocations_per_paint": 2,
+        "case": "wallpaper",
+        "first_paint_us": 20,
+        "median_us": 14.958,
+        "p95_us": 17.042
+      },
+      {
+        "allocated_bytes_per_paint": 2224,
+        "allocations_per_paint": 3,
+        "case": "circle_150ms",
+        "first_paint_us": 697,
+        "median_us": 283.708,
+        "p95_us": 433.333
+      },
+      {
+        "allocated_bytes_per_paint": 2224,
+        "allocations_per_paint": 3,
+        "case": "circle_220ms",
+        "first_paint_us": 240,
+        "median_us": 201.833,
+        "p95_us": 242.291
+      },
+      {
+        "allocated_bytes_per_paint": 19888,
+        "allocations_per_paint": 71,
+        "case": "bridge_300ms",
+        "first_paint_us": 360,
+        "median_us": 294.625,
+        "p95_us": 396.166
+      },
+      {
+        "allocated_bytes_per_paint": 3809,
+        "allocations_per_paint": 42,
+        "case": "reveal_640ms",
+        "first_paint_us": 679,
+        "median_us": 522.916,
+        "p95_us": 657.542
+      },
+      {
+        "allocated_bytes_per_paint": 1761,
+        "allocations_per_paint": 41,
+        "case": "timer",
+        "first_paint_us": 287,
+        "median_us": 248.5,
+        "p95_us": 310.208
+      }
+    ],
+    "samples_per_case": 40,
+    "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+  },
+  "build": {
+    "status": "passed",
+    "esp_idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "bytes": 5237920,
+    "sha256": "b89e51b2167157da1cff27634c5a32789674c1fc6211f0af45f021f9af4a970b",
+    "log": ".cache/folio/build-appearance-sparse.log"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/folio/flash-appearance-sparse.log",
+    "hash_verified_images": 3,
+    "reset": "hard_reset"
+  },
+  "device": {
+    "status": "short_observation_completed",
+    "duration_seconds": 75,
+    "session_restored": true,
+    "session_saved": true,
+    "panic_or_watchdog_detected": false,
+    "render_windows": [
+      {
+        "frames": 1,
+        "draw_avg_us": 2040987,
+        "output_avg_us": 17272,
+        "draw_max_us": 2040987,
+        "total_max_us": 2058259,
+        "render_cache_entries": 39,
+        "render_cache_bytes": 3690040,
+        "cache_hits": 0,
+        "cache_misses": 50
+      },
+      {
+        "frames": 162,
+        "draw_avg_us": 63386,
+        "output_avg_us": 18176,
+        "draw_max_us": 386926,
+        "total_max_us": 403362,
+        "render_cache_entries": 48,
+        "render_cache_bytes": 4036656,
+        "cache_hits": 1948,
+        "cache_misses": 59
+      },
+      {
+        "frames": 93,
+        "draw_avg_us": 92073,
+        "output_avg_us": 18567,
+        "draw_max_us": 224163,
+        "total_max_us": 241543,
+        "render_cache_entries": 128,
+        "render_cache_bytes": 1806240,
+        "cache_hits": 3666,
+        "cache_misses": 379
+      }
+    ],
+    "memory_samples": [
+      {
+        "uptime_s": 30,
+        "internal_free": 27367,
+        "psram_free": 13457972,
+        "presented": 163,
+        "bad_jpeg": 0,
+        "parser_errors": 0
+      },
+      {
+        "uptime_s": 60,
+        "internal_free": 29531,
+        "psram_free": 16279392,
+        "presented": 253,
+        "bad_jpeg": 0,
+        "parser_errors": 0
+      }
+    ],
+    "log": ".cache/folio/monitor-appearance-sparse.log",
+    "limits": "mixed user interaction, not a controlled FPS benchmark; cold page preparation remains about 2 seconds"
+  },
+  "user_acceptance": {
+    "appearance_location_and_clock_preview": "passed: user confirmed location, hands and tapping normal",
+    "swipe_responsiveness": "User requested faster release snapping; 180 ms follow-up built and flashed, visual acceptance pending"
+  },
+  "release_snap_followup": {
+    "request": "Speed up the page snap animation after releasing a desktop swipe",
+    "change": {
+      "previous_duration_ms": 280,
+      "duration_ms": 180,
+      "easing": "cubic ease out"
+    },
+    "tests": {
+      "passed": 10,
+      "failed": 0,
+      "scope": "colloid_entries and desktop_press_tests",
+      "log": ".cache/folio/tests-snap-180.log"
+    },
+    "build": {
+      "status": "passed",
+      "esp_idf": "6.0.2",
+      "bytes": 5237920,
+      "sha256": "112e9a1a82b071dfd6f4c9386413a71f7e3e0ac7f740399d6e0c1833817672b0",
+      "log": ".cache/folio/build-snap-180.log"
+    },
+    "flash": {
+      "status": "passed",
+      "hash_verified_images": 3,
+      "reset": "hard_reset",
+      "log": ".cache/folio/flash-snap-180.log"
+    },
+    "device_acceptance": "Pending user observation of the new 180 ms release animation; prior confirmation covers Appearance location, preview hands and tapping"
+  }
+}

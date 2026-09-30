@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" data-theme="dark">
+ <title>P4Desk Colloid · 电池 · 深色主题</title>
+ <desc>Colloid icon derivative. Modified 2026-09-30 by P4Desk: dark palette; raster shadows and blur filters removed; normalized 64x64 canvas; inner rounded border. Original: src/apps/scalable/gnome-power-manager.svg; commit ceac6608ecd0e40025cbc2ebbd32bf0e0f4ebc6a; GPL-3.0. Source vector paths retained.</desc>
+ <g id="p4desk-source-vector" transform="scale(1)">
+  <defs>
+  </defs>
+  <rect x="4" y="3.969" width="56.002" height="56.002" rx="13.002" ry="13.002" fill="#334236" />
+  <path d="M3.998 45.998v1c0 7.203 5.8 13.004 13.004 13.004h29.996c7.203 0 13.004-5.8 13.004-13.004v-1c0 7.203-5.8 13.002-13.004 13.002H17.002A12.975 12.975 0 0 1 3.998 45.998" opacity="0.275" />
+  <path d="M3.998 18.004v-1C3.998 9.801 9.798 4 17.002 4h29.996c7.203 0 13.004 5.8 13.004 13.004v1c0-7.203-5.8-13.002-13.004-13.002H17.002A12.975 12.975 0 0 0 3.998 18.004" fill="#c9d6b6" opacity=".15" />
+  <path d="m28 11c-1.108 0-2 0.892-2 2h-2c-2.216 0-4 1.784-4 4v32c0 2.216 1.784 4 4 4h16c2.216 0 4-1.784 4-4v-32c0-2.216-1.784-4-4-4h-2c0-1.108-0.892-2-2-2z" fill="#a0b990" stroke-width="0" paint-order="fill markers stroke" />
+  <rect x="22" y="15" width="20" height="36" rx="2" ry="2" fill="#334236" stroke-width="0" paint-order="fill markers stroke" />
+  <rect x="23" y="16.467" width="18" height="6" rx="1" ry="1" fill="#000000" opacity="0.055" stroke-width="0" paint-order="fill markers stroke" />
+  <rect x="23" y="16" width="18" height="6" rx="1" ry="1" fill="#d4e7a4" stroke-width="0" paint-order="fill markers stroke" />
+  <rect x="23" y="23.467" width="18" height="6" rx="1" ry="1" fill="#000000" opacity="0.055" stroke-width="0" paint-order="fill markers stroke" />
+  <rect x="23" y="23" width="18" height="6" rx="1" ry="1" fill="#a5ce87" stroke-width="0" paint-order="fill markers stroke" />
+  <rect x="23" y="30.467" width="18" height="6" rx="1" ry="1" fill="#000000" opacity="0.055" stroke-width="0" paint-order="fill markers stroke" />
+  <rect x="23" y="30" width="18" height="6" rx="1" ry="1" fill="#a5ce87" stroke-width="0" paint-order="fill markers stroke" />
+  <rect x="23" y="37.467" width="18" height="6" rx="1" ry="1" fill="#000000" opacity="0.055" stroke-width="0" paint-order="fill markers stroke" />
+  <rect x="23" y="37" width="18" height="6" rx="1" ry="1" fill="#a5ce87" stroke-width="0" paint-order="fill markers stroke" />
+  <rect x="23" y="44.467" width="18" height="6" rx="1" ry="1" fill="#000000" opacity="0.055" stroke-width="0" paint-order="fill markers stroke" />
+  <rect x="23" y="44" width="18" height="6" rx="1" ry="1" fill="#a5ce87" stroke-width="0" paint-order="fill markers stroke" />
+ </g>
+ <rect id="p4desk-theme-rim" x="4.2" y="4.2" width="55.6" height="55.6" rx="12.8" fill="none" stroke="#dce9ff" stroke-opacity="0.13" stroke-width="0.4" />
+</svg>

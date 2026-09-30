@@ -1,0 +1,208 @@
+{
+  "schema": "p4desk.acceptance.icon-themes.v1",
+  "date": "2026-09-30",
+  "implementation": {
+    "themes": [
+      "Folio",
+      "Numix Circle",
+      "Colloid"
+    ],
+    "default": "Colloid",
+    "settings": "settings journal, save before activation, independent light/dark",
+    "sources": "verified source SVG hashes; 42 Colloid, 42 Numix; 11 original Folio application icons",
+    "continuous_paging": "direct finger translation; cancel activation after 8 px; halfway release target; 280 ms settle",
+    "cache_budgets_bytes": {
+      "shared_vector_wallpaper_glass": 6291456,
+      "transparent_pages": 4194304
+    },
+    "glass": "soft continuous highlights for desktop cards and captured frosted Control Center"
+  },
+  "tests": {
+    "command": "cargo test -p app-launcher -p tiny-flutter -p tiny_gfx -p rust_main --no-fail-fast",
+    "passed": 229,
+    "failed": 0,
+    "log": ".cache/folio/tests-themes-final.log",
+    "asset_checks": [
+      "generate-colloid-icons.py --check",
+      "generate-numix-icons.py --check",
+      "generate-vector-icons.py --check"
+    ],
+    "persistence": "three-theme settings readback and blocked write retains previous value; host tests only"
+  },
+  "host_benchmark": {
+    "glass_amount": 65,
+    "results": [
+      {
+        "allocated_bytes_per_paint": 350,
+        "allocations_per_paint": 7,
+        "case": "desktop",
+        "first_paint_us": 39142,
+        "median_us": 128.583,
+        "p95_us": 158.167
+      },
+      {
+        "allocated_bytes_per_paint": 350,
+        "allocations_per_paint": 7,
+        "case": "slide-quarter",
+        "first_paint_us": 16843,
+        "median_us": 276.916,
+        "p95_us": 433.5
+      },
+      {
+        "allocated_bytes_per_paint": 350,
+        "allocations_per_paint": 7,
+        "case": "slide-half",
+        "first_paint_us": 14448,
+        "median_us": 235.917,
+        "p95_us": 298.625
+      },
+      {
+        "allocated_bytes_per_paint": 176,
+        "allocations_per_paint": 2,
+        "case": "wallpaper",
+        "first_paint_us": 16,
+        "median_us": 13.417,
+        "p95_us": 14.584
+      },
+      {
+        "allocated_bytes_per_paint": 2224,
+        "allocations_per_paint": 3,
+        "case": "circle_150ms",
+        "first_paint_us": 526,
+        "median_us": 245.459,
+        "p95_us": 273.833
+      },
+      {
+        "allocated_bytes_per_paint": 2224,
+        "allocations_per_paint": 3,
+        "case": "circle_220ms",
+        "first_paint_us": 221,
+        "median_us": 197.084,
+        "p95_us": 205.333
+      },
+      {
+        "allocated_bytes_per_paint": 19888,
+        "allocations_per_paint": 71,
+        "case": "bridge_300ms",
+        "first_paint_us": 313,
+        "median_us": 299.042,
+        "p95_us": 339.542
+      },
+      {
+        "allocated_bytes_per_paint": 3809,
+        "allocations_per_paint": 42,
+        "case": "reveal_640ms",
+        "first_paint_us": 699,
+        "median_us": 524.709,
+        "p95_us": 597.583
+      },
+      {
+        "allocated_bytes_per_paint": 1761,
+        "allocations_per_paint": 41,
+        "case": "timer",
+        "first_paint_us": 274,
+        "median_us": 247.083,
+        "p95_us": 269.541
+      }
+    ],
+    "samples_per_case": 40,
+    "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+  },
+  "previews": {
+    "scope": "actual Rust renderer with synthetic data; not device screenshots",
+    "paths": [
+      "docs/images/icon-themes.png",
+      "docs/images/colloid-desktop-dark.png",
+      "docs/images/colloid-desktop-light.png",
+      "docs/images/desktop-continuous-slide.png",
+      "docs/images/control-center-soft.png"
+    ]
+  },
+  "build": {
+    "esp_idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "status": "passed",
+    "bytes": 5225712,
+    "sha256": "88674d9019b62b1e279bb6be71ccf2e8ccbdaca26aff3f04dd7afcb67d39545b",
+    "log": ".cache/folio/build-colloid-themes.log"
+  },
+  "flash": {
+    "status": "passed",
+    "hash_verified_images": 3,
+    "reset": "hard_reset",
+    "backup": "existing 32 MiB backup validated by device-tool",
+    "log": ".cache/folio/flash-colloid-themes.log"
+  },
+  "device": {
+    "status": "short_observation_completed",
+    "duration_seconds": 75,
+    "log": ".cache/folio/monitor-colloid-themes.log",
+    "session_restored": true,
+    "session_saved": true,
+    "panic_or_watchdog_detected": false,
+    "render_windows": [
+      {
+        "frames": 1,
+        "draw_avg_us": 2034092,
+        "output_avg_us": 16859,
+        "draw_max_us": 2034092,
+        "total_max_us": 2050951,
+        "render_cache_entries": 39,
+        "render_cache_bytes": 3690040,
+        "cache_hits": 0,
+        "cache_misses": 50
+      },
+      {
+        "frames": 92,
+        "draw_avg_us": 69310,
+        "output_avg_us": 16124,
+        "draw_max_us": 222439,
+        "total_max_us": 239471,
+        "render_cache_entries": 84,
+        "render_cache_bytes": 4780296,
+        "cache_hits": 2013,
+        "cache_misses": 127
+      },
+      {
+        "frames": 86,
+        "draw_avg_us": 129032,
+        "output_avg_us": 15794,
+        "draw_max_us": 1954568,
+        "total_max_us": 1971739,
+        "render_cache_entries": 99,
+        "render_cache_bytes": 6264184,
+        "cache_hits": 3917,
+        "cache_misses": 293
+      }
+    ],
+    "memory_samples": [
+      {
+        "uptime_s": 30,
+        "internal_free": 30527,
+        "internal_largest": 23552,
+        "psram_free": 13170628,
+        "psram_largest": 12058624,
+        "presented": 92,
+        "bad_jpeg": 0,
+        "parser_errors": 0
+      },
+      {
+        "uptime_s": 60,
+        "internal_free": 28695,
+        "internal_largest": 23552,
+        "psram_free": 8461240,
+        "psram_largest": 5898240,
+        "presented": 178,
+        "bad_jpeg": 0,
+        "parser_errors": 0
+      }
+    ],
+    "limits": "mixed interactive frames, not controlled swipe FPS; cold first paint and first theme preparation remain about 2 seconds; user acceptance pending"
+  },
+  "user_acceptance": {
+    "theme_switching": "user_confirmed_switching_ok; requested moving theme into appearance and default preview time",
+    "continuous_paging_and_touch": "user_reported_not_smooth_or_following_finger; revised_sparse_compositing_and_touch_coalescing_pending",
+    "soft_glass": "not_explicitly_confirmed",
+    "theme_restore_after_power_cycle": "pending"
+  }
+}

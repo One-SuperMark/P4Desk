@@ -1,0 +1,411 @@
+{
+  "schema": "p4desk.numix-theme.v1",
+  "theme": "light",
+  "name": "浅色主题",
+  "modified": "2026-09-30",
+  "license": "GPL-3.0-or-later",
+  "palette_version": "2026-09-30.1",
+  "palette_sha256": "72898278fd947018d6a11891347d7f8f18300d739174042200c851c909926d6e",
+  "icons": [
+    {
+      "id": "clock",
+      "name": "时钟",
+      "group": "desktop",
+      "file": "svg/desktop/clock.svg",
+      "sha256": "cd007d3df280ab04e0d05f645ab81ae4bf32076c4a77beeebfb2c9f321164b91",
+      "original_filename": "preferences-system-time.svg",
+      "original_sha256": "b7eb9ed314f591dc1721999016ceff6829ad6953be09c29432e7bd4afcb54842",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 8,
+        "shadow_layers_adjusted": 6,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "timer",
+      "name": "番茄钟",
+      "group": "desktop",
+      "file": "svg/desktop/timer.svg",
+      "sha256": "bb366710c1e7d5221607091196ade3ead8d2f0b0585c2ff67c4efb487d738131",
+      "original_filename": "pomidor.svg",
+      "original_sha256": "9fcbde3651a98672c2754926bb22708063296e99259b7d2a66eab61db273b2c3",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 7,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "notes",
+      "name": "便签",
+      "group": "desktop",
+      "file": "svg/desktop/notes.svg",
+      "sha256": "80805c4bd8f1df66619a473e283b9bbe5903451332b2bc2e1a52245b4256c218",
+      "original_filename": "stickynotes.svg",
+      "original_sha256": "921522c8a45aa200caf8c91195a1d3dc48430c4dc5d3cafa8248e986930e391c",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 4,
+        "shadow_layers_adjusted": 6,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "calculator",
+      "name": "计算器",
+      "group": "desktop",
+      "file": "svg/desktop/calculator.svg",
+      "sha256": "59953a8549163a782e667abccb676bd63137fe093ab5d7412f00fb0bb4ca0631",
+      "original_filename": "calc.svg",
+      "original_sha256": "e5932ca34a1837f397f278bf3f0fd80af88b21c9bde7a0214c5a753e5c581142",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 5,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "mac",
+      "name": "Mac 控制",
+      "group": "desktop",
+      "file": "svg/desktop/mac.svg",
+      "sha256": "bd25ca79ebade82e7e6c981351597fe6e7f77351e430de5ae7c24b793d7e9ed4",
+      "original_filename": "preferences-desktop-keyboard.svg",
+      "original_sha256": "2e0bf163132519f4cd5480bacbb7a290ac9bc7b06956939cd93491120ec98bcc",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 3,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "settings",
+      "name": "设置",
+      "group": "desktop",
+      "file": "svg/desktop/settings.svg",
+      "sha256": "8db53530732711e845f075bf94e0e8c5ef2c075c2f33da92851a1a43237a5b29",
+      "original_filename": "preferences-system.svg",
+      "original_sha256": "9c07d22b9541a8207803930bfeacf1651b3daf2ea1f5c6c59a6cdf25a9a80076",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 5,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "display",
+      "name": "USB 副屏",
+      "group": "desktop",
+      "file": "svg/desktop/display.svg",
+      "sha256": "d3d218345c836ebd8cf9f11b1deba12b88263e7309e7036361bb118b014b3433",
+      "original_filename": "remote-desktop.svg",
+      "original_sha256": "1a90966a7e570ddd36fbab628e25a64153c5f1d9d28c66955917439e14d8c0da",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 4,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "screen",
+      "name": "关闭屏幕",
+      "group": "desktop",
+      "file": "svg/desktop/screen.svg",
+      "sha256": "8c428f0c7b025f3f07e1edb06fe15efed84ac971b23304b3725838e431047f58",
+      "original_filename": "kshutdown.svg",
+      "original_sha256": "0cb2cba87fea7228bdb0259509736fd8389c3050689b9d694bdb048763f91d5f",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 3,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "file-manager",
+      "name": "文件管理",
+      "group": "planned",
+      "file": "svg/planned/file-manager.svg",
+      "sha256": "44d0c6ed2a0bd6987c66ed721c2ef8145cf63754e970e57ad84762da54dab265",
+      "original_filename": "file-manager.svg",
+      "original_sha256": "409c756b00816ad8662c89feed42bba43f540dd654b6350ce75d28672fcd6444",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 5,
+        "shadow_layers_adjusted": 6,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "office-viewer",
+      "name": "Office 文档",
+      "group": "planned",
+      "file": "svg/planned/office-viewer.svg",
+      "sha256": "ac23833b95aae138f87b1d66ff973d8ffb4d9d9435acdb5e3ac4f2dde2dff862",
+      "original_filename": "accessories-document-viewer.svg",
+      "original_sha256": "2a2adc3ac04319ddc2e7b56a6bedf9e81a3685776e31f0ed432b8f293b443f01",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 6,
+        "shadow_layers_adjusted": 6,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "sub2api-monitor",
+      "name": "用量监控",
+      "group": "planned",
+      "file": "svg/planned/sub2api-monitor.svg",
+      "sha256": "687808d65361e1a0a5ba40f0aebb1cf48f15848210c34cc56a8d7d910a46e7d4",
+      "original_filename": "utilities-system-monitor.svg",
+      "original_sha256": "95dec70298e03ec91d6b4872a553d654fd1fccd9a96f65af2809e04b7a40ef73",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 3,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "wifi",
+      "name": "Wi-Fi",
+      "group": "settings",
+      "file": "svg/settings/wifi.svg",
+      "sha256": "757336cc726eb2b150b86e33dfb55b8abd2986847f666a8c4eabf0196522c55e",
+      "original_filename": "wicd.svg",
+      "original_sha256": "5fb24e76b76c0519bdd5b815b15c27e89fde957704a238e514072cb6beb75d19",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 5,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "bluetooth",
+      "name": "蓝牙",
+      "group": "settings",
+      "file": "svg/settings/bluetooth.svg",
+      "sha256": "f42310b4a78d3bbf7ca1b643edced6bf9b875ca383b70e15ef08b17e3bc9ae1a",
+      "original_filename": "bluetooth.svg",
+      "original_sha256": "ceff4dd43579e8f016b0e84db362acab1986c0d59ebf63be74166482953e6baf",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 3,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "display-settings",
+      "name": "显示器",
+      "group": "settings",
+      "file": "svg/settings/display-settings.svg",
+      "sha256": "d2f52246ab28af86252562ef5e23821f4b28cdda17cc947636bb74367eccac70",
+      "original_filename": "preferences-desktop-display.svg",
+      "original_sha256": "ab5b5f076ac95ca3259149de3e3560ecd370b5420e5615af23f1090ddb498099",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 8,
+        "shadow_layers_adjusted": 6,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "date-time",
+      "name": "日期与时间",
+      "group": "settings",
+      "file": "svg/settings/date-time.svg",
+      "sha256": "0c0daf098b45ff284cd2fa2082253ec3bfea1c2299a430f27e778d72276eaada",
+      "original_filename": "office-calendar.svg",
+      "original_sha256": "1ffe409572ed4bffb4faf836b7a1c3950471f22109db18c04584b11ac0b86992",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 5,
+        "shadow_layers_adjusted": 7,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "storage",
+      "name": "存储",
+      "group": "settings",
+      "file": "svg/settings/storage.svg",
+      "sha256": "d22d868a1454e82f35633bd6e1ab53acb028c3cd5256b3b1f3257995d5fa9c3b",
+      "original_filename": "gnome-disks.svg",
+      "original_sha256": "c45d9125c45648e7060ffc59b33a993b4c292481f343569dbcb443d7b6dd9ccd",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 9,
+        "shadow_layers_adjusted": 6,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "about",
+      "name": "关于",
+      "group": "settings",
+      "file": "svg/settings/about.svg",
+      "sha256": "f7c5dfb6eb0d078180bb29685c8b0224c323568d70bdaff772740bc01fd9d847",
+      "original_filename": "userinfo.svg",
+      "original_sha256": "61f3477325f454f3bb22c75bcf2a5e8a4085486597595284e870a31bc02bed22",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 5,
+        "shadow_layers_adjusted": 7,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "usb",
+      "name": "USB",
+      "group": "settings",
+      "file": "svg/settings/usb.svg",
+      "sha256": "dddef596fbe6bed3bc02d030548d6f17233c449a41a2bd7260acb3e681f19e47",
+      "original_filename": "usbview.svg",
+      "original_sha256": "8897da24ee705d16fa505533b69f05afd7798363352b8d96bb5f93fbc88768d5",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 3,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "battery",
+      "name": "电池",
+      "group": "settings",
+      "file": "svg/settings/battery.svg",
+      "sha256": "7887617aaf42b5acabd45c9310fc1cd0f79e21f1607f83ba3d4aa8c42ebed179",
+      "original_filename": "gnome-power-manager.svg",
+      "original_sha256": "3a96f880740656762f2491ceb19f619fb93bd07ae6664382c023fcbb568db982",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 5,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "brightness",
+      "name": "亮度",
+      "group": "settings",
+      "file": "svg/settings/brightness.svg",
+      "sha256": "8131e2553e9312eb1171466cb3d56a0573fdc28a7c788e5bb8f1cbb670717d0c",
+      "original_filename": "gnome-design-contrast.svg",
+      "original_sha256": "8be26526cc179f080ceef60cecbefed6c7fc3f70e3a580d72bbdfd73f386be80",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 8,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "audio",
+      "name": "音量与媒体",
+      "group": "settings",
+      "file": "svg/settings/audio.svg",
+      "sha256": "304f13c235e3d387661916452d3f33d7413f07b998a110b77de197e51b1958c1",
+      "original_filename": "multimedia-volume-control.svg",
+      "original_sha256": "dc36f5fff0f5517117ef270b4c15d1b8cb006f1caf4adc9aa4177f2f7048d7a9",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 12,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "clock-alarm",
+      "name": "时钟备选",
+      "group": "alternatives",
+      "file": "svg/alternatives/clock-alarm.svg",
+      "sha256": "c2cab5a9e88e49e9e27fcbaba7ba09b52bf0af4ba08b114ee9bfaf93698a1548",
+      "original_filename": "gnome-clocks.svg",
+      "original_sha256": "6f7b564c308ab65749fd2e9e50c7e81d3135a1d22e3d098ab03c63f2a25bb332",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 11,
+        "shadow_layers_adjusted": 7,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "timer-green",
+      "name": "计时器备选",
+      "group": "alternatives",
+      "file": "svg/alternatives/timer-green.svg",
+      "sha256": "d54a7f87f6294dfba23b1ea343b6515fcce9eb076a394076f1822b44d8408686",
+      "original_filename": "parnold-x.timer.svg",
+      "original_sha256": "0c1858db90bf6a2faae6ab412a5165a8385cd6e1c4ebc810a108426f2a9e00a0",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 3,
+        "shadow_layers_adjusted": 6,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "notes-paper",
+      "name": "便签备选",
+      "group": "alternatives",
+      "file": "svg/alternatives/notes-paper.svg",
+      "sha256": "7f6f266619f55dfceeca4e54964594c4aecbc8852b6ff246786043f9197741b5",
+      "original_filename": "basket.svg",
+      "original_sha256": "812720c4f1885d2831c054ee965d8235319a083b39218f7221b1774b99040b31",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 5,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    },
+    {
+      "id": "mac-shortcuts",
+      "name": "快捷键备选",
+      "group": "alternatives",
+      "file": "svg/alternatives/mac-shortcuts.svg",
+      "sha256": "8e4c45a1fdc5b8d100c3196d85eb69e46bc5006efdcb796614be8dd7be219078",
+      "original_filename": "preferences-desktop-keyboard-shortcuts.svg",
+      "original_sha256": "873cc71d22c08fea9fa157f2ac06bcb2e0cadc25a97dbe5008484e82616d6188",
+      "license": "GPL-3.0-or-later",
+      "adaptation": {
+        "colors_mapped": 5,
+        "shadow_layers_adjusted": 5,
+        "source_geometry_preserved": true,
+        "added_inner_rim": true
+      }
+    }
+  ]
+}

@@ -28,6 +28,13 @@ pub trait PlatformBackend {
     /// Rows are tightly packed: stride is rect.width, length is width * height.
     fn flush(&mut self, rect: Rect, rgb565_data: &[u16]);
 
+    /// Optional synchronous copy from a framebuffer subregion. `pixels` starts at
+    /// rect's first pixel; row starts are `stride` words apart. Return false only
+    /// if unsupported, without writing; the caller then supplies a packed flush.
+    fn flush_strided(&mut self, _rect: Rect, _pixels: &[u16], _stride: usize) -> bool {
+        false
+    }
+
     /// Poll any pending touch interaction events.
     fn poll_touch(&mut self) -> Option<TouchEvent>;
 

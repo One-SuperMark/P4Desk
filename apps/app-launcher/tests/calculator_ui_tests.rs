@@ -174,7 +174,7 @@ fn translated_programmer_result_and_backspace_icon_are_visible() {
         let mut count = 0;
         for y in (rect.y + 78.0).ceil() as usize..(rect.bottom() + 78.0).floor() as usize {
             for x in (rect.x + 24.0).ceil() as usize..(rect.right() + 24.0).floor() as usize {
-                if h.backend.pixels[y * 1024 + x] == Color::WHITE.to_rgb565() {
+                if h.backend.pixels[y * 1024 + x] == tiny_flutter::theme::Folio::ink().to_rgb565() {
                     count += 1;
                 }
             }

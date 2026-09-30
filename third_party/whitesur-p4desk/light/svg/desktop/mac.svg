@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" data-theme="light">
+ <title>P4Desk WhiteSur · Mac 控制 · 浅色主题</title>
+ <desc>WhiteSur derivative, modified 2026-09-30 by P4Desk asset adaptation. light palette, bitmap shadows/glow and blur filters removed, vector gradients retained, 64x64 normalization, inner rounded boundary. Original: src/apps/scalable/preferences-desktop-keyboard.svg; commit 73d8040da51a9ed74e47c7366e7e9ff437601a5c; GPL-3.0. Local vector geometry retained. </desc>
+ <g id="p4desk-source-vector" transform="scale(1)">
+  <defs>
+   <linearGradient id="b" x1="32.113" x2="32.495" y1="20.763" y2="53.185" gradientTransform="translate(-5.813 -6.252)scale(1.1667)" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#fff" />
+    <stop offset="1" stop-color="#d7d7d7" />
+   </linearGradient>
+   <linearGradient id="a" x1="7.937" x2="7.937" y1="15.081" y2="1.852" gradientTransform="scale(3.7796)" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#2e2e2e" />
+    <stop offset="1" stop-color="#505050" />
+   </linearGradient>
+  </defs>
+  <rect width="56.002" height="56.002" x="4" y="3.969" fill="url(#a)" rx="13.002" ry="13.002" />
+  <path fill="url(#b)" d="m40.384 34.728-2.788.02-.04-5.576 2.788-.02a5.576 5.576 0 1 0-5.616-5.535l.02 2.788-5.576.04-.02-2.788a5.576 5.576 0 1 0-5.536 5.616l2.788-.02.04 5.576-2.788.02a5.576 5.576 0 1 0 5.616 5.535l-.02-2.788 5.576-.04.02 2.781v.007a5.576 5.576 0 1 0 5.536-5.616m-.1-13.94a2.788 2.788 0 0 1 .04 5.576l-2.788.02-.02-2.788a2.79 2.79 0 0 1 2.767-2.808zm-19.496 2.929a2.788 2.788 0 0 1 5.576-.04l.02 2.787-2.788.02a2.79 2.79 0 0 1-2.808-2.767m2.93 19.495a2.788 2.788 0 0 1-.041-5.576l2.788-.02.02 2.788a2.79 2.79 0 0 1-2.768 2.808zm5.515-8.404-.04-5.576 5.575-.04.04 5.576zm11.212 8.283a2.79 2.79 0 0 1-2.808-2.768l-.02-2.788 2.787-.02a2.788 2.788 0 0 1 .04 5.576z" />
+ </g>
+ <rect id="p4desk-theme-rim" x="4.2" y="4.2" width="55.6" height="55.6" rx="12.8" fill="none" stroke="#52627c" stroke-opacity="0.1" stroke-width="0.4" />
+</svg>

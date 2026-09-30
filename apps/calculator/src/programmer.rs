@@ -1,8 +1,9 @@
 use crate::expression::{evaluate, Token, MAX_TOKENS};
 use crate::model::{closed_start, last_open};
 use crate::{BinaryOp, CalcError};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WordUnary {
     Not,
     Negate,
@@ -13,7 +14,7 @@ pub enum WordUnary {
     Flip8,
     Flip16,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProgrammerState {
     pub value: u64,
     pub radix: u32,
@@ -33,6 +34,13 @@ impl Default for ProgrammerState {
     }
 }
 impl ProgrammerState {
+    pub(crate) fn valid_checkpoint(&self) -> bool {
+        matches!(self.radix, 8 | 10 | 16)
+            && self.input.len() <= 128
+            && self.input.is_ascii()
+            && self.history.len() <= 16_384
+            && self.tokens.len() <= MAX_TOKENS
+    }
     pub fn new() -> Self {
         Self {
             value: 0,

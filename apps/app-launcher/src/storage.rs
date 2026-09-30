@@ -2,7 +2,7 @@ use p4desk_protocol::{Snapshot, MAX_CONTROL};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tiny_flutter::graphics::fontpack::{FontPack, MAX_FONTPACK_BYTES};
@@ -13,6 +13,18 @@ pub struct LocalSettings {
     pub brightness: u8,
     pub screen_on: bool,
     pub timezone_minutes: i32,
+    #[serde(default)]
+    pub light_appearance: bool,
+    #[serde(default = "default_glass_amount")]
+    pub glass_amount: u8,
+    #[serde(default)]
+    pub icon_theme: crate::icon_theme::IconTheme,
+    /// Missing legacy value initially retains the old appearance's icon palette.
+    #[serde(default)]
+    pub icon_light_override: Option<bool>,
+}
+fn default_glass_amount() -> u8 {
+    65
 }
 impl Default for LocalSettings {
     fn default() -> Self {
@@ -20,12 +32,21 @@ impl Default for LocalSettings {
             brightness: 75,
             screen_on: true,
             timezone_minutes: 480,
+            light_appearance: false,
+            glass_amount: default_glass_amount(),
+            icon_theme: Default::default(),
+            icon_light_override: None,
         }
     }
 }
 impl LocalSettings {
+    pub fn light_icons(&self) -> bool {
+        self.icon_light_override.unwrap_or(self.light_appearance)
+    }
     pub fn validate(&self) -> bool {
-        self.brightness <= 100 && (-840..=840).contains(&self.timezone_minutes)
+        self.brightness <= 100
+            && self.glass_amount <= 100
+            && (-840..=840).contains(&self.timezone_minutes)
     }
 }
 #[derive(Serialize, Deserialize)]
@@ -67,6 +88,11 @@ pub struct GenerationStore {
     pub active_generation: u64,
 }
 impl GenerationStore {
+    pub fn session_store(&self) -> SessionStore {
+        SessionStore {
+            root: self.local_root.clone(),
+        }
+    }
     pub fn new(root: impl Into<PathBuf>, local_root: impl Into<PathBuf>) -> Self {
         Self {
             root: root.into(),
@@ -338,7 +364,7 @@ fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, &'static 
     if size > 512 * 1024 {
         return Err("state_size");
     }
-    serde_json::from_reader(f).map_err(|_| "state_invalid")
+    serde_json::from_reader(BufReader::with_capacity(8192, f)).map_err(|_| "state_invalid")
 }
 fn write_sync<T: Serialize>(path: &Path, value: &T) -> Result<(), &'static str> {
     let mut f = OpenOptions::new()
@@ -347,12 +373,22 @@ fn write_sync<T: Serialize>(path: &Path, value: &T) -> Result<(), &'static str> 
         .truncate(true)
         .open(path)
         .map_err(|_| "state_write")?;
-    serde_json::to_writer(&mut f, value).map_err(|_| "state_encode")?;
-    f.write_all(b"\n").map_err(|_| "state_write")?;
+    {
+        let mut buffered = BufWriter::with_capacity(8192, &mut f);
+        serde_json::to_writer(&mut buffered, value).map_err(|_| "state_encode")?;
+        buffered.write_all(b"\n").map_err(|_| "state_write")?;
+        buffered.flush().map_err(|_| "state_write")?;
+    }
     f.sync_all().map_err(|_| "state_fsync")
 }
 fn valid_journal(root: &Path, name: &str, slot: usize) -> Option<Journal> {
-    let j: Journal = read_json(&root.join(format!("{name}.{slot}.json"))).ok()?;
+    let path = root.join(format!("{name}.{slot}.json"));
+    if name == "session"
+        && fs::metadata(&path).ok()?.len() > (crate::session::MAX_SESSION_BYTES * 2 + 1024) as u64
+    {
+        return None;
+    }
+    let j: Journal = read_json(&path).ok()?;
     if j.revision == 0
         || j.payload.len() > 512 * 1024
         || format!("{:x}", Sha256::digest(j.payload.as_bytes())) != j.sha256
@@ -390,11 +426,18 @@ fn read_journal<T: serde::de::DeserializeOwned>(
     Ok(None)
 }
 fn write_journal<T: Serialize>(root: &Path, name: &str, value: &T) -> Result<(), &'static str> {
+    write_journal_after(root, name, value, latest_journal(root, name))
+}
+fn write_journal_after<T: Serialize>(
+    root: &Path,
+    name: &str,
+    value: &T,
+    latest: Option<(usize, Journal)>,
+) -> Result<(), &'static str> {
     #[cfg(not(target_os = "espidf"))]
     fs::create_dir_all(root).map_err(|_| "storage_create")?;
     // SPIFFS has no mkdir and its rename cannot replace an existing target. Use two slots.
     // The latest complete slot is never removed; a power loss leaves it available at startup.
-    let latest = latest_journal(root, name);
     let revision = latest
         .as_ref()
         .map(|(_, j)| j.revision)
@@ -419,6 +462,54 @@ fn write_journal<T: Serialize>(root: &Path, name: &str, value: &T) -> Result<(),
     )?;
     fs::rename(&temporary, &target).map_err(|_| "state_rename")?;
     sync_directory(root)
+}
+
+/// A separate handle lets the low-priority writer save without holding the UI lock.
+#[derive(Clone)]
+pub struct SessionStore {
+    root: PathBuf,
+}
+impl SessionStore {
+    fn latest(&self) -> Option<(usize, Journal, crate::session::Session)> {
+        [0, 1]
+            .into_iter()
+            .filter_map(|slot| {
+                let j = valid_journal(&self.root, "session", slot)?;
+                if j.payload.len() > crate::session::MAX_SESSION_BYTES {
+                    return None;
+                }
+                let s: crate::session::Session = serde_json::from_str(&j.payload).ok()?;
+                s.valid().then_some((slot, j, s))
+            })
+            .max_by_key(|(_, j, _)| j.revision)
+    }
+    pub fn load(&self) -> Result<Option<crate::session::Session>, &'static str> {
+        if let Some((_, _, s)) = self.latest() {
+            return Ok(Some(s));
+        }
+        if [0, 1]
+            .into_iter()
+            .any(|slot| self.root.join(format!("session.{slot}.json")).exists())
+        {
+            Err("session_invalid")
+        } else {
+            Ok(None)
+        }
+    }
+    pub fn save(&self, session: &crate::session::Session) -> Result<(), &'static str> {
+        if !session.valid()
+            || serde_json::to_vec(session)
+                .map_err(|_| "session_encode")?
+                .len()
+                > crate::session::MAX_SESSION_BYTES
+        {
+            return Err("session_invalid");
+        }
+        // Choose by payload validity as well as checksum: never overwrite the
+        // last usable slot when a newer slot has an unsupported/invalid payload.
+        let latest = self.latest().map(|(slot, j, _)| (slot, j));
+        write_journal_after(&self.root, "session", session, latest)
+    }
 }
 fn sync_directory(root: &Path) -> Result<(), &'static str> {
     #[cfg(not(target_os = "espidf"))]

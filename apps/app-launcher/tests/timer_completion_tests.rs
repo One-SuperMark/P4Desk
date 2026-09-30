@@ -184,7 +184,7 @@ fn completed_at(elapsed: u64) -> Arc<Mutex<LauncherState>> {
 fn completion_badge_pops_from_bottom_with_a_small_overshoot_then_settles_at_center() {
     let base = render(completed_at(0));
     fn extent(pixels: &[u16], base: &[u16]) -> (usize, usize) {
-        let theme = Color::from_hex(0xf18b77).to_rgb565();
+        let theme = Color::from_hex(0xd07969).to_rgb565();
         let rows: Vec<_> = (0..600)
             .filter(|y| {
                 (477..547)
@@ -235,11 +235,11 @@ fn colored_circle_grows_before_covering_navigation_and_uses_current_button_theme
     }
     assert_eq!(
         partial[360 * 1024 + 512],
-        Color::from_hex(0xf18b77).to_rgb565()
+        Color::from_hex(0xd07969).to_rgb565()
     );
     for (phase, theme) in [
-        (Phase::Focus, 0xf18b77),
-        (Phase::Break, 0x8ed4b5),
+        (Phase::Focus, 0xd07969),
+        (Phase::Break, 0x6db7b4),
         (Phase::LongBreak, 0x9dbded),
     ] {
         let mut s = LauncherState::new();
@@ -283,7 +283,7 @@ fn transparent_circle_reveals_center_then_edges_and_leaves_no_fullscreen_overlay
             );
         }
     }
-    let theme = Color::from_hex(0xf18b77).to_rgb565();
+    let theme = Color::from_hex(0xd07969).to_rgb565();
     for (x, y) in [
         (0, 0),
         (1023, 0),

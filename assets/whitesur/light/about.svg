@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <desc>WhiteSur derivative, GPL-3.0. Normalized for P4Desk; original sources retained in third_party/whitesur-p4desk.</desc>
+  <defs>
+    <linearGradient id="g0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(7.5592 0 0 7.5592 0 0)" x1="7.937" y1="15.081" x2="7.937" y2="1.852" data-p4desk-matrix="0 0 -0.00999993432043 0 1.13999546451 0">
+      <stop stop-color="#0e71de" stop-opacity="1" offset="0" />
+      <stop stop-color="#25c9ff" stop-opacity="1" offset="1" />
+    </linearGradient>
+    <linearGradient id="g1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2 0 0 2 0 0)" x1="32.068" y1="18.941" x2="32.068" y2="46.602" data-p4desk-matrix="0 0 0.0180759914681 0 -0.684754708796 0">
+      <stop stop-color="#edfbff" stop-opacity="1" offset="0" />
+      <stop stop-color="#c6e4fa" stop-opacity="1" offset="1" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="7.938" width="112.004" height="112.004" rx="26.004" fill="url(#g0)" stroke="none" />
+  <circle cx="64.04" cy="64.088" r="60.002" fill="none" stroke="none" />
+  <path d="M64.004 32 C61.116113 31.953264 58.427259 33.466793 56.969032 35.959913 C55.510805 38.453034 55.509647 41.538598 56.966004 44.032811 C58.422361 46.527025 61.110079 48.04257 63.998 47.998 C68.366454 47.93058 71.872909 44.370927 71.874548 40.001953 C71.876186 35.632979 68.372402 32.070696 64.004 32 M64.004 54 C59.32 54 56 57.652 56 62.148 L56 89.856 C56 94.356 59.32 98.002 64.004 98.002 C68.684 98 72 94.356 72 89.856 L72 62.148 C72 57.648 68.686 54 64.004 54" fill="url(#g1)" stroke="none" />
+  <rect x="8.4" y="8.4" width="111.2" height="111.2" rx="25.6" fill="none" stroke="#52627c" stroke-opacity="0.1" stroke-width="0.8" />
+</svg>

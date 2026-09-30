@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" data-theme="light">
+ <title>P4Desk Colloid · 显示器 · 浅色主题</title>
+ <desc>Colloid icon derivative. Modified 2026-09-30 by P4Desk: light palette; raster shadows and blur filters removed; normalized 64x64 canvas; inner rounded border. Original: src/devices/symbolic/video-display-symbolic.svg; commit ceac6608ecd0e40025cbc2ebbd32bf0e0f4ebc6a; GPL-3.0. Source vector paths retained. Colloid-proportioned plate and symbol outline added.</desc>
+ <rect id="p4desk-plate" x="4" y="4" width="56" height="56" rx="13" fill="#eaeefa" />
+ <g id="p4desk-source-vector" transform="translate(13 14.1875) scale(2.375)">
+  <path d="m2-2e-7c-1.1046 0-2 0.89543-2 2v9c0 1.1046 0.89543 2 2 2h3v2h-1.5c-0.27614 0-0.5 0.2239-0.5 0.5s0.22386 0.5 0.5 0.5h9c0.2761 0 0.5-0.2239 0.5-0.5s-0.2239-0.5-0.5-0.5h-1.5v-2h3c1.1046 0 2-0.8954 2-2v-9c0-1.1046-0.8954-2-2-2zm8 13v2h-4v-2zm-9-11c0-0.55228 0.44772-1 1-1h12c0.5523 0 1 0.44772 1 1v9c0 0.5523-0.4477 1-1 1h-12c-0.55228 0-1-0.4477-1-1z" fill="#6378b6" stroke="#6378b6" stroke-width="0.08" stroke-linejoin="round" />
+ </g>
+ <rect id="p4desk-theme-rim" x="4.2" y="4.2" width="55.6" height="55.6" rx="12.8" fill="none" stroke="#51667e" stroke-opacity="0.13" stroke-width="0.4" />
+</svg>

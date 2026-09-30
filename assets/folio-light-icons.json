@@ -1,0 +1,71 @@
+{
+  "license": "MIT",
+  "icons": [
+    {
+      "id": "clock",
+      "source_sha256": "3e797abb4811d315bfaed75c718f529f19f0bc264b0f07612e39d1f4865b0df2",
+      "base_color": "d0e2e8",
+      "layers": 8
+    },
+    {
+      "id": "timer",
+      "source_sha256": "495ff63614372b8e3754c468f4ac697324fdbb9e9cf0451b1ea588f0cdf704e8",
+      "base_color": "f3d9d0",
+      "layers": 9
+    },
+    {
+      "id": "notes",
+      "source_sha256": "fca5251b8cf8f2b7373d47ba750ac1153820cd5450219695b895be7b1eb22605",
+      "base_color": "f4e4bd",
+      "layers": 7
+    },
+    {
+      "id": "calculator",
+      "source_sha256": "64575eae96335a4c7fc79eb15c45c4bd216ab6b49d9084ff85253b75404a3908",
+      "base_color": "d3e9df",
+      "layers": 11
+    },
+    {
+      "id": "mac",
+      "source_sha256": "17db77fd10583a23ec72ca9a836ba01555aac900f428ca32283901f9d540198c",
+      "base_color": "d9e4f4",
+      "layers": 4
+    },
+    {
+      "id": "settings",
+      "source_sha256": "0eceab4fd7b96dc5c73b2b4c32a62f099ff6439edfd6d223b29160c418b18860",
+      "base_color": "dde7eb",
+      "layers": 10
+    },
+    {
+      "id": "display",
+      "source_sha256": "faf9118e1a26eab57718c98eefcf774aaeab35ae82eadd75d648e58300399b58",
+      "base_color": "d1eaeb",
+      "layers": 7
+    },
+    {
+      "id": "screen",
+      "source_sha256": "da175a5cad2a35e4e2db46a8f531a5ac97e84832a4919ee607d06b149ea815a4",
+      "base_color": "e4dcef",
+      "layers": 4
+    },
+    {
+      "id": "file-manager",
+      "source_sha256": "03af9536b023691188806eed2d816b229e728d87493d6460ac5de906b926655e",
+      "base_color": "e4ddf0",
+      "layers": 3
+    },
+    {
+      "id": "office-viewer",
+      "source_sha256": "f4a500ea09cb5cb183da5e5b1bab9a4d0a9e90c171a0620c481ace79284e90fb",
+      "base_color": "f1dce6",
+      "layers": 6
+    },
+    {
+      "id": "sub2api-monitor",
+      "source_sha256": "a4ed7550e986e297b5c8ad38c06e72027ef6ae0b4861545eb1ebdbf4a1c208bd",
+      "base_color": "cde9e2",
+      "layers": 5
+    }
+  ]
+}

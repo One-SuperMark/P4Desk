@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>P4Desk Folio round mac</title>
+  <desc>Original P4Desk artwork inspired by Folio round layered geometry. Copyright 2026 P4Desk contributors. MIT License.</desc>
+  <circle cx="64" cy="64" r="56" fill="#d9e4f4" />
+  <rect x="29.53846" y="37.83077" width="61.6" height="59.73333" rx="12.13333" fill="#dce8f8" opacity=".5" />
+  <rect x="35.13846" y="30.3641" width="61.6" height="59.73333" rx="12.13333" fill="#f6f9ff" />
+  <path d="M57.53846 49.9641L51.93846 49.9641C44.47179 49.9641 44.47179 39.69744 51.93846 39.69744C55.67179 39.69744 57.53846 42.49744 57.53846 46.23077L57.53846 75.1641C57.53846 82.63077 47.27179 82.63077 47.27179 75.1641C47.27179 71.43077 50.07179 69.5641 53.80513 69.5641L78.07179 69.5641C85.53846 69.5641 85.53846 80.7641 78.07179 80.7641C74.33846 80.7641 72.47179 77.9641 72.47179 74.23077L72.47179 46.23077C72.47179 38.7641 83.67179 38.7641 83.67179 46.23077C83.67179 49.9641 80.87179 49.9641 78.07179 49.9641L57.53846 49.9641" fill="none" stroke="#657fa8" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

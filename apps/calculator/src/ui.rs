@@ -1,13 +1,9 @@
 use crate::{AngleUnit, BinaryOp, CalcMode, CalcState, UnaryOp, WordUnary};
 use std::sync::{Arc, Mutex};
 use tiny_flutter::prelude::*;
+use tiny_flutter::theme::Folio;
 
-pub const CALCULATOR_BG: Color = Color::from_hex(0x292726);
-const NUMBER: Color = Color::from_hex(0x787675);
-const FUNCTION: Color = Color::from_hex(0x999796);
-const SCIENCE: Color = Color::from_hex(0x5b5958);
-const ORANGE: Color = Color::from_hex(0xff9f00);
-const MUTED: Color = Color::from_hex(0xb5b1ae);
+pub const CALCULATOR_BG: Color = Folio::BG;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum KeyAction {
@@ -124,32 +120,32 @@ fn key(label: &'static str, action: KeyAction, color: Color) -> KeySpec {
 fn power(label: &'static str, exponent: &'static str, action: KeyAction) -> KeySpec {
     KeySpec {
         exponent: Some(exponent),
-        ..key(label, action, SCIENCE)
+        ..key(label, action, Folio::surface())
     }
 }
 fn basic_keys(clear: &'static str) -> Vec<KeySpec> {
     use KeyAction::*;
     vec![
-        key("", Backspace, FUNCTION),
-        key(clear, Clear, FUNCTION),
-        key("%", Percent, FUNCTION),
-        key("÷", Binary(BinaryOp::Divide), ORANGE),
-        key("7", Digit('7'), NUMBER),
-        key("8", Digit('8'), NUMBER),
-        key("9", Digit('9'), NUMBER),
-        key("×", Binary(BinaryOp::Multiply), ORANGE),
-        key("4", Digit('4'), NUMBER),
-        key("5", Digit('5'), NUMBER),
-        key("6", Digit('6'), NUMBER),
-        key("−", Binary(BinaryOp::Subtract), ORANGE),
-        key("1", Digit('1'), NUMBER),
-        key("2", Digit('2'), NUMBER),
-        key("3", Digit('3'), NUMBER),
-        key("+", Binary(BinaryOp::Add), ORANGE),
-        key("+/−", Sign, NUMBER),
-        key("0", Digit('0'), NUMBER),
-        key(".", Dot, NUMBER),
-        key("=", Equals, ORANGE),
+        key("", Backspace, Folio::line()),
+        key(clear, Clear, Folio::line()),
+        key("%", Percent, Folio::line()),
+        key("÷", Binary(BinaryOp::Divide), Folio::orange()),
+        key("7", Digit('7'), Folio::raised()),
+        key("8", Digit('8'), Folio::raised()),
+        key("9", Digit('9'), Folio::raised()),
+        key("×", Binary(BinaryOp::Multiply), Folio::orange()),
+        key("4", Digit('4'), Folio::raised()),
+        key("5", Digit('5'), Folio::raised()),
+        key("6", Digit('6'), Folio::raised()),
+        key("−", Binary(BinaryOp::Subtract), Folio::orange()),
+        key("1", Digit('1'), Folio::raised()),
+        key("2", Digit('2'), Folio::raised()),
+        key("3", Digit('3'), Folio::raised()),
+        key("+", Binary(BinaryOp::Add), Folio::orange()),
+        key("+/−", Sign, Folio::raised()),
+        key("0", Digit('0'), Folio::raised()),
+        key(".", Dot, Folio::raised()),
+        key("=", Equals, Folio::orange()),
     ]
 }
 fn scientific_keys(state: &CalcState) -> Vec<KeySpec> {
@@ -157,16 +153,16 @@ fn scientific_keys(state: &CalcState) -> Vec<KeySpec> {
     use UnaryOp::*;
     let second = state.second_functions;
     let mut keys = vec![
-        key("(", Open, SCIENCE),
-        key(")", Close, SCIENCE),
-        key("mc", MemoryClear, SCIENCE),
-        key("m+", MemoryAdd, SCIENCE),
-        key("m−", MemorySubtract, SCIENCE),
-        key("mr", MemoryRecall, SCIENCE),
-        key("", Backspace, FUNCTION),
-        key(state.clear_label(), Clear, FUNCTION),
-        key("%", Percent, FUNCTION),
-        key("÷", Binary(BinaryOp::Divide), ORANGE),
+        key("(", Open, Folio::surface()),
+        key(")", Close, Folio::surface()),
+        key("mc", MemoryClear, Folio::surface()),
+        key("m+", MemoryAdd, Folio::surface()),
+        key("m−", MemorySubtract, Folio::surface()),
+        key("mr", MemoryRecall, Folio::surface()),
+        key("", Backspace, Folio::line()),
+        key(state.clear_label(), Clear, Folio::line()),
+        key("%", Percent, Folio::line()),
+        key("÷", Binary(BinaryOp::Divide), Folio::orange()),
         power("2", "nd", Second),
         power("x", "2", Unary(Square)),
         power("x", "3", Unary(Cube)),
@@ -177,63 +173,63 @@ fn scientific_keys(state: &CalcState) -> Vec<KeySpec> {
             Unary(if second { Exp2 } else { Exp }),
         ),
         power("10", "x", Unary(Exp10)),
-        key("7", Digit('7'), NUMBER),
-        key("8", Digit('8'), NUMBER),
-        key("9", Digit('9'), NUMBER),
-        key("×", Binary(BinaryOp::Multiply), ORANGE),
-        key("1/x", Unary(Reciprocal), SCIENCE),
-        key("√x", Unary(Sqrt), SCIENCE),
+        key("7", Digit('7'), Folio::raised()),
+        key("8", Digit('8'), Folio::raised()),
+        key("9", Digit('9'), Folio::raised()),
+        key("×", Binary(BinaryOp::Multiply), Folio::orange()),
+        key("1/x", Unary(Reciprocal), Folio::surface()),
+        key("√x", Unary(Sqrt), Folio::surface()),
         power("√x", "3", Unary(Cbrt)),
         power("√x", "y", Binary(BinaryOp::Root)),
-        key("ln", Unary(Ln), SCIENCE),
+        key("ln", Unary(Ln), Folio::surface()),
         power(
             "log",
             if second { "2" } else { "10" },
             Unary(if second { Log2 } else { Log10 }),
         ),
-        key("4", Digit('4'), NUMBER),
-        key("5", Digit('5'), NUMBER),
-        key("6", Digit('6'), NUMBER),
-        key("−", Binary(BinaryOp::Subtract), ORANGE),
-        key("x!", Unary(Factorial), SCIENCE),
+        key("4", Digit('4'), Folio::raised()),
+        key("5", Digit('5'), Folio::raised()),
+        key("6", Digit('6'), Folio::raised()),
+        key("−", Binary(BinaryOp::Subtract), Folio::orange()),
+        key("x!", Unary(Factorial), Folio::surface()),
         key(
             if second { "asin" } else { "sin" },
             Unary(if second { Asin } else { Sin }),
-            SCIENCE,
+            Folio::surface(),
         ),
         key(
             if second { "acos" } else { "cos" },
             Unary(if second { Acos } else { Cos }),
-            SCIENCE,
+            Folio::surface(),
         ),
         key(
             if second { "atan" } else { "tan" },
             Unary(if second { Atan } else { Tan }),
-            SCIENCE,
+            Folio::surface(),
         ),
-        key("e", Constant(std::f64::consts::E), SCIENCE),
-        key("EE", Exponent, SCIENCE),
-        key("1", Digit('1'), NUMBER),
-        key("2", Digit('2'), NUMBER),
-        key("3", Digit('3'), NUMBER),
-        key("+", Binary(BinaryOp::Add), ORANGE),
-        key("Rand", Random, SCIENCE),
+        key("e", Constant(std::f64::consts::E), Folio::surface()),
+        key("EE", Exponent, Folio::surface()),
+        key("1", Digit('1'), Folio::raised()),
+        key("2", Digit('2'), Folio::raised()),
+        key("3", Digit('3'), Folio::raised()),
+        key("+", Binary(BinaryOp::Add), Folio::orange()),
+        key("Rand", Random, Folio::surface()),
         key(
             if second { "asinh" } else { "sinh" },
             Unary(if second { Asinh } else { Sinh }),
-            SCIENCE,
+            Folio::surface(),
         ),
         key(
             if second { "acosh" } else { "cosh" },
             Unary(if second { Acosh } else { Cosh }),
-            SCIENCE,
+            Folio::surface(),
         ),
         key(
             if second { "atanh" } else { "tanh" },
             Unary(if second { Atanh } else { Tanh }),
-            SCIENCE,
+            Folio::surface(),
         ),
-        key("π", Constant(std::f64::consts::PI), SCIENCE),
+        key("π", Constant(std::f64::consts::PI), Folio::surface()),
         key(
             if state.angle == AngleUnit::Degrees {
                 "Rad"
@@ -241,12 +237,12 @@ fn scientific_keys(state: &CalcState) -> Vec<KeySpec> {
                 "Deg"
             },
             Angle,
-            SCIENCE,
+            Folio::surface(),
         ),
-        key("+/−", Sign, NUMBER),
-        key("0", Digit('0'), NUMBER),
-        key(".", Dot, NUMBER),
-        key("=", Equals, ORANGE),
+        key("+/−", Sign, Folio::raised()),
+        key("0", Digit('0'), Folio::raised()),
+        key(".", Dot, Folio::raised()),
+        key("=", Equals, Folio::orange()),
     ];
     keys[10].selected = second;
     keys[5].selected = state.memory != 0.0;
@@ -255,48 +251,48 @@ fn scientific_keys(state: &CalcState) -> Vec<KeySpec> {
 fn programmer_keys(clear: &'static str) -> Vec<KeySpec> {
     use KeyAction::*;
     vec![
-        key("", Backspace, FUNCTION),
-        key("(", Open, SCIENCE),
-        key(")", Close, SCIENCE),
-        key("D", Digit('D'), NUMBER),
-        key("E", Digit('E'), NUMBER),
-        key("F", Digit('F'), NUMBER),
-        key(clear, Clear, FUNCTION),
-        key("AND", Binary(BinaryOp::And), SCIENCE),
-        key("OR", Binary(BinaryOp::Or), SCIENCE),
-        key("XOR", Binary(BinaryOp::Xor), SCIENCE),
-        key("A", Digit('A'), NUMBER),
-        key("B", Digit('B'), NUMBER),
-        key("C", Digit('C'), NUMBER),
-        key("÷", Binary(BinaryOp::Divide), ORANGE),
-        key("NOR", Binary(BinaryOp::Nor), SCIENCE),
-        key("<<", Word(WordUnary::ShiftLeft), SCIENCE),
-        key(">>", Word(WordUnary::ShiftRight), SCIENCE),
-        key("7", Digit('7'), NUMBER),
-        key("8", Digit('8'), NUMBER),
-        key("9", Digit('9'), NUMBER),
-        key("×", Binary(BinaryOp::Multiply), ORANGE),
-        key("NOT", Word(WordUnary::Not), SCIENCE),
-        key("x<<y", Binary(BinaryOp::ShiftLeft), SCIENCE),
-        key("x>>y", Binary(BinaryOp::ShiftRight), SCIENCE),
-        key("4", Digit('4'), NUMBER),
-        key("5", Digit('5'), NUMBER),
-        key("6", Digit('6'), NUMBER),
-        key("−", Binary(BinaryOp::Subtract), ORANGE),
-        key("NEG", Word(WordUnary::Negate), SCIENCE),
-        key("RoL", Word(WordUnary::RotateLeft), SCIENCE),
-        key("RoR", Word(WordUnary::RotateRight), SCIENCE),
-        key("1", Digit('1'), NUMBER),
-        key("2", Digit('2'), NUMBER),
-        key("3", Digit('3'), NUMBER),
-        key("+", Binary(BinaryOp::Add), ORANGE),
-        key("mod", Binary(BinaryOp::Mod), SCIENCE),
+        key("", Backspace, Folio::line()),
+        key("(", Open, Folio::surface()),
+        key(")", Close, Folio::surface()),
+        key("D", Digit('D'), Folio::raised()),
+        key("E", Digit('E'), Folio::raised()),
+        key("F", Digit('F'), Folio::raised()),
+        key(clear, Clear, Folio::line()),
+        key("AND", Binary(BinaryOp::And), Folio::surface()),
+        key("OR", Binary(BinaryOp::Or), Folio::surface()),
+        key("XOR", Binary(BinaryOp::Xor), Folio::surface()),
+        key("A", Digit('A'), Folio::raised()),
+        key("B", Digit('B'), Folio::raised()),
+        key("C", Digit('C'), Folio::raised()),
+        key("÷", Binary(BinaryOp::Divide), Folio::orange()),
+        key("NOR", Binary(BinaryOp::Nor), Folio::surface()),
+        key("<<", Word(WordUnary::ShiftLeft), Folio::surface()),
+        key(">>", Word(WordUnary::ShiftRight), Folio::surface()),
+        key("7", Digit('7'), Folio::raised()),
+        key("8", Digit('8'), Folio::raised()),
+        key("9", Digit('9'), Folio::raised()),
+        key("×", Binary(BinaryOp::Multiply), Folio::orange()),
+        key("NOT", Word(WordUnary::Not), Folio::surface()),
+        key("x<<y", Binary(BinaryOp::ShiftLeft), Folio::surface()),
+        key("x>>y", Binary(BinaryOp::ShiftRight), Folio::surface()),
+        key("4", Digit('4'), Folio::raised()),
+        key("5", Digit('5'), Folio::raised()),
+        key("6", Digit('6'), Folio::raised()),
+        key("−", Binary(BinaryOp::Subtract), Folio::orange()),
+        key("NEG", Word(WordUnary::Negate), Folio::surface()),
+        key("RoL", Word(WordUnary::RotateLeft), Folio::surface()),
+        key("RoR", Word(WordUnary::RotateRight), Folio::surface()),
+        key("1", Digit('1'), Folio::raised()),
+        key("2", Digit('2'), Folio::raised()),
+        key("3", Digit('3'), Folio::raised()),
+        key("+", Binary(BinaryOp::Add), Folio::orange()),
+        key("mod", Binary(BinaryOp::Mod), Folio::surface()),
         power("flip", "8", Word(WordUnary::Flip8)),
         power("flip", "16", Word(WordUnary::Flip16)),
-        key("FF", Digits("FF"), NUMBER),
-        key("0", Digit('0'), NUMBER),
-        key("00", Digits("00"), NUMBER),
-        key("=", Equals, ORANGE),
+        key("FF", Digits("FF"), Folio::raised()),
+        key("0", Digit('0'), Folio::raised()),
+        key("00", Digits("00"), Folio::raised()),
+        key("=", Equals, Folio::orange()),
     ]
 }
 
@@ -431,7 +427,7 @@ pub fn calculator_layout(state: &CalcState, size: Size) -> CalculatorLayout {
                 rect: Rect::from_ltwh(x * w / 976.0, controls_y, cw * w / 976.0, ch),
                 enabled: true,
                 selected,
-                color: SCIENCE,
+                color: Folio::surface(),
                 exponent: None,
                 font_size: 16.0 * scale.max(0.85),
             });
@@ -458,7 +454,7 @@ pub fn calculator_layout(state: &CalcState, size: Size) -> CalculatorLayout {
                     ),
                     enabled: true,
                     selected: on,
-                    color: CALCULATOR_BG,
+                    color: Folio::bg(),
                     exponent: None,
                     font_size: 16.0 * scale.max(0.85),
                 });
@@ -478,18 +474,24 @@ pub fn calculator_layout(state: &CalcState, size: Size) -> CalculatorLayout {
 
 /// The launcher places this independent selector beside its close control.
 pub fn mode_selector_layout(state: &CalcState, size: Size) -> Vec<CalculatorKey> {
-    let gap = 8.0;
-    let width = (size.width - gap * 2.0) / 3.0;
+    let gap = 4.0;
+    let inset = 4.0;
+    let width = (size.width - inset * 2.0 - gap * 2.0) / 3.0;
     [CalcMode::Basic, CalcMode::Scientific, CalcMode::Programmer]
         .into_iter()
         .enumerate()
         .map(|(i, mode)| CalculatorKey {
             label: mode.label().into(),
             action: KeyAction::Mode(mode),
-            rect: Rect::from_ltwh(i as f32 * (width + gap), 0.0, width, size.height),
+            rect: Rect::from_ltwh(
+                inset + i as f32 * (width + gap),
+                inset,
+                width,
+                size.height - inset * 2.0,
+            ),
             enabled: true,
             selected: state.mode == mode,
-            color: SCIENCE,
+            color: Folio::surface(),
             exponent: None,
             font_size: 18.0,
         })
@@ -510,6 +512,8 @@ pub fn build_mode_selector(state: Arc<Mutex<CalcState>>, size: Size) -> impl Wid
     Container::new()
         .width(size.width)
         .height(size.height)
+        .color(Folio::surface())
+        .border_radius(Folio::CONTROL_RADIUS)
         .child(row)
 }
 
@@ -581,6 +585,18 @@ struct DisplayPainter {
 }
 impl CustomPainter for DisplayPainter {
     fn paint(&self, canvas: &mut Canvas, size: Size) {
+        canvas.draw_rrect_aa(
+            RRect::from_rect_circular(
+                Rect::from_ltwh(
+                    self.display.x,
+                    self.display.y - 12.0,
+                    self.display.width,
+                    self.display.height + 16.0,
+                ),
+                Folio::GROUP_RADIUS,
+            ),
+            Folio::surface(),
+        );
         let font = Font::default_font();
         let primary = self.state.primary_display();
         let fs = (self.display.height * 0.62).clamp(28.0, 60.0);
@@ -606,7 +622,7 @@ impl CustomPainter for DisplayPainter {
                 self.display.right() - 10.0 - font.measure_text(&expression, 16.0).width,
                 self.display.y,
             ),
-            MUTED,
+            Folio::muted(),
         );
         let right = self.display.right()
             - if self.state.mode == CalcMode::Programmer {
@@ -623,7 +639,7 @@ impl CustomPainter for DisplayPainter {
                 right - font.measure_text(&primary, fs).width,
                 bottom - font.cap_height(fs),
             ),
-            Color::WHITE,
+            Folio::ink(),
         );
         if self.state.mode == CalcMode::Programmer {
             canvas.draw_text(
@@ -631,7 +647,7 @@ impl CustomPainter for DisplayPainter {
                 font,
                 14.0,
                 Point::new(right + 1.0, bottom - 5.0),
-                MUTED,
+                Folio::muted(),
             );
         } else if self.state.mode == CalcMode::Scientific && self.state.memory != 0.0 {
             canvas.draw_text(
@@ -639,7 +655,7 @@ impl CustomPainter for DisplayPainter {
                 font,
                 16.0,
                 Point::new(self.display.x + 6.0, bottom - 18.0),
-                MUTED,
+                Folio::muted(),
             );
         }
         canvas.restore();
@@ -650,7 +666,7 @@ impl CustomPainter for DisplayPainter {
                 ("31", 0.0, binary.y + binary.height * 0.5 - 6.0),
                 ("0", size.width - 8.0, binary.y + binary.height * 0.5 - 6.0),
             ] {
-                canvas.draw_text(label, font, 10.0, Point::new(x, y), MUTED);
+                canvas.draw_text(label, font, 10.0, Point::new(x, y), Folio::muted());
             }
         }
         if self.state.mode == CalcMode::Programmer {
@@ -660,7 +676,7 @@ impl CustomPainter for DisplayPainter {
                 font,
                 16.0,
                 Point::new(8.0, self.display.y + 8.0),
-                MUTED,
+                Folio::muted(),
             );
         }
     }
@@ -674,7 +690,7 @@ pub fn build_calculator_ui(state: Arc<Mutex<CalcState>>, size: Size) -> impl Wid
             Container::new()
                 .width(size.width)
                 .height(size.height)
-                .color(CALCULATOR_BG),
+                .color(Folio::bg()),
         )
         .push(
             CustomPaint::new(DisplayPainter {
@@ -702,24 +718,26 @@ fn key_button(state: Arc<Mutex<CalcState>>, key: CalculatorKey) -> ElevatedButto
     let bit = matches!(key.action, KeyAction::Bit(_));
     let orange_selection = matches!(key.action, KeyAction::Radix(_) | KeyAction::Mode(_));
     let color = if bit {
-        CALCULATOR_BG
+        Folio::bg()
     } else if !key.enabled {
-        Color::from_hex(0x403e3d)
+        Folio::surface()
     } else if key.selected {
         if orange_selection {
-            ORANGE
+            Folio::orange()
         } else {
-            FUNCTION
+            Folio::line()
         }
     } else {
         key.color
     };
     let label_color = if !key.enabled {
-        Color::from_hex(0x74716f)
+        Folio::disabled()
     } else if bit && key.selected {
-        ORANGE
+        Folio::orange()
+    } else if color == Folio::orange() {
+        Color::from_hex(0x17212e)
     } else {
-        Color::WHITE
+        Folio::ink()
     };
     let label = CustomPaint::new(LabelPainter {
         label: key.label,
@@ -733,12 +751,20 @@ fn key_button(state: Arc<Mutex<CalcState>>, key: CalculatorKey) -> ElevatedButto
         ButtonStyle::new()
             .size(key.rect.width, key.rect.height)
             .color(color)
-            .pressed_color(if bit {
-                FUNCTION
+            .pressed_color(if !key.enabled {
+                color
+            } else if bit {
+                Folio::line()
             } else {
-                Color::from_hex(0xc7c2be)
+                Folio::pressed(color)
             })
-            .border_radius(if bit { 4.0 } else { key.rect.height * 0.5 })
+            .border_radius(if bit {
+                4.0
+            } else if matches!(key.action, KeyAction::Mode(_)) {
+                Folio::CHIP_RADIUS
+            } else {
+                (key.rect.height * 0.32).min(Folio::CONTROL_RADIUS)
+            })
             .antialias(true)
             .padding(EdgeInsets::all(0.0)),
     );

@@ -10,6 +10,9 @@ const _: () = {
 use crate::runtime::{DeviceRuntime, Hal};
 use p4desk_protocol::{DeviceMessage, Mode, KIND_CONTROL, KIND_RESOURCE, MAX_CONTROL};
 use std::ffi::c_char;
+use std::sync::atomic::{AtomicU8, Ordering};
+// The display owner is a different thread from the UI's thread-local palette.
+static DISPLAY_REVEAL_STYLE: AtomicU8 = AtomicU8::new(4);
 use tiny_flutter::{
     App, PlatformBackend, Point, RawTouchFrame, RawTouchPoint, Rect, Size, TouchEvent,
 };
@@ -52,6 +55,15 @@ extern "C" {
     fn p4desk_radio_snapshot(out: *mut app_launcher::radio::RadioSnapshot, last: u32) -> bool;
     fn p4desk_radio_submit(op: u32, id: u32, data: *const u8, length: usize) -> bool;
     fn host_lcd_draw_bitmap(x1: i32, y1: i32, x2: i32, y2: i32, pixels: *const u16);
+    fn p4desk_pad_blit_rgb565(
+        x1: i32,
+        y1: i32,
+        x2: i32,
+        y2: i32,
+        pixels: *const u16,
+        pixel_count: usize,
+        stride: usize,
+    ) -> bool;
     fn p4desk_poll_pad_touch(event: *mut CPadTouchEvent) -> bool;
     fn host_lcd_set_power(on: bool);
     fn p4desk_pad_frame_begin();
@@ -185,7 +197,7 @@ impl Hal for EspHal {
     }
 }
 struct P4Backend {
-    touch_polled_this_step: bool,
+    touch_batch: crate::cadence::TouchBatch,
     last_raw_stamp: Option<u64>,
 }
 impl PlatformBackend for P4Backend {
@@ -238,17 +250,30 @@ impl PlatformBackend for P4Backend {
         }
         unsafe { host_lcd_draw_bitmap(x1, y1, x2, y2, data.as_ptr()) }
     }
+    fn flush_strided(&mut self, r: Rect, data: &[u16], stride: usize) -> bool {
+        unsafe {
+            p4desk_pad_blit_rgb565(
+                r.x as i32,
+                r.y as i32,
+                r.right() as i32,
+                r.bottom() as i32,
+                data.as_ptr(),
+                data.len(),
+                stride,
+            )
+        }
+    }
     fn poll_touch(&mut self) -> Option<TouchEvent> {
         // Present Down feedback before consuming a queued Up. Also rebuild an
         // app switch before routing the next gesture to its new widget tree.
-        if self.touch_polled_this_step {
+        if !self.touch_batch.ready() {
             return None;
         }
         let mut raw = CPadTouchEvent::default();
         if !unsafe { p4desk_poll_pad_touch(&mut raw) } {
             return None;
         }
-        self.touch_polled_this_step = true;
+        self.touch_batch.consumed(raw.kind);
         let point = Point::new(raw.x.clamp(0, 1023) as f32, raw.y.clamp(0, 599) as f32);
         Some(match raw.kind {
             1 => TouchEvent::Down(point),
@@ -267,14 +292,20 @@ pub extern "C" fn rust_main_entry() {
     let size = Size::new(1024.0, 600.0);
     let mut app = App::new(app_launcher::build_launcher_ui(state.clone(), size), size);
     let mut backend = P4Backend {
-        touch_polled_this_step: false,
+        touch_batch: crate::cadence::TouchBatch::default(),
         last_raw_stamp: None,
     };
     let mut buffer = vec![0u8; MAX_CONTROL];
     let mut mode = Mode::Pad;
     let mut revision = 0;
+    let mut next_ui_metrics_us = 0i64;
     loop {
         let iteration_started_us = unsafe { p4desk_monotonic_us() };
+        let style = {
+            let s = state.lock().unwrap();
+            (s.settings.icon_theme.index() << 1) | u8::from(s.settings.light_icons())
+        };
+        DISPLAY_REVEAL_STYLE.store(style, Ordering::Release);
         for _ in 0..8 {
             let (mut kind, mut sequence) = (0u8, 0u16);
             let n = unsafe {
@@ -296,7 +327,7 @@ pub extern "C" fn rust_main_entry() {
         let next_mode = runtime.hal.mode();
         if next_mode != mode {
             app.cancel_touch();
-            backend.touch_polled_this_step = false;
+            backend.touch_batch.reset();
             mode = next_mode;
             if mode == Mode::Pad {
                 app.set_screen_power(&mut backend, true);
@@ -325,7 +356,7 @@ pub extern "C" fn rust_main_entry() {
             if let Some(rect) = state.lock().unwrap().take_timer_animation_dirty(app.size()) {
                 app.mark_dirty(rect);
             }
-            backend.touch_polled_this_step = false;
+            backend.touch_batch.reset();
             app.step_with_builder(&mut backend, |size| {
                 app_launcher::build_launcher_ui(state.clone(), size)
             });
@@ -333,6 +364,25 @@ pub extern "C" fn rust_main_entry() {
         }
         if runtime.process_commands() {
             app.request_rebuild();
+        }
+        if iteration_started_us >= next_ui_metrics_us {
+            next_ui_metrics_us = iteration_started_us.saturating_add(30_000_000);
+            let m = app.take_frame_metrics();
+            if m.frames > 0 {
+                let (entries, bytes, hits, misses) = tiny_flutter::vector_cache_stats();
+                println!("p4desk_ui_perf: frames={} draw_avg_us={} output_avg_us={} draw_max_us={} total_max_us={} render_cache_entries={} render_cache_bytes={} cache_hits={} cache_misses={}",
+                    m.frames, m.draw_us / m.frames, m.output_us / m.frames,
+                    m.max_draw_us, m.max_total_us, entries, bytes, hits, misses);
+                if m.drag_frames > 0 {
+                    println!("p4desk_drag_perf: frames={} draw_avg_us={} output_avg_us={} total_max_us={} opaque_frames={}",
+                        m.drag_frames, m.drag_draw_us / m.drag_frames, m.drag_output_us / m.drag_frames, m.drag_max_us, m.opaque_frames);
+                }
+                let s = tiny_flutter::widgets::take_scroll_metrics();
+                if s.paints > 0 {
+                    println!("p4desk_scroll_perf: builds={} build_us={} paints={} blit_avg_us={} blit_max_us={}",
+                        s.builds, s.build_us, s.paints, s.blit_us/s.paints, s.blit_max_us);
+                }
+            }
         }
         let elapsed_us = unsafe { p4desk_monotonic_us() }.saturating_sub(iteration_started_us);
         unsafe { p4desk_delay_ms(crate::cadence::idle_delay_ms(elapsed_us)) };
@@ -358,11 +408,14 @@ pub unsafe extern "C" fn rust_p4desk_display_reveal(
     let data = std::slice::from_raw_parts_mut(pixels, count);
     let mut canvas =
         tiny_flutter::Canvas::new(tiny_flutter::tiny_gfx::Pixmap565Mut::new(data, 1024, 600));
+    let style = DISPLAY_REVEAL_STYLE.load(Ordering::Acquire);
     app_launcher::app_launch::paint_usb_display_reveal(
         &mut canvas,
         Size::new(1024.0, 600.0),
         elapsed_ms,
         duration_ms,
+        style & 1 != 0,
+        app_launcher::icon_theme::IconTheme::from_index(style >> 1),
     );
     true
 }

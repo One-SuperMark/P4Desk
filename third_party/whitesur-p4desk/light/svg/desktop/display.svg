@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" data-theme="light">
+ <title>P4Desk WhiteSur · USB 副屏 · 浅色主题</title>
+ <desc>WhiteSur derivative, modified 2026-09-30 by P4Desk asset adaptation. light palette, bitmap shadows/glow and blur filters removed, vector gradients retained, 64x64 normalization, inner rounded boundary. Original: src/actions/24/org.remmina.Remmina-multi-monitor-symbolic.svg; commit 73d8040da51a9ed74e47c7366e7e9ff437601a5c; GPL-3.0. Local vector geometry retained. WhiteSur-proportioned gradient plate added.</desc>
+ <defs>
+  <linearGradient id="p4desk-plate-gradient" x1="0" x2="0" y1="0" y2="1">
+   <stop offset="0" stop-color="#fbfdff" />
+   <stop offset="1" stop-color="#dceafa" />
+  </linearGradient>
+ </defs>
+ <rect id="p4desk-plate" x="4" y="4" width="56" height="56" rx="13" fill="url(#p4desk-plate-gradient)" />
+ <g id="p4desk-source-vector" transform="translate(12 12.835) scale(1.666667)">
+  <g fill="#347dc1" stroke-linecap="round" stroke-linejoin="round">
+   <path d="m1.9983 1.9961c-1.108 0-2 0.89201-2 2v8.0001c0 1.108 0.89199 2 2 2h2v-1h-2c-0.55399 0-0.99998-0.51994-0.99998-1.166v-7.6681c0-0.64612 0.446-1.166 0.99998-1.166h13c0.55399 0 0.99998 0.51993 0.99998 1.166v0.834h0.99998v-1c0-1.108-0.89199-2-2-2h-13z" stroke-width="2" />
+   <path d="m9.9985 5.0036c-1.108 0-2 1.0399-2 2.3321v1.668h0.99998v-1.8341c0-0.64611 0.446-1.166 0.99998-1.166h12c0.55399 0 0.99998 0.51993 0.99998 1.166v7.6682c0 0.64611-0.446 1.166-0.99998 1.166h-2v1h2c1.108 0 2-1.0399 2-2.3321v-7.336c0-1.2922-0.89199-2.3321-2-2.3321h-12z" stroke-width="1.842" />
+   <path d="m5.9989 8.9973c-1.108 0-2 0.89203-2 2v8.0001c0 1.108 0.89199 2 2 2h12c1.108 0 2-0.89203 2-2v-8.0001c0-1.108-0.89199-2-2-2zm0 1h12c0.554 0 0.99998 0.51993 0.99998 1.166v7.6682c0 0.64611-0.44599 1.166-0.99998 1.166h-12c-0.554 0-0.99998-0.51993-0.99998-1.166v-7.6682c0-0.64611 0.446-1.166 0.99998-1.166z" stroke-width="2" />
+  </g>
+ </g>
+ <rect id="p4desk-theme-rim" x="4.2" y="4.2" width="55.6" height="55.6" rx="12.8" fill="none" stroke="#52627c" stroke-opacity="0.1" stroke-width="0.4" />
+</svg>

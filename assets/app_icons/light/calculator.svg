@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>P4Desk Folio round calculator</title>
+  <desc>Original P4Desk artwork inspired by Folio round layered geometry. Copyright 2026 P4Desk contributors. MIT License.</desc>
+  <circle cx="64" cy="64" r="56" fill="#d3e9df" />
+  <rect x="40.73099" y="34.04337" width="51.68733" height="63.96145" rx="9.71566" fill="#224f46" opacity=".2" />
+  <rect x="38.0106" y="30.80482" width="51.68733" height="63.96145" rx="9.71566" fill="#effaf5" />
+  <rect x="46.17176" y="39.71084" width="35.36501" height="15.38313" rx="4.04819" fill="#4c7e6d" />
+  <rect x="58.86689" y="46.99759" width="15.41552" height="2.42892" rx="1.21446" fill="#cce5d9" />
+  <g fill="#91b8a6">
+    <rect x="47.07855" y="63.19036" width="8.16116" height="7.28675" rx="2.42892" />
+    <rect x="59.77369" y="63.19036" width="8.16116" height="7.28675" rx="2.42892" />
+    <rect x="72.46882" y="63.19036" width="8.16116" height="7.28675" rx="2.42892" />
+    <rect x="47.07855" y="75.33494" width="8.16116" height="7.28675" rx="2.42892" />
+    <rect x="59.77369" y="75.33494" width="8.16116" height="7.28675" rx="2.42892" />
+  </g>
+  <rect x="72.46882" y="75.33494" width="8.16116" height="12.14458" rx="2.42892" fill="#4c7e6d" />
+</svg>

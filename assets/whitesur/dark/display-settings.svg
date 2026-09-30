@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <desc>WhiteSur derivative, GPL-3.0. Normalized for P4Desk; original sources retained in third_party/whitesur-p4desk.</desc>
+  <defs>
+    <linearGradient id="g0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2 0 0 2 0 0)" x1="27.5" y1="4" x2="27.5" y2="60" data-p4desk-matrix="0 0 0.00892857142857 0 -0.0714285714286 0">
+      <stop stop-color="#56667b" stop-opacity="1" offset="0" />
+      <stop stop-color="#29394e" stop-opacity="1" offset="1" />
+    </linearGradient>
+    <linearGradient id="g1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2.5714 0 0 1.4 -18.286 20.8)" x1="32" y1="58" x2="32" y2="45" data-p4desk-matrix="0 0 -0.0549450549451 0 5.6043956044 0">
+      <stop stop-color="#8facca" stop-opacity="1" offset="0" />
+      <stop stop-color="#d9e8f6" stop-opacity="1" offset="0.346" />
+      <stop stop-color="#6e89a7" stop-opacity="1" offset="1" />
+    </linearGradient>
+    <linearGradient id="g2" gradientUnits="userSpaceOnUse" gradientTransform="matrix(1.35334 0 0 1.33 386.64 116.206)" x1="-233.34" y1="-23.763" x2="-233.34" y2="-63.812" data-p4desk-matrix="0 0 -0.0187739943381 0 1.58830263754 0">
+      <stop stop-color="#3c73b6" stop-opacity="1" offset="0" />
+      <stop stop-color="#91d0fb" stop-opacity="1" offset="1" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="111.998" height="111.998" rx="28" fill="url(#g0)" stroke="none" />
+  <path d="M36 8 C20.488 8 8 20.488 8 36 L8 91.996 C8 107.508 20.488 119.996 36 119.996 L91.996 119.996 C107.508 119.996 119.996 107.508 119.996 91.996 L119.996 36 C119.996 20.488 107.508 8 91.996 8 L36 8 Z M36 8.6 L91.996 8.6 C99.269143 8.58028 106.250109 11.46066 111.393204 16.60338 C116.536299 21.7461 119.417189 28.726856 119.398 36 L119.398 91.996 C119.416654 99.268981 116.535592 106.249425 111.392613 111.392029 C106.249634 116.534632 99.26898 119.415184 91.996 119.396 L36 119.396 C28.727549 119.414654 21.747614 116.533802 16.605386 111.391199 C11.463157 106.248595 8.582816 99.268449 8.602 91.996 L8.602 36 C8.580673 28.726898 11.460326 21.745506 16.60302 16.602436 C21.745714 11.459366 28.726896 8.579204 36 8.6" fill="#000000" stroke="none" opacity="0.045" />
+  <rect x="46" y="59.2" width="36" height="44.8" rx="6" fill="#000000" stroke="none" opacity="0.036" />
+  <rect x="46" y="57.2" width="36" height="44.8" rx="6" fill="url(#g1)" stroke="none" />
+  <rect x="22" y="30" width="84" height="56" rx="7" fill="#1b2c43" stroke="none" />
+  <path d="M29 31.4 L99 31.4 C102.092795 31.4 104.6 33.864225 104.6 36.904 L104.6 79.096 C104.6 82.135775 102.092795 84.6 99 84.6 L29 84.6 C25.907205 84.6 23.4 82.135775 23.4 79.096 L23.4 36.904 C23.4 33.864225 25.907205 31.4 29 31.4 Z" fill="url(#g2)" stroke="none" />
+  <rect x="8.4" y="8.4" width="111.2" height="111.2" rx="27.6" fill="none" stroke="#d4e6ff" stroke-opacity="0.16" stroke-width="0.8" />
+</svg>

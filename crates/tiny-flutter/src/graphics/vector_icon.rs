@@ -33,6 +33,11 @@ pub enum VectorShape {
 pub enum VectorPaint {
     Solid(Color),
     Tint(f32),
+    MappedGradient {
+        matrix: [f32; 6],
+        radial: bool,
+        stops: &'static [(f32, Color)],
+    },
     VerticalGradient {
         y1: f32,
         y2: f32,
@@ -84,6 +89,26 @@ impl VectorIcon {
         {
             return;
         }
+        let area = Rect::from_ltwh(
+            x - outset - 1.0,
+            y - outset - 1.0,
+            self.width * scale + outset * 2.0 + 2.0,
+            self.height * scale + outset * 2.0 + 2.0,
+        );
+        super::vector_cache::paint(self, canvas, bounds, area, tint, opacity, |canvas| {
+            self.paint_layers(canvas, x, y, scale, tint, opacity);
+        });
+    }
+
+    pub(super) fn paint_layers(
+        &self,
+        canvas: &mut Canvas,
+        x: f32,
+        y: f32,
+        scale: f32,
+        tint: Color,
+        opacity: f32,
+    ) {
         // Coordinates are scaled before the Canvas sees them. This preserves the
         // caller's translation and global dirty clip, including fractional origins.
         for layer in self.layers {
@@ -100,7 +125,7 @@ impl VectorIcon {
                         canvas.paint_circle(
                             center,
                             radius * scale,
-                            &fill.paint(tint, y, scale, opacity),
+                            &fill.paint(tint, x, y, scale, opacity),
                             None,
                         );
                     }
@@ -108,7 +133,7 @@ impl VectorIcon {
                         canvas.paint_circle(
                             center,
                             radius * scale,
-                            &stroke.paint(tint, y, scale, opacity),
+                            &stroke.paint(tint, x, y, scale, opacity),
                             Some(layer.stroke_width * scale),
                         );
                     }
@@ -131,12 +156,12 @@ impl VectorIcon {
                         radius * scale,
                     );
                     if let Some(fill) = layer.fill {
-                        canvas.paint_rrect(rect, &fill.paint(tint, y, scale, opacity), None);
+                        canvas.paint_rrect(rect, &fill.paint(tint, x, y, scale, opacity), None);
                     }
                     if let Some(stroke) = layer.stroke {
                         canvas.paint_rrect(
                             rect,
-                            &stroke.paint(tint, y, scale, opacity),
+                            &stroke.paint(tint, x, y, scale, opacity),
                             Some(layer.stroke_width * scale),
                         );
                     }
@@ -196,12 +221,16 @@ impl VectorIcon {
                 continue;
             };
             if let Some(fill) = layer.fill {
-                canvas.fill_path(&path, &fill.paint(tint, y, scale, opacity), layer.fill_rule);
+                canvas.fill_path(
+                    &path,
+                    &fill.paint(tint, x, y, scale, opacity),
+                    layer.fill_rule,
+                );
             }
             if let Some(stroke) = layer.stroke {
                 canvas.stroke_path(
                     &path,
-                    &stroke.paint(tint, y, scale, opacity),
+                    &stroke.paint(tint, x, y, scale, opacity),
                     &Stroke {
                         width: layer.stroke_width * scale,
                         line_cap: layer.line_cap,
@@ -214,7 +243,7 @@ impl VectorIcon {
     }
 }
 impl VectorPaint {
-    fn paint(self, tint: Color, y: f32, scale: f32, opacity: f32) -> gfx::Paint<'static> {
+    fn paint(self, tint: Color, x: f32, y: f32, scale: f32, opacity: f32) -> gfx::Paint<'static> {
         let opacity = opacity.clamp(0.0, 1.0);
         let fade = |color: Color| color.with_opacity(color.a as f32 / 255.0 * opacity);
         match self {
@@ -228,6 +257,30 @@ impl VectorPaint {
                 )
                 .to_gfx(),
             ),
+            Self::MappedGradient {
+                matrix: [a, b, c, d, e, f],
+                radial,
+                stops,
+            } => {
+                let transform = gfx::Transform {
+                    sx: a / scale,
+                    ky: b / scale,
+                    kx: c / scale,
+                    sy: d / scale,
+                    tx: e - (a * x + c * y) / scale,
+                    ty: f - (b * x + d * y) / scale,
+                };
+                let mut paint = gfx::Paint::new(gfx::Color::TRANSPARENT);
+                paint.shader = gfx::Shader::Mapped(gfx::paint::MappedGradient {
+                    transform,
+                    radial,
+                    stops: stops
+                        .iter()
+                        .map(|(t, c)| gfx::GradientStop::new(*t, fade(*c).to_gfx()))
+                        .collect(),
+                });
+                paint
+            }
             Self::VerticalGradient {
                 y1,
                 y2,

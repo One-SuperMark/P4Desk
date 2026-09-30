@@ -3,16 +3,42 @@
 //! actual screen size; the wallpaper below is an original geometric drawing.
 
 use crate::app_icons::AppIconAsset;
+use crate::live_clock_icon::{paint_app_icon, ClockTime};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
 };
 use tiny_flutter::prelude::*;
+use tiny_flutter::theme::Folio;
+
+pub struct GlyphPainter(pub &'static tiny_flutter::VectorIcon, pub Color);
+impl CustomPainter for GlyphPainter {
+    fn paint(&self, canvas: &mut Canvas, size: Size) {
+        self.0.paint(
+            canvas,
+            Rect::from_ltwh(0.0, 0.0, size.width, size.height),
+            self.1,
+        );
+    }
+}
+pub fn glyph(icon: &'static tiny_flutter::VectorIcon, size: f32, color: Color) -> CustomPaint {
+    CustomPaint::new(GlyphPainter(icon, color)).size(Size::new(size, size))
+}
+pub fn app_badge(id: &str, size: f32) -> CustomPaint {
+    CustomPaint::new(AppIconPainter {
+        asset: crate::app_icons::get_app_icon_asset(id).expect("known application badge"),
+        target_size: size,
+        pressed: None,
+        clock: None,
+    })
+    .size(Size::new(size, size))
+}
 
 pub struct AppIconPainter {
     pub asset: &'static AppIconAsset,
     pub target_size: f32,
     pub pressed: Option<Arc<AtomicBool>>,
+    pub clock: Option<ClockTime>,
 }
 impl CustomPainter for AppIconPainter {
     fn paint(&self, canvas: &mut Canvas, size: Size) {
@@ -22,7 +48,8 @@ impl CustomPainter for AppIconPainter {
             .is_some_and(|p| p.load(Ordering::Relaxed));
         let target = self.target_size.min(size.width).min(size.height).max(1.0)
             * if pressed { 0.94 } else { 1.0 };
-        self.asset.paint(
+        paint_app_icon(
+            self.asset,
             canvas,
             Rect::from_ltwh(
                 (size.width - target) * 0.5,
@@ -30,10 +57,11 @@ impl CustomPainter for AppIconPainter {
                 target,
                 target,
             ),
-            Color::WHITE,
+            self.clock,
+            1.0,
         );
         if pressed {
-            // Follow the SVG's 8..120 tile silhouette, preserving the vector edge.
+            // Colloid rounded tile; feedback follows the supplied SVG outline.
             let tile = target * 112.0 / 128.0;
             let rect = RRect::from_rect_circular(
                 Rect::from_ltwh(
@@ -42,7 +70,14 @@ impl CustomPainter for AppIconPainter {
                     tile,
                     tile,
                 ),
-                target * 27.0 / 128.0,
+                if matches!(
+                    crate::icon_theme::current(),
+                    crate::icon_theme::IconTheme::Colloid | crate::icon_theme::IconTheme::WhiteSur
+                ) {
+                    tile * 13.0 / 56.0
+                } else {
+                    tile * 0.5
+                },
             );
             canvas.draw_rrect_aa(rect, Color::WHITE.with_opacity(0.14));
             canvas.paint_rrect(
@@ -59,30 +94,57 @@ pub fn build_app_icon(
     label: &'static str,
     asset: &'static AppIconAsset,
     icon_size: f32,
+    clock: Option<ClockTime>,
+    on_tap: impl Fn(Rect) + Send + Sync + 'static,
+) -> impl Widget {
+    icon_slot(
+        label,
+        asset,
+        icon_size,
+        (icon_size + 32.0).max(160.0),
+        icon_size + 44.0,
+        clock,
+        on_tap,
+    )
+}
+
+pub fn build_dock_icon(
+    asset: &'static AppIconAsset,
+    icon_size: f32,
+    clock: Option<ClockTime>,
+    on_tap: impl Fn(Rect) + Send + Sync + 'static,
+) -> impl Widget {
+    icon_slot("", asset, icon_size, 84.0, icon_size, clock, on_tap)
+}
+fn icon_slot(
+    label: &'static str,
+    asset: &'static AppIconAsset,
+    icon_size: f32,
+    width: f32,
+    height: f32,
+    clock: Option<ClockTime>,
     on_tap: impl Fn(Rect) + Send + Sync + 'static,
 ) -> impl Widget {
     let pressed = Arc::new(AtomicBool::new(false));
     let bounds = Arc::new(Mutex::new(Rect::ZERO));
     let tapped_bounds = bounds.clone();
     let button = GestureDetector::new(
-        Container::new()
-            .width((icon_size + 32.0).max(160.0))
-            .height(icon_size + 44.0)
-            .child(
-                Column::new()
-                    .main_axis_alignment(MainAxisAlignment::Start)
-                    .cross_axis_alignment(CrossAxisAlignment::Center)
-                    .push(
-                        CustomPaint::new(AppIconPainter {
-                            asset,
-                            target_size: icon_size,
-                            pressed: Some(pressed.clone()),
-                        })
-                        .size(Size::new(icon_size, icon_size)),
-                    )
-                    .push(SizedBox::square(8.0))
-                    .push(Text::new(label).font_size(22.0).color(Color::WHITE)),
-            ),
+        Container::new().width(width).height(height).child(
+            Column::new()
+                .main_axis_alignment(MainAxisAlignment::Start)
+                .cross_axis_alignment(CrossAxisAlignment::Center)
+                .push(
+                    CustomPaint::new(AppIconPainter {
+                        asset,
+                        target_size: icon_size,
+                        pressed: Some(pressed.clone()),
+                        clock,
+                    })
+                    .size(Size::new(icon_size, icon_size)),
+                )
+                .push(SizedBox::square(8.0))
+                .push(Text::new(label).font_size(22.0).color(Folio::ink())),
+        ),
     )
     .on_tap(move || on_tap(*tapped_bounds.lock().unwrap()));
     IconPressFeedback {
@@ -193,21 +255,75 @@ impl RenderBox for RenderIconPressFeedback {
 pub struct WallpaperPainter;
 impl CustomPainter for WallpaperPainter {
     fn paint(&self, canvas: &mut Canvas, size: Size) {
-        canvas.fill_dithered_horizontal_gradient((12, 28, 46), (18, 63, 78));
-        canvas.draw_circle(
-            Point::new(size.width * 0.91, size.height * 0.04),
-            size.height * 0.58,
-            Color::from_rgba(39, 106, 113, 48),
+        canvas.cache_opaque_surface(
+            Rect::from_ltwh(0.0, 0.0, size.width, size.height),
+            Folio::is_light() as u32,
+            |canvas| {
+                Self::paint_uncached(canvas, size);
+            },
         );
-        canvas.draw_circle(
-            Point::new(size.width * 0.12, size.height * 1.02),
-            size.height * 0.57,
-            Color::from_rgba(56, 83, 137, 58),
-        );
-        canvas.draw_rect(
-            Rect::from_ltwh(0.0, size.height - 44.0, size.width, 44.0),
-            Color::from_rgba(7, 18, 29, 105),
-        );
+    }
+}
+impl WallpaperPainter {
+    fn paint_uncached(canvas: &mut Canvas, size: Size) {
+        // Original vector landscape, inspired by Folio's muted natural palette.
+        // Static and cacheable: no full-screen blur or animated wallpaper buffer.
+        if Folio::is_light() {
+            canvas.fill_dithered_horizontal_gradient((226, 231, 245), (182, 217, 232));
+        } else {
+            canvas.fill_dithered_horizontal_gradient((116, 111, 116), (62, 88, 109));
+        }
+        let colors = if Folio::is_light() {
+            [0xcbd3e4, 0xb4cbdc, 0x92b8ce, 0x749daf]
+        } else {
+            [0x797b83, 0x525f70, 0x354f60, 0x253b4d]
+        }
+        .map(Color::from_hex);
+        if size.width == 1024.0 && size.height == 600.0 {
+            const SPANS: &[u8] = include_bytes!("../../../assets/wallpaper/folio-waves.spans");
+            for row in SPANS.chunks_exact(8) {
+                let y = u16::from_le_bytes([row[0], row[1]]) as f32;
+                let x = u16::from_le_bytes([row[2], row[3]]) as f32;
+                let width = u16::from_le_bytes([row[4], row[5]]) as f32;
+                let rect = Rect::from_ltwh(x, y, width, 1.0);
+                if canvas.is_rect_visible(rect) {
+                    canvas.draw_rect(
+                        rect,
+                        colors[row[7] as usize].with_opacity(row[6] as f32 / 255.0),
+                    );
+                }
+            }
+            return;
+        }
+        let w = size.width;
+        let h = size.height;
+        for (level, color) in [
+            (0.30, colors[0]),
+            (0.46, colors[1]),
+            (0.63, colors[2]),
+            (0.82, colors[3]),
+        ] {
+            let mut path = tiny_gfx::PathBuilder::new();
+            path.move_to(-20.0, h * level);
+            path.cubic_to(
+                w * 0.26,
+                h * (level - 0.34),
+                w * 0.52,
+                h * (level + 0.38),
+                w + 20.0,
+                h * (level - 0.05),
+            );
+            path.line_to(w + 20.0, h + 20.0);
+            path.line_to(-20.0, h + 20.0);
+            path.close();
+            if let Some(path) = path.finish() {
+                canvas.fill_path(
+                    &path,
+                    &tiny_gfx::Paint::new(color.to_gfx()),
+                    tiny_gfx::FillRule::Winding,
+                );
+            }
+        }
     }
 }
 
@@ -222,4 +338,32 @@ pub fn make_dot(active: bool) -> impl Widget {
         } else {
             Color::from_rgba(255, 255, 255, 120)
         })
+}
+
+#[cfg(test)]
+mod wallpaper_cache_tests {
+    use super::*;
+    #[test]
+    fn cached_wallpaper_matches_procedural_output_for_both_themes_and_clips() {
+        for light in [false, true, false] {
+            Folio::configure(light, 65);
+            for clip in [None, None, Some(Rect::from_ltwh(97.0, 210.0, 455.0, 133.0))] {
+                let render = |cached| {
+                    let mut image = tiny_gfx::Pixmap565::new(1024, 600).unwrap();
+                    let mut canvas = Canvas::new(image.as_mut());
+                    canvas.clear(Color::RED);
+                    if let Some(clip) = clip {
+                        canvas.clip_rect(clip);
+                    }
+                    if cached {
+                        WallpaperPainter.paint(&mut canvas, Size::new(1024.0, 600.0));
+                    } else {
+                        WallpaperPainter::paint_uncached(&mut canvas, Size::new(1024.0, 600.0));
+                    }
+                    image
+                };
+                assert_eq!(render(true), render(false));
+            }
+        }
+    }
 }

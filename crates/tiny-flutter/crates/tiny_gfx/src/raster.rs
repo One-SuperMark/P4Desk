@@ -1038,3 +1038,61 @@ pub fn fill_dithered_horizontal_gradient(
         pixmap.row_mut(y as u32)[x1..x2].copy_from_slice(&strip[start..start + strip_width]);
     }
 }
+
+/// Packed horizontal visible spans. Transparent gaps are absent from storage.
+pub struct ImageSpan565 {
+    pub start: u32,
+    pub x: u16,
+    pub y: u16,
+    pub length: u16,
+    pub opaque: bool,
+}
+/// Resolve clip bounds once for a batch of sparse rows, with identical RGB565
+/// alpha semantics to blit_image_565_with_alpha.
+pub fn blit_image_565_spans(
+    pixmap: &mut Pixmap565Mut<'_>,
+    clip: Option<Rect>,
+    x: i32,
+    y: i32,
+    rgb: &[u16],
+    alpha: &[u8],
+    spans: &[ImageSpan565],
+) {
+    let clip = clip.unwrap_or(Rect::from_ltwh(
+        0.0,
+        0.0,
+        pixmap.width as f32,
+        pixmap.height as f32,
+    ));
+    let x1 = (clip.x.floor() as i32).max(0);
+    let y1 = (clip.y.floor() as i32).max(0);
+    let x2 = (clip.right().ceil() as i32).min(pixmap.width as i32);
+    let y2 = (clip.bottom().ceil() as i32).min(pixmap.height as i32);
+    for s in spans {
+        let dy = y.saturating_add(i32::from(s.y));
+        if dy < y1 || dy >= y2 {
+            continue;
+        }
+        let dx = x.saturating_add(i32::from(s.x));
+        let left = dx.max(x1);
+        let right = dx.saturating_add(i32::from(s.length)).min(x2);
+        if left >= right {
+            continue;
+        }
+        let start = s.start as usize + (left - dx) as usize;
+        let end = start + (right - left) as usize;
+        let Some(src) = rgb.get(start..end) else {
+            continue;
+        };
+        let row = &mut pixmap.row_mut(dy as u32)[left as usize..right as usize];
+        if s.opaque {
+            row.copy_from_slice(src);
+        } else if let Some(mask) = alpha.get(start..end) {
+            for ((dst, src), a) in row.iter_mut().zip(src).zip(mask) {
+                if *a != 0 {
+                    *dst = blend_rgb565(*dst, *src, *a);
+                }
+            }
+        }
+    }
+}

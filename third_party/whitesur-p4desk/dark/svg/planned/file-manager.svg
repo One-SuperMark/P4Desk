@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" data-theme="dark">
+ <title>P4Desk WhiteSur · 文件管理 · 深色主题</title>
+ <desc>WhiteSur derivative, modified 2026-09-30 by P4Desk asset adaptation. dark palette, bitmap shadows/glow and blur filters removed, vector gradients retained, 64x64 normalization, inner rounded boundary. Original: alternative/apps/scalable/file-manager.svg; commit 73d8040da51a9ed74e47c7366e7e9ff437601a5c; GPL-3.0. Local vector geometry retained. </desc>
+ <g id="p4desk-source-vector" transform="scale(1)">
+  <defs>
+   <linearGradient id="c" x1="445.28" x2="445.28" y1="179.28" y2="200.07" gradientTransform="matrix(1.011 0 0 .99098 -419.54 -154.86)" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#4097e6" />
+    <stop offset="1" stop-color="#8ac7f7" />
+   </linearGradient>
+   <linearGradient id="a" x1="19.307" x2="19.307" y1="24.991" y2="15.954" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#2e75c7" />
+    <stop offset="1" stop-color="#569de3" />
+   </linearGradient>
+  </defs>
+  <rect width="56" height="56" x="4" y="4" fill="#2d3e56" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width=".6" opacity=".05" rx="14" ry="14" />
+  <rect width="56" height="56" x="4" y="4" fill="#2d3e56" rx="14" ry="14" />
+  <path fill="url(#a)" d="M15.769 15.955h6.994c1.949 0 2.032.074 4.002 1.634C28.794 19.121 29.225 19 31.602 19h16.643c1.656-.013 2.989 1.361 2.989 3.017v22.994a2.98 2.98 0 0 1-2.989 2.99H15.771a2.98 2.98 0 0 1-2.989-2.99V18.943a2.98 2.98 0 0 1 2.989-2.989z" />
+  <rect width="38.454" height="25" x="12.777" y="23" fill="url(#c)" rx="2.989" ry="2.929" />
+  <path fill="#e0f2ff" d="M15.769 23c-1.656 0-2.99 1.306-2.99 2.93v.61c0-1.581 1.334-2.853 2.99-2.853h32.474c1.656 0 2.99 1.272 2.99 2.852v-.61c0-1.623-1.334-2.929-2.99-2.929z" opacity=".15" />
+  <path d="M15.766 22.699a3.29 3.29 0 0 0-2.984 1.88v1.276c.04-1.588 1.354-2.855 2.984-2.855h32.477c1.656 0 2.988 1.307 2.988 2.93v19.14c0-.02.004-.038.004-.058V24.596a3.29 3.29 0 0 0-2.992-1.897zM51.231 45.07" color="#000" opacity="0.036" />
+  <path d="M15.77 15.955a2.983 2.983 0 0 0-2.988 2.988v26.068A2.983 2.983 0 0 0 15.772 48h32.473a2.983 2.983 0 0 0 2.99-2.989V22.017c0-1.655-1.334-3.03-2.99-3.017H31.602c-2.377 0-2.808.12-4.836-1.412-1.97-1.56-2.053-1.633-4.002-1.633zm0 .299h6.994c.97 0 1.426.02 1.877.209.451.188.954.581 1.94 1.361l.004.004c1.025.775 1.683 1.157 2.398 1.332s1.436.14 2.62.14h16.646c1.489-.011 2.685 1.223 2.685 2.717v22.994a2.676 2.676 0 0 1-2.689 2.688H15.772a2.676 2.676 0 0 1-2.69-2.688V18.943a2.677 2.677 0 0 1 2.688-2.69z" color="#000" opacity="0.045" paint-order="stroke fill markers" />
+ </g>
+ <rect id="p4desk-theme-rim" x="4.2" y="4.2" width="55.6" height="55.6" rx="13.8" fill="none" stroke="#d4e6ff" stroke-opacity="0.16" stroke-width="0.4" />
+</svg>

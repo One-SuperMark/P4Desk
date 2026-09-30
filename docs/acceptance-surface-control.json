@@ -1,0 +1,109 @@
+{
+  "schema": "p4desk.acceptance.surface-control.v1",
+  "date": "2026-09-30",
+  "request": [
+    "Further improve remaining Pad lag",
+    "Implement frosted glass in Control Center"
+  ],
+  "implementation": {
+    "shared_cache_pixel_budget_bytes": 6291456,
+    "cache_entry_limit": 128,
+    "cache_scope": [
+      "vectors",
+      "opaque procedural wallpaper",
+      "rounded glass surfaces"
+    ],
+    "modal": "actual desktop frozen while open; quarter resolution capture and two separable box filter passes; recapture on next open; release on close",
+    "background_services": "continue while modal is open",
+    "ordinary_app_glass": "no desktop sampling"
+  },
+  "tests": {
+    "workspace_passed": 268,
+    "failed": 0,
+    "log": ".cache/folio/tests-surface-control-final.log",
+    "previews": "dark and light actual Rust renderer, synthetic data; checked",
+    "new_regressions": [
+      "glass cache vs direct pixels across theme, strength, press and clip",
+      "wallpaper cache vs procedural pixels",
+      "capture blur attenuates detail and preserves flat color",
+      "modal capture reuse, release and recapture on next desktop page"
+    ]
+  },
+  "host_benchmark": {
+    "glass_amount": 65,
+    "results": [
+      {
+        "allocated_bytes_per_paint": 350,
+        "allocations_per_paint": 7,
+        "case": "desktop",
+        "median_us": 109.209,
+        "p95_us": 144.416
+      },
+      {
+        "allocated_bytes_per_paint": 176,
+        "allocations_per_paint": 2,
+        "case": "wallpaper",
+        "median_us": 15.042,
+        "p95_us": 18.708
+      },
+      {
+        "allocated_bytes_per_paint": 2224,
+        "allocations_per_paint": 3,
+        "case": "circle_150ms",
+        "median_us": 285.458,
+        "p95_us": 307.917
+      },
+      {
+        "allocated_bytes_per_paint": 2224,
+        "allocations_per_paint": 3,
+        "case": "circle_220ms",
+        "median_us": 227.917,
+        "p95_us": 269.25
+      },
+      {
+        "allocated_bytes_per_paint": 40140,
+        "allocations_per_paint": 184,
+        "case": "bridge_300ms",
+        "median_us": 693.25,
+        "p95_us": 800.917
+      },
+      {
+        "allocated_bytes_per_paint": 3809,
+        "allocations_per_paint": 42,
+        "case": "reveal_640ms",
+        "median_us": 574.208,
+        "p95_us": 739.0
+      },
+      {
+        "allocated_bytes_per_paint": 1761,
+        "allocations_per_paint": 41,
+        "case": "timer",
+        "median_us": 270.416,
+        "p95_us": 346.458
+      }
+    ],
+    "samples_per_case": 40,
+    "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+  },
+  "build": {
+    "status": "passed",
+    "esp_idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "bytes": 5036592,
+    "sha256": "7f3a5c23e26d243f3b378467d5774c0febc3116c8d0a1708a73309ffbd2bbb73",
+    "log": ".cache/folio/build-surface-control.log"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/folio/flash-surface-control.log",
+    "hash_verified_images": 3,
+    "reset": "hard_reset"
+  },
+  "device": {
+    "status": "pending"
+  },
+  "user_acceptance": {
+    "paging_and_app_open": "pending",
+    "control_center_frosted_glass": "pending"
+  }
+}

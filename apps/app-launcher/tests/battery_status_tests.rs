@@ -135,30 +135,30 @@ fn tap(
     }
 }
 #[test]
-fn status_buttons_open_panel_outside_tap_only_dismisses_and_cache_stays_clean() {
+fn device_details_outside_tap_only_dismisses_and_cache_stays_clean() {
     let size = Size::new(1024.0, 600.0);
-    for x in [758.0, 806.0, 854.0, 942.0] {
-        let s = Arc::new(Mutex::new(LauncherState::new()));
-        let mut app = App::new(build_launcher_ui(s.clone(), size), size);
-        let mut backend = HeadlessBackend::new(1024, 600);
-        app.step(&mut backend);
-        let desktop = backend.pixels.clone();
-        tap(&s, &mut app, &mut backend, x, 28.0);
-        assert!(s.lock().unwrap().status_panel_open);
-        tap(&s, &mut app, &mut backend, 780.0, 260.0);
-        assert!(
-            s.lock().unwrap().status_panel_open,
-            "card tap must not dismiss or launch behind it"
-        );
-        tap(&s, &mut app, &mut backend, 392.0, 177.0);
-        assert!(!s.lock().unwrap().status_panel_open);
-        assert!(matches!(s.lock().unwrap().active_app, ActiveApp::Launcher));
-        assert_eq!(backend.pixels, desktop);
-        // After closing, a fresh gesture is required to launch an app.
-        tap(&s, &mut app, &mut backend, 392.0, 177.0);
-        assert!(matches!(s.lock().unwrap().active_app, ActiveApp::Timer));
-    }
+    let s = Arc::new(Mutex::new(LauncherState::new()));
+    let mut app = App::new(build_launcher_ui(s.clone(), size), size);
+    let mut backend = HeadlessBackend::new(1024, 600);
+    app.step(&mut backend);
+    let desktop = backend.pixels.clone();
+    tap(&s, &mut app, &mut backend, 954.0, 216.0);
+    tap(&s, &mut app, &mut backend, 580.0, 390.0);
+    assert!(s.lock().unwrap().status_panel_open);
+    tap(&s, &mut app, &mut backend, 780.0, 260.0);
+    assert!(
+        s.lock().unwrap().status_panel_open,
+        "card tap must not dismiss or launch behind it"
+    );
+    tap(&s, &mut app, &mut backend, 348.0, 278.0);
+    assert!(!s.lock().unwrap().status_panel_open);
+    assert!(matches!(s.lock().unwrap().active_app, ActiveApp::Launcher));
+    assert_eq!(backend.pixels, desktop);
+    // After closing, a fresh gesture is required to launch an app.
+    tap(&s, &mut app, &mut backend, 348.0, 278.0);
+    assert!(matches!(s.lock().unwrap().active_app, ActiveApp::Timer));
 }
+
 #[test]
 fn back_closes_status_card_and_mode_switch_cannot_leave_hidden_popup() {
     let mut s = LauncherState::new();
@@ -179,11 +179,15 @@ fn back_closes_status_card_and_mode_switch_cannot_leave_hidden_popup() {
 fn wifi_status_card_opens_wifi_settings_and_closes_overlay() {
     let size = Size::new(1024.0, 600.0);
     let s = Arc::new(Mutex::new(LauncherState::new()));
-    s.lock().unwrap().settings_view.section = app_launcher::radio::SettingsSection::Bluetooth;
+    {
+        let mut state = s.lock().unwrap();
+        state.settings_view.section = app_launcher::radio::SettingsSection::Bluetooth;
+        state.status_panel_open = true;
+        state.status_panel_kind = app_launcher::status_bar::StatusPanelKind::Wifi;
+    }
     let mut app = App::new(build_launcher_ui(s.clone(), size), size);
     let mut backend = HeadlessBackend::new(1024, 600);
     app.step(&mut backend);
-    tap(&s, &mut app, &mut backend, 758.0, 28.0);
     assert!(s.lock().unwrap().status_panel_open);
     tap(&s, &mut app, &mut backend, 810.0, 318.0);
     let state = s.lock().unwrap();

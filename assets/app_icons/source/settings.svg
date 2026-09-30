@@ -1,16 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <title>P4Desk settings icon</title>
-  <desc>Original P4Desk geometric artwork. Copyright 2026 P4Desk contributors. MIT License.</desc>
-  <defs>
-    <linearGradient id="background" gradientUnits="userSpaceOnUse" x1="0" y1="8" x2="0" y2="120">
-      <stop offset="0" stop-color="#8092ac"/>
-      <stop offset="1" stop-color="#485570"/>
-    </linearGradient>
-  </defs>
-  <rect x="8" y="8" width="112" height="112" rx="27" fill="url(#background)" stroke="#ffffff" stroke-opacity="0.14" stroke-width="1"/>
-  <g stroke-linecap="round" stroke-linejoin="round">
-    <polygon points="55.8136,37.2235 58.2119,27.4555 69.7881,27.4555 72.1864,37.2235 77.1452,39.2775 85.7481,34.0664 93.9336,42.2519 88.7225,50.8548 90.7765,55.8136 100.5445,58.2119 100.5445,69.7881 90.7765,72.1864 88.7225,77.1452 93.9336,85.7481 85.7481,93.9336 77.1452,88.7225 72.1864,90.7765 69.7881,100.5445 58.2119,100.5445 55.8136,90.7765 50.8548,88.7225 42.2519,93.9336 34.0664,85.7481 39.2775,77.1452 37.2235,72.1864 27.4555,69.7881 27.4555,58.2119 37.2235,55.8136 39.2775,50.8548 34.0664,42.2519 42.2519,34.0664 50.8548,39.2775" fill="#ffffff"/>
-    <circle cx="64" cy="64" r="14" fill="url(#background)"/>
+  <title>P4Desk Folio round settings</title>
+  <desc>Original P4Desk artwork inspired by Folio round layered geometry. Copyright 2026 P4Desk contributors. MIT License.</desc>
+  <circle cx="64" cy="64" r="56" fill="#788a96" />
+  <circle cx="65.68" cy="67.36" r="28.56" fill="#354d5b" opacity=".22" />
+  <g fill="#e8f0f2">
+    <rect x="58.12" y="30.4" width="11.76" height="67.2" rx="4.2" />
+    <rect x="30.4" y="58.12" width="67.2" height="11.76" rx="4.2" />
+    <path d="M45.52 34.6L93.4 82.48Q96.76 85.84 93.4 89.2L90.04 93.4Q86.68 96.76 83.32 93.4L34.6 45.52Q32.08 42.16 35.44 38.8L38.8 35.44Q42.16 32.08 45.52 34.6Z" />
+    <path d="M82.48 34.6L34.6 82.48Q31.24 85.84 34.6 89.2L38.8 93.4Q42.16 96.76 45.52 93.4L93.4 45.52Q96.76 42.16 93.4 38.8L89.2 35.44Q85.84 32.08 82.48 34.6Z" />
+    <circle cx="64" cy="64" r="26.88" />
   </g>
+  <circle cx="64" cy="64" r="18.48" fill="#b6cbd1" />
+  <circle cx="64" cy="64" r="11.76" fill="#4d6573" />
+  <circle cx="64" cy="64" r="6.72" fill="#788a96" />
 </svg>
-

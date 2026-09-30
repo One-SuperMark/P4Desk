@@ -14,6 +14,62 @@ pub struct Canvas<'a> {
 }
 
 impl<'a> Canvas<'a> {
+    pub fn glass_panel(
+        &mut self,
+        rect: Rect,
+        radius: f32,
+        tint: Color,
+        source: &[u8],
+        width: u32,
+        height: u32,
+        amount: u8,
+        pressed: bool,
+    ) {
+        self.glass_panel_with_finish(
+            rect,
+            radius,
+            tint,
+            source,
+            width,
+            height,
+            amount,
+            pressed,
+            crate::GlassFinish::Soft,
+        );
+    }
+    pub fn glass_panel_with_finish(
+        &mut self,
+        rect: Rect,
+        radius: f32,
+        tint: Color,
+        source: &[u8],
+        width: u32,
+        height: u32,
+        amount: u8,
+        pressed: bool,
+        finish: crate::GlassFinish,
+    ) {
+        let t = self.current_transform;
+        let mapped = Rect::from_ltwh(
+            t.sx * rect.x + t.tx,
+            t.sy * rect.y + t.ty,
+            t.sx * rect.width,
+            t.sy * rect.height,
+        );
+        crate::material::panel(
+            &mut self.pixmap,
+            self.current_clip,
+            mapped,
+            radius * t.sx.abs(),
+            tint,
+            source,
+            width,
+            height,
+            amount,
+            pressed,
+            finish,
+        );
+    }
     pub fn new(pixmap: Pixmap565Mut<'a>) -> Self {
         Self {
             pixmap,
@@ -42,6 +98,15 @@ impl<'a> Canvas<'a> {
     #[inline(always)]
     pub fn data_mut(&mut self) -> &mut [u16] {
         self.pixmap.data_mut()
+    }
+
+    pub fn pixel_stride(&self) -> usize {
+        self.pixmap.stride as usize
+    }
+
+    pub fn translation_only(&self) -> Option<(f32, f32)> {
+        let t = self.current_transform;
+        (t.sx == 1.0 && t.sy == 1.0 && t.kx == 0.0 && t.ky == 0.0).then_some((t.tx, t.ty))
     }
 
     pub fn save(&mut self) {
@@ -319,7 +384,12 @@ impl<'a> Canvas<'a> {
 
     fn mapped_paint<'p>(&self, paint: &Paint<'p>) -> Paint<'p> {
         let mut paint = paint.clone();
-        if let crate::paint::Shader::Linear(gradient) = &mut paint.shader {
+        let gradient_transform = match &mut paint.shader {
+            crate::paint::Shader::Linear(g) => Some(&mut g.transform),
+            crate::paint::Shader::Mapped(g) => Some(&mut g.transform),
+            _ => None,
+        };
+        if let Some(gradient_transform) = gradient_transform {
             let t = self.current_transform;
             let determinant = t.sx * t.sy - t.kx * t.ky;
             if determinant.abs() > 0.000001 {
@@ -331,8 +401,8 @@ impl<'a> Canvas<'a> {
                     tx: (t.kx * t.ty - t.sy * t.tx) / determinant,
                     ty: (t.ky * t.tx - t.sx * t.ty) / determinant,
                 };
-                let g = gradient.transform;
-                gradient.transform = Transform {
+                let g = *gradient_transform;
+                *gradient_transform = Transform {
                     sx: g.sx * inverse.sx + g.kx * inverse.ky,
                     kx: g.sx * inverse.kx + g.kx * inverse.sy,
                     ky: g.ky * inverse.sx + g.sy * inverse.ky,
@@ -353,6 +423,19 @@ impl<'a> Canvas<'a> {
         let tx = x + (self.current_transform.tx.round() as i32);
         let ty = y + (self.current_transform.ty.round() as i32);
         raster::blit_image_565(&mut self.pixmap, self.current_clip, tx, ty, w, h, pixels);
+    }
+
+    pub fn blit_image_565_spans(
+        &mut self,
+        x: i32,
+        y: i32,
+        rgb: &[u16],
+        alpha: &[u8],
+        spans: &[raster::ImageSpan565],
+    ) {
+        let x = x.saturating_add(self.current_transform.tx.round() as i32);
+        let y = y.saturating_add(self.current_transform.ty.round() as i32);
+        raster::blit_image_565_spans(&mut self.pixmap, self.current_clip, x, y, rgb, alpha, spans);
     }
 
     pub fn blit_image_565_with_alpha(

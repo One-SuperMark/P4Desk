@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <desc>Colloid derivative, GPL-3.0. Normalized for P4Desk; original sources retained in third_party/colloid-p4desk.</desc>
+  <defs />
+  <rect x="8" y="7.938" width="112.004" height="112.004" rx="26.004" fill="#334236" stroke="none" />
+  <path d="M7.996 91.996 L7.996 93.996 C7.996 108.402 19.596 120.004 34.004 120.004 L93.996 120.004 C108.402 120.004 120.004 108.404 120.004 93.996 L120.004 91.996 C120.004 106.402 108.404 118 93.996 118 L34.004 118 C27.102221 118.015441 20.478616 115.280829 15.597934 110.400897 C10.717252 105.520965 7.981621 98.897781 7.996 91.996" fill="#000000" stroke="none" opacity="0.275" />
+  <path d="M7.996 36.008 L7.996 34.008 C7.996 19.602 19.596 8 34.004 8 L93.996 8 C108.402 8 120.004 19.6 120.004 34.008 L120.004 36.008 C120.004 21.602 108.404 10.004 93.996 10.004 L34.004 10.004 C27.102221 9.988559 20.478616 12.723171 15.597934 17.603103 C10.717252 22.483035 7.981621 29.106219 7.996 36.008" fill="#c9d6b6" stroke="none" opacity="0.15" />
+  <path d="M56 22 C53.784 22 52 23.784 52 26 L48 26 C43.568 26 40 29.568 40 34 L40 98 C40 102.432 43.568 106 48 106 L80 106 C84.432 106 88 102.432 88 98 L88 34 C88 29.568 84.432 26 80 26 L76 26 C76 23.784 74.216 22 72 22 L56 22 Z" fill="#a0b990" stroke="none" />
+  <rect x="44" y="30" width="40" height="72" rx="4" fill="#334236" stroke="none" />
+  <rect x="46" y="32.934" width="36" height="12" rx="2" fill="#000000" stroke="none" opacity="0.055" />
+  <rect x="46" y="32" width="36" height="12" rx="2" fill="#d4e7a4" stroke="none" />
+  <rect x="46" y="46.934" width="36" height="12" rx="2" fill="#000000" stroke="none" opacity="0.055" />
+  <rect x="46" y="46" width="36" height="12" rx="2" fill="#a5ce87" stroke="none" />
+  <rect x="46" y="60.934" width="36" height="12" rx="2" fill="#000000" stroke="none" opacity="0.055" />
+  <rect x="46" y="60" width="36" height="12" rx="2" fill="#a5ce87" stroke="none" />
+  <rect x="46" y="74.934" width="36" height="12" rx="2" fill="#000000" stroke="none" opacity="0.055" />
+  <rect x="46" y="74" width="36" height="12" rx="2" fill="#a5ce87" stroke="none" />
+  <rect x="46" y="88.934" width="36" height="12" rx="2" fill="#000000" stroke="none" opacity="0.055" />
+  <rect x="46" y="88" width="36" height="12" rx="2" fill="#a5ce87" stroke="none" />
+  <rect x="8.4" y="8.4" width="111.2" height="111.2" rx="25.6" fill="none" stroke="#dce9ff" stroke-opacity="0.13" stroke-width="0.8" />
+</svg>

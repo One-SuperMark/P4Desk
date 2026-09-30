@@ -1,0 +1,323 @@
+{
+  "schema": "p4desk.acceptance.whitesur-swipe.v1",
+  "date": "2026-09-30",
+  "changes": {
+    "themes": [
+      "Folio",
+      "Numix Circle",
+      "Colloid",
+      "WhiteSur"
+    ],
+    "whitesur": {
+      "upstream_commit": "73d8040da51a9ed74e47c7366e7e9ff437601a5c",
+      "variants": 42,
+      "license": "GPL-3.0",
+      "bitmap_bytes_embedded": 0,
+      "clock": "live hands replacing 4 checked static hand/shadow layers"
+    },
+    "icon_palette": "two-stop slider; tap or horizontal drag; commit once on release; independent of system appearance; persisted in settings journal",
+    "folio_light": "11 original MIT SVG variants with pastel tiles",
+    "gesture": "consume coalesced Move samples together while preserving Down and terminal frame boundaries; maintain ownership beyond grid bounds",
+    "settle": "140-210 ms distance-scaled monotonic cubic with limited release velocity; retain render tree; grid-only repaint; interrupted edge bounce preserves position",
+    "render": "batch sparse row clipping; preserve 4 MiB page cache and 6 MiB shared static cache budgets"
+  },
+  "tests": {
+    "passed": 240,
+    "failed": 0,
+    "packages": [
+      "app-launcher",
+      "tiny-flutter",
+      "tiny_gfx",
+      "rust_main"
+    ],
+    "log": ".cache/folio/tests-whitesur-release.log",
+    "asset_generators": "owned, Numix, Colloid, WhiteSur and Folio-light --check passed",
+    "asset_log": ".cache/folio/check-whitesur-assets.log",
+    "scenarios": [
+      "slider horizontal drag and vertical scroll cancellation",
+      "palette persistence and write failure",
+      "all themes with both icon colors on both appearances",
+      "USB display-owner palette propagation",
+      "settle local repaint and no widget remount",
+      "drag beyond grid and regrab bounce",
+      "sparse row pixel equivalence",
+      "gradient stop, radial axes and affine transform"
+    ]
+  },
+  "host_benchmark": {
+    "scope": "arm64 release renderer synthetic Colloid slide, 40 samples; not device FPS",
+    "before": {
+      "glass_amount": 65,
+      "results": [
+        {
+          "allocated_bytes_per_paint": 350,
+          "allocations_per_paint": 7,
+          "case": "desktop",
+          "first_paint_us": 34367,
+          "median_us": 126.791,
+          "p95_us": 131.584
+        },
+        {
+          "allocated_bytes_per_paint": 350,
+          "allocations_per_paint": 7,
+          "case": "slide-quarter",
+          "first_paint_us": 15663,
+          "median_us": 99.709,
+          "p95_us": 102.5
+        },
+        {
+          "allocated_bytes_per_paint": 350,
+          "allocations_per_paint": 7,
+          "case": "slide-half",
+          "first_paint_us": 13290,
+          "median_us": 93.167,
+          "p95_us": 98.708
+        },
+        {
+          "allocated_bytes_per_paint": 176,
+          "allocations_per_paint": 2,
+          "case": "wallpaper",
+          "first_paint_us": 14,
+          "median_us": 14.292,
+          "p95_us": 14.458
+        },
+        {
+          "allocated_bytes_per_paint": 2224,
+          "allocations_per_paint": 3,
+          "case": "circle_150ms",
+          "first_paint_us": 488,
+          "median_us": 248.375,
+          "p95_us": 279.708
+        },
+        {
+          "allocated_bytes_per_paint": 2224,
+          "allocations_per_paint": 3,
+          "case": "circle_220ms",
+          "first_paint_us": 205,
+          "median_us": 197.208,
+          "p95_us": 201.459
+        },
+        {
+          "allocated_bytes_per_paint": 19888,
+          "allocations_per_paint": 71,
+          "case": "bridge_300ms",
+          "first_paint_us": 314,
+          "median_us": 295.625,
+          "p95_us": 307.083
+        },
+        {
+          "allocated_bytes_per_paint": 3809,
+          "allocations_per_paint": 42,
+          "case": "reveal_640ms",
+          "first_paint_us": 687,
+          "median_us": 523.042,
+          "p95_us": 569.125
+        },
+        {
+          "allocated_bytes_per_paint": 1761,
+          "allocations_per_paint": 41,
+          "case": "timer",
+          "first_paint_us": 269,
+          "median_us": 247.667,
+          "p95_us": 255.5
+        }
+      ],
+      "samples_per_case": 40,
+      "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+    },
+    "after": {
+      "glass_amount": 65,
+      "results": [
+        {
+          "allocated_bytes_per_paint": 350,
+          "allocations_per_paint": 7,
+          "case": "desktop",
+          "first_paint_us": 37438,
+          "median_us": 129.833,
+          "p95_us": 143.417
+        },
+        {
+          "allocated_bytes_per_paint": 350,
+          "allocations_per_paint": 7,
+          "case": "slide-quarter",
+          "first_paint_us": 16291,
+          "median_us": 79.542,
+          "p95_us": 86.417
+        },
+        {
+          "allocated_bytes_per_paint": 350,
+          "allocations_per_paint": 7,
+          "case": "slide-half",
+          "first_paint_us": 14389,
+          "median_us": 70.417,
+          "p95_us": 72.625
+        },
+        {
+          "allocated_bytes_per_paint": 176,
+          "allocations_per_paint": 2,
+          "case": "wallpaper",
+          "first_paint_us": 14,
+          "median_us": 18.875,
+          "p95_us": 19.542
+        },
+        {
+          "allocated_bytes_per_paint": 2224,
+          "allocations_per_paint": 3,
+          "case": "circle_150ms",
+          "first_paint_us": 507,
+          "median_us": 246.792,
+          "p95_us": 278.542
+        },
+        {
+          "allocated_bytes_per_paint": 2224,
+          "allocations_per_paint": 3,
+          "case": "circle_220ms",
+          "first_paint_us": 216,
+          "median_us": 197.083,
+          "p95_us": 231.292
+        },
+        {
+          "allocated_bytes_per_paint": 19888,
+          "allocations_per_paint": 71,
+          "case": "bridge_300ms",
+          "first_paint_us": 316,
+          "median_us": 297.292,
+          "p95_us": 332.666
+        },
+        {
+          "allocated_bytes_per_paint": 3809,
+          "allocations_per_paint": 42,
+          "case": "reveal_640ms",
+          "first_paint_us": 691,
+          "median_us": 523.709,
+          "p95_us": 614.334
+        },
+        {
+          "allocated_bytes_per_paint": 1761,
+          "allocations_per_paint": 41,
+          "case": "timer",
+          "first_paint_us": 305,
+          "median_us": 248.542,
+          "p95_us": 285.75
+        }
+      ],
+      "samples_per_case": 40,
+      "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+    }
+  },
+  "visual_check": {
+    "renderer": "production Rust renderer with synthetic demo data",
+    "images": [
+      "docs/images/icon-themes.png",
+      "docs/images/whitesur-dark-appearance-light-icons.png",
+      "docs/images/whitesur-light-appearance-dark-icons.png"
+    ],
+    "observations": "4 cards fit; Chinese labels present; mixed palettes distinct; clock preview hands and live hands readable"
+  },
+  "build": {
+    "status": "passed",
+    "esp_idf": "6.0.2",
+    "bytes": 5426608,
+    "sha256": "2fcf7286114ec901cee618251b41be4131bb58eb2bfe3b31b0e3b3528c2af455",
+    "log": ".cache/folio/build-whitesur-swipe.log"
+  },
+  "flash": {
+    "status": "passed",
+    "hash_verified_images": 3,
+    "reset": "hard_reset",
+    "log": ".cache/folio/flash-whitesur-swipe.log"
+  },
+  "device": {
+    "status": "short_observation_completed",
+    "duration_seconds": 45,
+    "session_restored": true,
+    "session_saved": true,
+    "panic_or_watchdog_detected": false,
+    "render_windows": [
+      {
+        "frames": 1,
+        "draw_avg_us": 2045711,
+        "output_avg_us": 18901,
+        "draw_max_us": 2045711,
+        "total_max_us": 2064612,
+        "render_cache_entries": 39,
+        "render_cache_bytes": 3690040,
+        "cache_hits": 0,
+        "cache_misses": 50
+      },
+      {
+        "frames": 66,
+        "draw_avg_us": 88833,
+        "output_avg_us": 19355,
+        "draw_max_us": 97569,
+        "total_max_us": 117930,
+        "render_cache_entries": 44,
+        "render_cache_bytes": 3712136,
+        "cache_hits": 1893,
+        "cache_misses": 55
+      }
+    ],
+    "log": ".cache/folio/monitor-whitesur-swipe.log",
+    "limits": "startup and idle/mixed observation, not a controlled swipe FPS benchmark; cold cache preparation still about 2 seconds; tactile acceptance pending"
+  },
+  "user_acceptance": {
+    "theme_and_palette": "pending",
+    "swipe_feel": "pending"
+  },
+  "icon_switch_followup": {
+    "date": "2026-09-30",
+    "change": "Replace the slider with a sun/moon Switch; same 62x48 hit area as Wi-Fi; sun on left selects light icons, moon on right selects dark icons; tap commits on release; vertical scrolling cancels the tap; icon palette remains independent and persisted.",
+    "assets": "2 original MIT SVGs, antialiased vector rendering; generator --check passed",
+    "validation": {
+      "tests_passed": 9,
+      "tests_failed": 0,
+      "logs": [
+        ".cache/folio/tests-sun-moon-switch.log",
+        ".cache/folio/tests-sun-moon-vectors.log"
+      ],
+      "previews": [
+        "docs/images/icon-themes.png",
+        "docs/images/icon-themes-light.png"
+      ],
+      "preview_scope": "production Rust renderer, synthetic data; both appearances visually inspected"
+    },
+    "build": {
+      "status": "passed",
+      "esp_idf": "6.0.2",
+      "bytes": 5425696,
+      "sha256": "a38b868573e1a5c26a9506b8e7bb6a2892eddf6289f3d8d5ff8d1c473db5e3cc",
+      "log": ".cache/folio/build-sun-moon-switch.log"
+    },
+    "flash": {
+      "status": "passed",
+      "log": ".cache/folio/flash-sun-moon-switch.log",
+      "hash_verified_images": 3,
+      "reset": "hard_reset"
+    },
+    "user_acceptance": "pending"
+  },
+  "icon_switch_size_followup": {
+    "date": "2026-09-30",
+    "change": "Widen the shared switch track from 51x31 to 62x32 pixels, thumb to 28 pixels and hit area to 72x48 pixels. Sun/moon, Liquid Glass and radio switches share drawing geometry, button sizing and right alignment.",
+    "validation": {
+      "tests_passed": 5,
+      "tests_failed": 0,
+      "log": ".cache/folio/tests-switch-size.log",
+      "preview_scope": "production Rust renderer with synthetic data; both icon palettes inspected; compared sun/moon with Liquid Glass switch"
+    },
+    "build": {
+      "status": "passed",
+      "esp_idf": "6.0.2",
+      "bytes": 5425664,
+      "sha256": "a60f77a9b5a88cabb7284bbfcf32077631c6f8d3f3e8103f1c4dfd9a03391263",
+      "log": ".cache/folio/build-switch-size.log"
+    },
+    "flash": {
+      "status": "passed",
+      "log": ".cache/folio/flash-switch-size.log",
+      "hash_verified_images": 3,
+      "reset": "hard_reset"
+    },
+    "user_acceptance": "pending"
+  }
+}

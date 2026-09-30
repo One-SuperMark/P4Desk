@@ -1,19 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <title>P4Desk notes icon</title>
-  <desc>Original P4Desk geometric artwork. Copyright 2026 P4Desk contributors. MIT License.</desc>
-  <defs>
-    <linearGradient id="background" gradientUnits="userSpaceOnUse" x1="0" y1="8" x2="0" y2="120">
-      <stop offset="0" stop-color="#f5c557"/>
-      <stop offset="1" stop-color="#e39833"/>
-    </linearGradient>
-  </defs>
-  <rect x="8" y="8" width="112" height="112" rx="27" fill="url(#background)" stroke="#ffffff" stroke-opacity="0.14" stroke-width="1"/>
-  <g stroke-linecap="round" stroke-linejoin="round">
-    <rect x="37" y="27" width="54" height="76" rx="8" fill="#ffffff"/>
-    <polygon points="73,27 91,45 73,45" fill="#f8e5bc"/>
-    <line x1="48" y1="56" x2="80" y2="56" stroke="#d69a35" stroke-width="4"/>
-    <line x1="48" y1="68" x2="80" y2="68" stroke="#d69a35" stroke-width="4"/>
-    <line x1="48" y1="80" x2="72" y2="80" stroke="#d69a35" stroke-width="4"/>
-  </g>
+  <title>P4Desk Folio round notes</title>
+  <desc>Original P4Desk artwork inspired by Folio round layered geometry. Copyright 2026 P4Desk contributors. MIT License.</desc>
+  <circle cx="64" cy="64" r="56" fill="#cfaa61" />
+  <rect x="30.8877" y="39.52941" width="46.25455" height="57.6" rx="7.85455" fill="#fff5d7" opacity=".55" />
+  <rect x="37.86952" y="34.29305" width="48.87273" height="58.47273" rx="7.85455" fill="#fff4d6" opacity=".8" />
+  <rect x="43.10588" y="29.92941" width="48.87273" height="59.34545" rx="7.85455" fill="#ffffff" />
+  <rect x="50.96043" y="43.89305" width="29.67273" height="4.36364" rx="2.18182" fill="#ba934b" />
+  <rect x="50.96043" y="55.2385" width="29.67273" height="4.36364" rx="2.18182" fill="#ba934b" opacity=".7" />
+  <rect x="50.96043" y="66.58396" width="21.81818" height="4.36364" rx="2.18182" fill="#ba934b" opacity=".5" />
 </svg>
-

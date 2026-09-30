@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>P4Desk Folio round settings</title>
+  <desc>Original P4Desk artwork inspired by Folio round layered geometry. Copyright 2026 P4Desk contributors. MIT License.</desc>
+  <circle cx="64" cy="64" r="56" fill="#dde7eb" />
+  <circle cx="65.68" cy="67.36" r="28.56" fill="#354d5b" opacity=".22" />
+  <g fill="#e8f0f2">
+    <rect x="58.12" y="30.4" width="11.76" height="67.2" rx="4.2" />
+    <rect x="30.4" y="58.12" width="67.2" height="11.76" rx="4.2" />
+    <path d="M45.52 34.6L93.4 82.48Q96.76 85.84 93.4 89.2L90.04 93.4Q86.68 96.76 83.32 93.4L34.6 45.52Q32.08 42.16 35.44 38.8L38.8 35.44Q42.16 32.08 45.52 34.6Z" />
+    <path d="M82.48 34.6L34.6 82.48Q31.24 85.84 34.6 89.2L38.8 93.4Q42.16 96.76 45.52 93.4L93.4 45.52Q96.76 42.16 93.4 38.8L89.2 35.44Q85.84 32.08 82.48 34.6Z" />
+    <circle cx="64" cy="64" r="26.88" />
+  </g>
+  <circle cx="64" cy="64" r="18.48" fill="#b6cbd1" />
+  <circle cx="64" cy="64" r="11.76" fill="#4d6573" />
+  <circle cx="64" cy="64" r="6.72" fill="#788a96" />
+</svg>

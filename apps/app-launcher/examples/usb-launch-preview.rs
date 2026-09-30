@@ -57,10 +57,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 app.mark_dirty(rect);
             }
             if frame == 23 {
-                backend.event(TouchEvent::Down(Point::new(632.0, 403.0)));
+                backend.event(TouchEvent::Down(Point::new(564.0, 466.0)));
             }
             if frame == 25 {
-                backend.event(TouchEvent::Up(Point::new(632.0, 403.0)));
+                backend.event(TouchEvent::Up(Point::new(564.0, 466.0)));
             }
             app.step_with_builder(&mut backend, |size| build_launcher_ui(state.clone(), size));
         } else {
@@ -70,7 +70,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 1024,
                 600,
             ));
-            paint_usb_display_reveal(&mut canvas, size, (now - 1600) as u32, 600);
+            paint_usb_display_reveal(
+                &mut canvas,
+                size,
+                (now - 1600) as u32,
+                600,
+                false,
+                app_launcher::icon_theme::IconTheme::Colloid,
+            );
         }
         #[cfg(feature = "screenshots")]
         backend.screenshot(&out.join(format!("{frame:03}.png")))?;

@@ -1,19 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <title>P4Desk screen power icon</title>
-  <desc>Original P4Desk geometric artwork. Copyright 2026 P4Desk contributors. MIT License.</desc>
-  <defs>
-    <linearGradient id="background" gradientUnits="userSpaceOnUse" x1="0" y1="8" x2="0" y2="120">
-      <stop offset="0" stop-color="#c987b4"/>
-      <stop offset="1" stop-color="#965c92"/>
-    </linearGradient>
-  </defs>
-  <rect x="8" y="8" width="112" height="112" rx="27" fill="url(#background)" stroke="#ffffff" stroke-opacity="0.14" stroke-width="1"/>
-  <g stroke-linecap="round" stroke-linejoin="round">
-    <rect x="25" y="28" width="78" height="56" rx="6" fill="none" stroke="#ffffff" stroke-width="5"/>
-    <circle cx="64" cy="55" r="14" fill="none" stroke="#ffffff" stroke-width="4.5"/>
-    <rect x="55" y="36" width="18" height="15" fill="url(#background)"/>
-    <line x1="64" y1="37" x2="64" y2="52" stroke="#ffffff" stroke-width="4.5"/>
-    <line x1="64" y1="86" x2="64" y2="99" stroke="#ffffff" stroke-width="5"/>
-    <line x1="43" y1="102" x2="85" y2="102" stroke="#ffffff" stroke-width="5"/>
-  </g>
+  <title>P4Desk Folio round screen</title>
+  <desc>Original P4Desk artwork inspired by Folio round layered geometry. Copyright 2026 P4Desk contributors. MIT License.</desc>
+  <circle cx="64" cy="64" r="56" fill="#8d80a4" />
+  <circle cx="64.82963" cy="66.45503" r="26.54815" fill="#564667" opacity=".22" />
+  <path d="M50.72593 44.05503C41.6 49.0328 37.45185 56.49947 37.45185 65.6254C37.45185 79.7291 49.06667 91.34392 64 91.34392C78.93333 91.34392 90.54815 79.7291 90.54815 65.6254C90.54815 56.49947 86.4 49.0328 77.27407 44.05503" fill="none" stroke="#e1d9ef" stroke-width="8.2963" stroke-linecap="round" />
+  <path d="M64 32.44021L64 61.47725" fill="none" stroke="#ffffff" stroke-width="8.2963" stroke-linecap="round" />
 </svg>

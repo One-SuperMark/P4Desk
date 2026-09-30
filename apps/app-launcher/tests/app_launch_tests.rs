@@ -60,12 +60,12 @@ impl Harness {
 fn six_app_splashes_use_the_clicked_icon_bounds_and_their_own_svg() {
     let mut splashes = Vec::new();
     for (id, x, y) in [
-        ("clock", 151.0, 177.0),
-        ("timer", 392.0, 177.0),
-        ("notes", 632.0, 177.0),
-        ("calculator", 873.0, 177.0),
-        ("mac", 151.0, 403.0),
-        ("settings", 392.0, 403.0),
+        ("clock", 132.0, 278.0),
+        ("timer", 348.0, 278.0),
+        ("notes", 564.0, 278.0),
+        ("calculator", 780.0, 278.0),
+        ("mac", 132.0, 466.0),
+        ("settings", 348.0, 466.0),
     ] {
         let mut h = Harness::new();
         h.tap(Point::new(x, y));
@@ -74,7 +74,7 @@ fn six_app_splashes_use_the_clicked_icon_bounds_and_their_own_svg() {
         assert!((frame.source.x + frame.source.width * 0.5 - x).abs() < 1.0);
         assert!((frame.source.y + frame.source.height * 0.5 - y).abs() < 1.0);
         assert!(
-            (frame.source.width - 146.0 * 0.94).abs() < 0.1,
+            (frame.source.width - 140.0 * 0.94).abs() < 0.1,
             "source must be the visible pressed SVG, not its label/hit slot"
         );
         h.tick(420);
@@ -91,7 +91,7 @@ fn six_app_splashes_use_the_clicked_icon_bounds_and_their_own_svg() {
 #[test]
 fn launch_repaints_progress_without_restarting_and_leaves_a_clean_live_app() {
     let mut h = Harness::new();
-    h.tap(Point::new(392.0, 177.0));
+    h.tap(Point::new(348.0, 278.0));
     let initial = h.backend.pixels.clone();
     for ms in [
         33,
@@ -182,7 +182,7 @@ fn idle_desktop_keeps_one_backdrop_and_twenty_launches_release_it_at_expiry() {
             cache.lock().unwrap().is_some(),
             "idle must keep prepared backdrop"
         );
-        h.tap(Point::new(392.0, 177.0));
+        h.tap(Point::new(348.0, 278.0));
         assert!(
             cache.lock().unwrap().is_some(),
             "launch must transfer the backdrop"
@@ -210,7 +210,7 @@ fn backdrop_releases_on_direct_open_cancel_and_hidden_desktop() {
         let mut h = Harness::new();
         let cache = h.state.lock().unwrap().desktop_backdrop.clone();
         if action < 3 {
-            h.tap(Point::new(392.0, 177.0));
+            h.tap(Point::new(348.0, 278.0));
         }
         {
             let mut s = h.state.lock().unwrap();
@@ -237,7 +237,7 @@ fn backdrop_releases_on_direct_open_cancel_and_hidden_desktop() {
 #[test]
 fn taps_and_a_held_release_on_splash_never_start_the_timer() {
     let mut h = Harness::new();
-    h.tap(Point::new(392.0, 177.0));
+    h.tap(Point::new(348.0, 278.0));
     let start = Point::new(512.0, 478.0);
     h.tick(200);
     h.tap(start);
@@ -290,7 +290,7 @@ fn background_timer_and_resumed_calculator_state_survive_app_launch() {
 fn back_kill_screen_off_and_display_cancel_launch_without_replay() {
     for action in 0..4 {
         let mut h = Harness::new();
-        h.tap(Point::new(392.0, 177.0));
+        h.tap(Point::new(348.0, 278.0));
         h.tick(100);
         match action {
             0 => h.touch(TouchEvent::HardwareBack),
@@ -308,7 +308,7 @@ fn back_kill_screen_off_and_display_cancel_launch_without_replay() {
         h.tick(300);
         assert!(h.state.lock().unwrap().app_launch.frame(300).is_none());
     }
-    for p in [Point::new(873.0, 403.0)] {
+    for p in [Point::new(780.0, 466.0)] {
         let mut h = Harness::new();
         h.tap(p);
         let s = h.state.lock().unwrap();
@@ -321,7 +321,7 @@ fn back_kill_screen_off_and_display_cancel_launch_without_replay() {
 fn usb_holds_full_color_until_valid_first_frame_and_never_becomes_a_background_app() {
     let mut h = Harness::new();
     h.state.lock().unwrap().connected = true;
-    h.tap(Point::new(632.0, 403.0));
+    h.tap(Point::new(564.0, 466.0));
     for ms in [0, 130, 260, 339] {
         h.tick(ms);
         assert!(h.state.lock().unwrap().take_commands().is_empty());
@@ -335,7 +335,7 @@ fn usb_holds_full_color_until_valid_first_frame_and_never_becomes_a_background_a
     let covered = h.backend.pixels.clone();
     assert!(covered
         .iter()
-        .all(|p| *p == Color::from_hex(0x509faf).to_rgb565()));
+        .all(|p| *p == app_launcher::app_icons::launch_color_for("display", false).to_rgb565()));
     for ms in [640, 940, 3000, 7000] {
         h.tick(ms);
         let mut s = h.state.lock().unwrap();
@@ -365,7 +365,7 @@ fn cancellation_drops_queued_display_requests() {
     for action in 0..5 {
         let mut h = Harness::new();
         h.state.lock().unwrap().connected = true;
-        h.tap(Point::new(632.0, 403.0));
+        h.tap(Point::new(564.0, 466.0));
         h.tick(340);
         match action {
             0 => h.touch(TouchEvent::HardwareBack),
@@ -388,7 +388,7 @@ fn cancellation_drops_queued_display_requests() {
 #[test]
 fn offline_usb_keeps_full_animation_and_stays_on_intermediate_page() {
     let mut h = Harness::new();
-    h.tap(Point::new(632.0, 403.0));
+    h.tap(Point::new(564.0, 466.0));
     for ms in [130, 340, 640, 939] {
         h.tick(ms);
         assert!(h.state.lock().unwrap().app_launch.frame(ms).is_some());
@@ -413,7 +413,7 @@ fn timeout_and_disconnect_reveal_intermediate_page_instead_of_returning_home() {
     for disconnect in [false, true] {
         let mut h = Harness::new();
         h.state.lock().unwrap().connected = true;
-        h.tap(Point::new(632.0, 403.0));
+        h.tap(Point::new(564.0, 466.0));
         h.tick(340);
         h.state.lock().unwrap().take_commands();
         if disconnect {
@@ -458,7 +458,14 @@ fn jpeg_reveal_is_opaque_at_start_and_leaves_exact_pixels_and_tail_at_end() {
     for elapsed in [0, 300, 600, 900] {
         source.copy_from_slice(&original);
         let mut canvas = Canvas::new(tiny_gfx::Pixmap565Mut::new(&mut source[..count], 1024, 600));
-        paint_usb_display_reveal(&mut canvas, SIZE, elapsed, 600);
+        paint_usb_display_reveal(
+            &mut canvas,
+            SIZE,
+            elapsed,
+            600,
+            false,
+            app_launcher::icon_theme::IconTheme::Colloid,
+        );
         assert_eq!(
             &source[count..],
             &original[count..],
@@ -467,7 +474,8 @@ fn jpeg_reveal_is_opaque_at_start_and_leaves_exact_pixels_and_tail_at_end() {
         if elapsed == 0 {
             assert!(source[..count]
                 .iter()
-                .all(|p| *p == Color::from_hex(0x509faf).to_rgb565()));
+                .all(|p| *p
+                    == app_launcher::app_icons::launch_color_for("display", false).to_rgb565()));
         } else if elapsed >= 600 {
             assert_eq!(source, original);
         } else {

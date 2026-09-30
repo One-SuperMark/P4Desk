@@ -77,6 +77,7 @@ void p4desk_heartbeat_received(void);
 bool p4desk_host_active(void);
 bool p4desk_ui_invalidated(void);
 void p4desk_time_set(int64_t unix_ms);
+bool p4desk_time_set_checked(int64_t unix_ms);
 int64_t p4desk_unix_ms(void);
 #ifdef __cplusplus
 }

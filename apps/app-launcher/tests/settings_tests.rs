@@ -139,3 +139,56 @@ fn snapshot_counts_and_untrusted_names_are_bounded() {
     assert_eq!(r.services().len(), 12);
     assert_eq!(label(b"abc\n\xff\0hidden"), "abc �");
 }
+
+#[test]
+fn network_time_button_requires_wifi_and_is_disabled_while_syncing() {
+    for (phase, wifi_phase, allowed) in [
+        (0, 2, false),
+        (0, 5, true),
+        (1, 5, false),
+        (2, 5, true),
+        (3, 5, true),
+    ] {
+        let mut h = Harness::new();
+        {
+            let mut s = h.state.lock().unwrap();
+            s.radio.wifi_phase = wifi_phase;
+            s.radio.time_sync.phase = phase;
+        }
+        h.tap(100.0, 366.0); // Date & Time after Appearance.
+        assert!(h.state.lock().unwrap().settings_view.section == SettingsSection::DateTime);
+        h.tap(898.0, 285.0);
+        let commands = h.commands();
+        if allowed {
+            assert!(matches!(
+                commands.as_slice(),
+                [UiCommand::Radio(RadioCommand::WifiTimeSync)]
+            ));
+            assert_eq!(RadioCommand::WifiTimeSync.parts(), (13, 0, &[][..]));
+        } else {
+            assert!(commands.is_empty());
+        }
+    }
+}
+
+#[test]
+fn network_time_status_distinguishes_wifi_from_internet_and_formats_local_last_success() {
+    use app_launcher::radio::TimeSyncSnapshot;
+    let mut status = TimeSyncSnapshot::default();
+    assert_eq!(status.status(false), "等待 Wi-Fi 连接");
+    assert_eq!(status.status(true), "等待自动对时");
+    assert_eq!(status.last_sync_label(480), "尚未通过 Wi-Fi 对时");
+    status.phase = 3;
+    status.error = 1;
+    assert!(status.status(true).contains("超时"));
+    assert!(!status.status(false).contains("超时"));
+    status.last_sync_unix_s = 946684800;
+    assert_eq!(
+        status.last_sync_label(480),
+        "上次：2000 年 01 月 01 日  08:00:00"
+    );
+    assert_eq!(
+        status.last_sync_label(-60),
+        "上次：1999 年 12 月 31 日  23:00:00"
+    );
+}

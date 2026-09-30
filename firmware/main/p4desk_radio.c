@@ -1,6 +1,7 @@
 // P4Desk radio service. The UI only copies snapshots or queues bounded commands.
 // ESP-Hosted calls and NVS writes never execute on the Rust/display task.
 #include "p4desk_radio.h"
+#include "p4desk_time_sync.h"
 #include "esp_event.h"
 #include "esp_hosted.h"
 #include "esp_log.h"
@@ -36,6 +37,7 @@ static uint32_t next_id = 1;
 static bool nvs_ready, wifi_ready, wifi_started, wifi_wanted, bt_initialized, bt_synced;
 static bool connecting, retry_wifi, init_failed;
 static bool scan_finished_pending, save_pending, adv_pending;
+static bool time_sync_requested;
 static unsigned retries;
 static int64_t wifi_deadline, retry_at, ble_deadline, scan_deadline, signal_sample_at;
 static uint8_t own_addr_type;
@@ -825,6 +827,9 @@ static void process(const command_t *c) {
     case P4_WIFI_SCAN:
         scan_wifi();
         break;
+    case P4_WIFI_TIME_SYNC:
+        time_sync_requested = true;
+        break;
     case SCAN_FINISHED:
         finish_scan();
         break;
@@ -1024,6 +1029,17 @@ static void worker(void *arg) {
         if (retry && esp_wifi_connect() != ESP_OK)
             wifi_error(ERR_LINK);
         sample_wifi_signal();
+        lock();
+        bool online = state.wifi_on && state.wifi_phase == 5;
+        unlock();
+        p4_time_sync_snapshot_t time_sync = p4desk_time_sync_poll(online, time_sync_requested);
+        time_sync_requested = false;
+        lock();
+        if (memcmp(&state.time_sync, &time_sync, sizeof(time_sync))) {
+            state.time_sync = time_sync;
+            changed();
+        }
+        unlock();
     }
 }
 void p4desk_radio_init(void) {
@@ -1057,7 +1073,7 @@ bool p4desk_radio_snapshot(p4_radio_snapshot_t *out, uint32_t last_revision) {
     return updated;
 }
 bool p4desk_radio_submit(uint32_t op, uint32_t id, const uint8_t *data, size_t length) {
-    if (!commands || op < P4_WIFI_ENABLE || op > P4_WIFI_SAVED_CONNECT || length > 63 || (length && !data))
+    if (!commands || op < P4_WIFI_ENABLE || op > P4_WIFI_TIME_SYNC || length > 63 || (length && !data))
         return false;
     if (op != P4_WIFI_CONNECT && length)
         return false;

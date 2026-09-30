@@ -23,13 +23,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut backend = HeadlessBackend::new(1024, 600);
     let mut app = App::new(build_launcher_ui(state.clone(), size), size);
     let point = match id.as_str() {
-        "clock" => Point::new(151.0, 177.0),
-        "timer" => Point::new(392.0, 177.0),
-        "notes" => Point::new(632.0, 177.0),
-        "calculator" => Point::new(873.0, 177.0),
-        "mac" => Point::new(151.0, 403.0),
-        "settings" => Point::new(392.0, 403.0),
-        "display" => Point::new(632.0, 403.0),
+        "clock" => Point::new(132.0, 278.0),
+        "timer" => Point::new(348.0, 278.0),
+        "notes" => Point::new(564.0, 278.0),
+        "calculator" => Point::new(780.0, 278.0),
+        "mac" => Point::new(132.0, 466.0),
+        "settings" => Point::new(348.0, 466.0),
+        "display" => Point::new(564.0, 466.0),
         _ => return Err("unknown app".into()),
     };
     for frame in 0..=1_914 / step_ms {

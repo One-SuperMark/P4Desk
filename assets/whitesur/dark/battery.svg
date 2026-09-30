@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <desc>WhiteSur derivative, GPL-3.0. Normalized for P4Desk; original sources retained in third_party/whitesur-p4desk.</desc>
+  <defs>
+    <linearGradient id="g0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(0.11764 0 0 0.11764 294.42 -46.906)" x1="-2193.4" y1="1377.3" x2="-2193.4" y2="541.43" data-p4desk-matrix="0 0 -0.0101696556051 0 1.17072640064 0">
+      <stop stop-color="#233e32" stop-opacity="1" offset="0" />
+      <stop stop-color="#4f6b52" stop-opacity="1" offset="1" />
+    </linearGradient>
+    <linearGradient id="g1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2 0 0 2 -1.708 21.89)" x1="21" y1="6" x2="45" y2="6" data-p4desk-matrix="0.0208333333333 0 0 0 -0.839416666667 0">
+      <stop stop-color="#6f6f6f" stop-opacity="1" offset="0" />
+      <stop stop-color="#cecfce" stop-opacity="1" offset="0.121" />
+      <stop stop-color="#848484" stop-opacity="1" offset="0.197" />
+      <stop stop-color="#2d2d2d" stop-opacity="1" offset="0.337" />
+      <stop stop-color="#565656" stop-opacity="1" offset="0.489" />
+      <stop stop-color="#c0c0c0" stop-opacity="1" offset="0.617" />
+      <stop stop-color="#3e3e3e" stop-opacity="1" offset="0.757" />
+      <stop stop-color="#848585" stop-opacity="1" offset="0.918" />
+      <stop stop-color="#969596" stop-opacity="1" offset="1" />
+    </linearGradient>
+    <linearGradient id="g2" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2 0 0 2 -1.708 17.89)" x1="21" y1="6" x2="45" y2="6" data-p4desk-matrix="0.0208333333333 0 0 0 -0.839416666667 0">
+      <stop stop-color="#d8d9d9" stop-opacity="1" offset="0" />
+      <stop stop-color="#d4d4d2" stop-opacity="1" offset="0.372" />
+      <stop stop-color="#6d6d6d" stop-opacity="1" offset="1" />
+    </linearGradient>
+    <linearGradient id="g3" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2 0 0 2 0 17.96)" x1="34" y1="8" x2="25" y2="8" data-p4desk-matrix="-0.0555555555556 0 0 0 3.77777777778 0">
+      <stop stop-color="#8d8d8d" stop-opacity="1" offset="0" />
+      <stop stop-color="#2d2d2d" stop-opacity="1" offset="0.646" />
+      <stop stop-color="#808080" stop-opacity="1" offset="1" />
+    </linearGradient>
+    <linearGradient id="g4" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2 0 0 2 0 17.96)" x1="38" y1="4" x2="34" y2="9" data-p4desk-matrix="-0.0487804878049 0 0.0609756097561 0 2.1243902439 0">
+      <stop stop-color="#8d8d8d" stop-opacity="1" offset="0" />
+      <stop stop-color="#2d2d2d" stop-opacity="1" offset="0.646" />
+      <stop stop-color="#808080" stop-opacity="1" offset="1" />
+    </linearGradient>
+    <linearGradient id="g5" gradientUnits="userSpaceOnUse" gradientTransform="matrix(0.41666 0 0 0.41666 50.31 27.78)" x1="21" y1="6" x2="45" y2="6" data-p4desk-matrix="0.100001600026 0 0 0 -5.90608049729 0">
+      <stop stop-color="#6f6f6f" stop-opacity="1" offset="0" />
+      <stop stop-color="#cecfce" stop-opacity="1" offset="0.121" />
+      <stop stop-color="#848484" stop-opacity="1" offset="0.197" />
+      <stop stop-color="#2d2d2d" stop-opacity="1" offset="0.337" />
+      <stop stop-color="#565656" stop-opacity="1" offset="0.489" />
+      <stop stop-color="#c0c0c0" stop-opacity="1" offset="0.617" />
+      <stop stop-color="#3e3e3e" stop-opacity="1" offset="0.757" />
+      <stop stop-color="#848585" stop-opacity="1" offset="0.918" />
+      <stop stop-color="#969596" stop-opacity="1" offset="1" />
+    </linearGradient>
+    <linearGradient id="g6" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2 0 0 2 0 17.96)" x1="35" y1="3" x2="24.983" y2="4.644" data-p4desk-matrix="-0.048605910007 0 0.00797725027968 0 3.21127878379 0">
+      <stop stop-color="#818181" stop-opacity="1" offset="0" />
+      <stop stop-color="#454545" stop-opacity="1" offset="0.222" />
+      <stop stop-color="#838383" stop-opacity="1" offset="0.375" />
+      <stop stop-color="#646563" stop-opacity="1" offset="0.515" />
+      <stop stop-color="#c4e2cb" stop-opacity="1" offset="1" />
+    </linearGradient>
+    <linearGradient id="g7" gradientUnits="userSpaceOnUse" gradientTransform="matrix(0.41666 0 0 0.5 50.31 24.944)" x1="21" y1="6" x2="45" y2="6" data-p4desk-matrix="0.100001600026 0 0 0 -5.90608049729 0">
+      <stop stop-color="#d0d0d0" stop-opacity="1" offset="0" />
+      <stop stop-color="#6d6d6d" stop-opacity="1" offset="1" />
+    </linearGradient>
+    <linearGradient id="g8" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2 0 0 2 0 17.96)" x1="32" y1="18.178" x2="32" y2="43.309" data-p4desk-matrix="0 0 0.0198957462894 0 -1.08065735546 0">
+      <stop stop-color="#99c964" stop-opacity="1" offset="0" />
+      <stop stop-color="#528931" stop-opacity=".996" offset="1" />
+    </linearGradient>
+    <linearGradient id="g9" gradientUnits="userSpaceOnUse" gradientTransform="matrix(2 0 0 2 0 17.96)" x1="32" y1="14.831" x2="32" y2="21.831" data-p4desk-matrix="0 0 0.0714285714286 0 -3.40157142857 0">
+      <stop stop-color="#a0d25f" stop-opacity="1" offset="0" />
+      <stop stop-color="#d3ed99" stop-opacity=".922" offset="1" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="7.938" width="112.004" height="112.004" rx="26.004" fill="url(#g0)" stroke="none" />
+  <path d="M40.282 33.848 C40.130674 33.848 40.008 33.970674 40.008 34.122 L40.008 97.576 C40.008 97.606 40.03 97.626 40.04 97.654 C40.018064 97.756554 40.002061 97.85924 39.992 97.962 C39.992 102.380278 50.737166 105.962 63.992 105.962 C77.246834 105.962 87.992 102.380278 87.992 97.962 C87.988167 97.86929 87.979499 97.776609 87.966 97.684 C87.982 97.65 88.008 97.618 88.008 97.576 L88.008 34.12 C88.008004 33.969452 87.886544 33.847099 87.736 33.846 L40.282 33.848 Z" fill="#c4e2cb" stroke="none" opacity="0.15" fill-rule="evenodd" />
+  <path d="M36.9747 100.151699 C36.9747 104.252358 50.286215 107.576599 66.7068 107.576599 C83.127385 107.576599 96.4389 104.252358 96.4389 100.151699 C96.4389 96.05104 83.127385 92.726799 66.7068 92.726799 C50.286215 92.726799 36.9747 96.05104 36.9747 100.151699 Z" fill="#000000" fill-opacity=".996" stroke="none" opacity="0.225" fill-rule="evenodd" />
+  <path d="M64 25.962 C55.433705 25.964691 47.521146 27.489122 43.238 29.962 L40.128 29.962 C40.057757 29.963073 40.001073 30.019757 40 30.09 L40 33.834 C40 33.842 40.014 33.84 40.016 33.848 C40.009854 33.885987 40.00452 33.923988 40 33.962 C40 38.380278 50.745166 41.962 64 41.962 C77.254834 41.962 88 38.380278 88 33.962 C87.996871 33.922657 87.992871 33.883323 87.988 33.844 C87.988 33.838 88 33.84 88 33.834 L88 30.09 C87.998907 30.018985 87.941023 29.961992 87.87 29.962 L84.754 29.962 C80.472285 27.489946 72.563436 25.965642 64 25.962" fill="url(#g1)" stroke="none" fill-rule="evenodd" />
+  <path d="M40 29.962 C40 34.380278 50.745166 37.962 64 37.962 C77.254834 37.962 88 34.380278 88 29.962 C88 25.543722 77.254834 21.962 64 21.962 C50.745166 21.962 40 25.543722 40 29.962 Z" fill="url(#g2)" stroke="none" fill-rule="evenodd" />
+  <path d="M67.58 37.872 C60.424058 38.231972 53.16289 37.496375 47.818 35.87 L63.998 29.962 L67.58 37.872 Z" fill="url(#g3)" stroke="none" opacity="0.75" fill-rule="evenodd" />
+  <path d="M87.566 28.446 C89.658479 32.062498 84.073038 35.687875 74.036 37.228 L64 29.964 L87.566 28.446 Z" fill="url(#g4)" stroke="none" opacity="0.75" fill-rule="evenodd" />
+  <path d="M64 27.128 C62.216 27.128 60.568 27.448 59.674 27.962 L59.026 27.962 C59.011641 27.962 59 27.973641 59 27.988 L59 30.268 L59.004 30.27 L59 30.294 C59 31.214 61.24 31.962 64 31.962 C66.76 31.962 69 31.216 69 30.294 L68.998 30.27 L69 30.268 L69 27.988 C69 27.973641 68.988359 27.962 68.974 27.962 L68.324 27.962 C67.432 27.446 65.784 27.128 64 27.128" fill="url(#g5)" stroke="none" fill-rule="evenodd" />
+  <path d="M48.286 23.914 C54.938365 21.993901 64.209686 21.441306 72.446 22.474 L64 29.96 L48.286 23.914 Z" fill="url(#g6)" stroke="none" opacity="0.5" fill-rule="evenodd" />
+  <path d="M59 27.962 C59 29.066569 61.238576 29.962 64 29.962 C66.761424 29.962 69 29.066569 69 27.962 C69 26.857431 66.761424 25.962 64 25.962 C61.238576 25.962 59 26.857431 59 27.962 Z" fill="url(#g7)" stroke="none" fill-rule="evenodd" />
+  <path d="M41.278 54.318 C41.134 54.318 41.018 54.4 41.018 54.502 L41.018 96.736 C41.018 96.756 41.036 96.772 41.044 96.79 C41.023705 96.857929 41.009036 96.925941 41 96.994 C41.009936 97.078758 41.028608 97.163449 41.056 97.248 C41.0287 97.358516 41.010028 97.469214 41 97.58 C41 101.445993 51.297451 104.58 64 104.58 C76.702549 104.58 87 101.445993 87 97.58 C86.996701 97.449228 86.981362 97.31851 86.954 97.188 C86.969754 97.123384 86.980423 97.058706 86.986 96.994 C86.981244 96.932634 86.971909 96.871291 86.958 96.81 C86.974 96.786 87 96.764 87 96.736 L87 54.5 C87 54.4 86.884 54.316 86.74 54.316 L41.278 54.318 Z" fill="url(#g8)" stroke="none" fill-rule="evenodd" />
+  <path d="M41 97.578 C41 101.443993 51.297451 104.578 64 104.578 C76.702549 104.578 87 101.443993 87 97.578 C87 93.712007 76.702549 90.578 64 90.578 C51.297451 90.578 41 93.712007 41 97.578 Z" fill="#000000" fill-opacity=".996" stroke="none" opacity="0.0225" fill-rule="evenodd" />
+  <path d="M41 54.624 C41 58.489993 51.297451 61.624 64 61.624 C76.702549 61.624 87 58.489993 87 54.624 C87 50.758007 76.702549 47.624 64 47.624 C51.297451 47.624 41 50.758007 41 54.624 Z" fill="url(#g9)" stroke="none" fill-rule="evenodd" />
+  <path d="M66.032 33.849074 L66.032 104.491078 C68.630656 104.419098 71.176026 104.20923 73.568 103.869727 L73.568 33.849074 L66.032 33.849074 Z" fill="#c4e2cb" stroke="none" opacity="0.25" fill-rule="evenodd" />
+  <path d="M45.128 33.847661 L45.128 101.593052 C47.617932 102.632727 50.869616 103.450124 54.582 103.969567 L54.582 33.847661 L45.128 33.847661 Z" fill="#f2fff7" fill-opacity=".996" stroke="none" opacity="0.25" fill-rule="evenodd" />
+  <rect x="8.4" y="8.4" width="111.2" height="111.2" rx="25.6" fill="none" stroke="#d4e6ff" stroke-opacity="0.16" stroke-width="0.8" />
+</svg>

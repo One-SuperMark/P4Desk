@@ -91,6 +91,28 @@ pub trait RenderBox: Send + Sync {
         None
     }
 
+    /// A descendant owns an active pointer gesture, including outside its bounds.
+    fn captures_touch(&self) -> bool {
+        false
+    }
+
+    /// Local area of an in-place animation, advanced by layout without rebuilding widgets.
+    fn animation_dirty(&self) -> Option<Rect> {
+        None
+    }
+
+    /// Exact clipped damage of an owned drag, with no extra press-outline margin.
+    fn drag_dirty(&self) -> Option<Rect> {
+        None
+    }
+
+    /// Replace the complete global dirty rectangle with an opaque layer. Return
+    /// false without drawing when unsupported. Parents may then skip obscured
+    /// backgrounds; later siblings must still be painted above the replacement.
+    fn paint_opaque_region(&self, _canvas: &mut Canvas, _offset: Offset, _dirty: Rect) -> bool {
+        false
+    }
+
     /// Check if this render object or any child requests a widget tree rebuild.
     fn needs_rebuild(&self) -> bool {
         false

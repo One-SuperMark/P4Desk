@@ -3,6 +3,7 @@ use crate::graphics::color::Color;
 use crate::graphics::geometry::{EdgeInsets, Offset, Point, RRect, Rect, Size};
 use crate::rendering::constraints::BoxConstraints;
 use crate::rendering::render_box::{RenderBox, TouchEvent};
+use crate::theme::GlassMaterial;
 use crate::widgets::widget::Widget;
 
 pub struct Container {
@@ -14,6 +15,7 @@ pub struct Container {
     pub border_radius: Option<f32>,
     pub border_color: Option<Color>,
     pub border_width: Option<f32>,
+    pub glass: Option<GlassMaterial>,
     pub child: Option<Box<dyn Widget>>,
 }
 
@@ -34,6 +36,7 @@ impl Container {
             border_radius: None,
             border_color: None,
             border_width: None,
+            glass: None,
             child: None,
         }
     }
@@ -78,6 +81,15 @@ impl Container {
         self.child = Some(Box::new(child));
         self
     }
+    pub fn glass_material(mut self, material: GlassMaterial) -> Self {
+        self.glass = Some(material);
+        self
+    }
+
+    pub fn glass(mut self, enabled: bool) -> Self {
+        self.glass = enabled.then_some(GlassMaterial::Page);
+        self
+    }
 }
 
 impl Widget for Container {
@@ -91,6 +103,7 @@ impl Widget for Container {
             border_radius: self.border_radius,
             border_color: self.border_color,
             border_width: self.border_width,
+            glass: self.glass,
             child: self.child.as_ref().map(|c| c.create_render_object()),
             size: Size::ZERO,
             offset: Offset::ZERO,
@@ -107,12 +120,38 @@ pub struct RenderContainer {
     pub border_radius: Option<f32>,
     pub border_color: Option<Color>,
     pub border_width: Option<f32>,
+    pub glass: Option<GlassMaterial>,
     pub child: Option<Box<dyn RenderBox>>,
     size: Size,
     offset: Offset,
 }
 
 impl RenderBox for RenderContainer {
+    fn drag_dirty(&self) -> Option<Rect> {
+        self.child
+            .as_ref()
+            .and_then(|c| c.drag_dirty().map(|r| r.shift(c.offset())))
+    }
+    fn paint_opaque_region(&self, canvas: &mut Canvas, offset: Offset, dirty: Rect) -> bool {
+        if self.border_color.is_some() && self.border_width.unwrap_or(0.0) > 0.0 {
+            return false;
+        }
+        self.child
+            .as_ref()
+            .is_some_and(|c| c.paint_opaque_region(canvas, offset + c.offset(), dirty))
+    }
+    fn captures_touch(&self) -> bool {
+        self.child.as_ref().is_some_and(|c| c.captures_touch())
+    }
+    fn animation_dirty(&self) -> Option<Rect> {
+        let child = self.child.as_ref()?;
+        child.animation_dirty().map(|r| r.shift(child.offset()))
+    }
+    fn needs_rebuild(&self) -> bool {
+        self.child
+            .as_ref()
+            .is_some_and(|child| child.needs_rebuild())
+    }
     fn size(&self) -> Size {
         self.size
     }
@@ -173,8 +212,15 @@ impl RenderBox for RenderContainer {
 
         // 1. Paint background
         if let Some(color) = self.color {
-            if let Some(radius) = self.border_radius {
-                canvas.draw_rrect(RRect::from_rect_circular(content_rect, radius), color);
+            if let Some(material) = self.glass {
+                canvas.liquid_glass_material(
+                    RRect::from_rect_circular(content_rect, self.border_radius.unwrap_or(0.0)),
+                    color,
+                    false,
+                    material,
+                );
+            } else if let Some(radius) = self.border_radius {
+                canvas.draw_rrect_aa(RRect::from_rect_circular(content_rect, radius), color);
             } else {
                 canvas.draw_rect(content_rect, color);
             }
@@ -211,7 +257,11 @@ impl RenderBox for RenderContainer {
             let local_p = event.point() - child_offset;
             let hit = child.hit_test(local_p);
             let is_up = matches!(event, TouchEvent::Up(_));
-            if hit || is_up || matches!(event, TouchEvent::Cancel) {
+            if hit
+                || (matches!(event, TouchEvent::Move(_)) && child.captures_touch())
+                || is_up
+                || matches!(event, TouchEvent::Cancel)
+            {
                 let child_event = event.transform(local_p);
                 return child.dispatch_touch(&child_event);
             }
@@ -233,7 +283,7 @@ impl RenderBox for RenderContainer {
         if let Some(child) = &self.child {
             let child_offset = child.offset();
             let local_p = point - child_offset;
-            if child.hit_test(local_p) {
+            if child.hit_test(local_p) || child.captures_touch() {
                 if let Some(r) = child.hit_rect(local_p) {
                     return Some(Rect::from_ltwh(
                         r.x + child_offset.dx,

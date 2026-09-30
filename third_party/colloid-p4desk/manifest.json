@@ -1,0 +1,1510 @@
+{
+  "schema": "p4desk.colloid-selection.v1",
+  "name": "P4Desk · Colloid 双主题图标",
+  "modified": "2026-09-30",
+  "license": "GPL-3.0",
+  "upstream": {
+    "repository": "https://github.com/vinceliuice/Colloid-icon-theme",
+    "commit": "ceac6608ecd0e40025cbc2ebbd32bf0e0f4ebc6a",
+    "archive_url": "https://codeload.github.com/vinceliuice/Colloid-icon-theme/tar.gz/ceac6608ecd0e40025cbc2ebbd32bf0e0f4ebc6a",
+    "archive_sha256": "3f731f9f13b1c1403893561ff92adec7b3ab07c5495f55c78c111b07a10a296e"
+  },
+  "icon_count": 25,
+  "theme_variant_count": 50,
+  "total_svg_count": 75,
+  "originals_preserved": true,
+  "theme_variants_modified": true,
+  "palette_sha256": "eda7024582b2a54cf786aea1d6f0cf9f76656cb8938100ca06aabfe1685b36b4",
+  "theme_resolution": "icons[].variants[theme].file",
+  "themes": {
+    "light": {
+      "name": "浅色主题",
+      "directory": "themes/light",
+      "manifest": "themes/light/manifest.json",
+      "count": 25
+    },
+    "dark": {
+      "name": "深色主题",
+      "directory": "themes/dark",
+      "manifest": "themes/dark/manifest.json",
+      "count": 25
+    }
+  },
+  "icons": [
+    {
+      "id": "clock",
+      "name": "时钟",
+      "group": "desktop",
+      "usage": "桌面／Dock／时钟卡片",
+      "source": "src/apps/scalable/preferences-system-time.svg",
+      "note": "钟面与刻度，适合时钟入口；接入实时指针前需拆除固定指针。",
+      "kind": "app",
+      "file": "svg/desktop/clock.svg",
+      "original_filename": "preferences-system-time.svg",
+      "sha256": "4e43de50f1739abe1a2662e898bf00839e1aa9d0cb9f98b67f3f7e674261e1de",
+      "bytes": 9312,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/clock.svg",
+          "sha256": "43bb5987d344cfb7c66b7acf0dca6dc37cea823ffb5c919743c306efe55b4d82",
+          "bytes": 3585,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 2,
+            "removed_filter_references": 2,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 3,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/clock.svg",
+          "sha256": "8996bf81bd8eb4f17b3ace705deddd2b22845869cd463779ef8eca639942855a",
+          "bytes": 3583,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 2,
+            "removed_filter_references": 2,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 3,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "timer",
+      "name": "番茄钟",
+      "group": "desktop",
+      "usage": "桌面／Dock／专注卡片",
+      "source": "src/apps/scalable/pomidor.svg",
+      "note": "计时器轮廓，用于番茄钟与倒计时。",
+      "kind": "app",
+      "file": "svg/desktop/timer.svg",
+      "original_filename": "pomidor.svg",
+      "sha256": "7a69689bd0f393d3f1187dcf569b3c1e5b2fc7b2623ebc86d8147397e0673214",
+      "bytes": 8331,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/timer.svg",
+          "sha256": "613cf01fb1396cdb0087942fb4b447c7bffb7c6ad2db57ce93e965c13ae21853",
+          "bytes": 2853,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 2
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/timer.svg",
+          "sha256": "04f4ece2370ddd2bc5b623e911a60031029e0964850e8f46177dbc0730b7c7cc",
+          "bytes": 2851,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "notes",
+      "name": "便签",
+      "group": "desktop",
+      "usage": "桌面／Dock／便签空状态",
+      "source": "src/apps/scalable/basket.svg",
+      "note": "带条目的便签纸，用于便签查看与管理。",
+      "kind": "app",
+      "file": "svg/desktop/notes.svg",
+      "original_filename": "basket.svg",
+      "sha256": "da152df1e4ca0296b66109213272017bf6ae6530fe06170bd9269c525e7fe283",
+      "bytes": 8202,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/notes.svg",
+          "sha256": "540ab1b9d6a86b383679da2f8028d3e2e587c26bc6cad998f86da07dae1789b3",
+          "bytes": 2653,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/notes.svg",
+          "sha256": "4340e420bb0ff7ea1e961a4cbb0ff31b1c4b079fddd6b184a590ffef14f91654",
+          "bytes": 2651,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "calculator",
+      "name": "计算器",
+      "group": "desktop",
+      "usage": "桌面／Dock／计算器入口",
+      "source": "src/apps/scalable/calc.svg",
+      "note": "四则运算按键与结果区，计算器语义明确。",
+      "kind": "app",
+      "file": "svg/desktop/calculator.svg",
+      "original_filename": "calc.svg",
+      "sha256": "5b85b5190e113eb71cd58b9b6b0750a7197074af211dfb5b251fd6f17342576a",
+      "bytes": 7710,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/calculator.svg",
+          "sha256": "ff2a9e8893e5b75dbfa5fa1b2e27d4b2d2f00239ab6ac7efad58e40dac8f1340",
+          "bytes": 2146,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/calculator.svg",
+          "sha256": "800c7dd8a516ad6c74fcf3fdfe0737789a0e029f281a8c7596e0b2766f5fead8",
+          "bytes": 2144,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "mac",
+      "name": "Mac 控制",
+      "group": "desktop",
+      "usage": "桌面／Dock／电脑控制入口",
+      "source": "src/apps/scalable/preferences-desktop-keyboard.svg",
+      "note": "Command 符号，对应 Mac 快捷键和电脑控制。",
+      "kind": "app",
+      "file": "svg/desktop/mac.svg",
+      "original_filename": "preferences-desktop-keyboard.svg",
+      "sha256": "549cf84485ac713d0e38b2cccb230ec322a5ed99d4328a04a5a98f2b4110c472",
+      "bytes": 7493,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/mac.svg",
+          "sha256": "efa0417a54a00dc4c24ebe3efa7bab5b436d715e8e7d4b9f1a1f3a1867485423",
+          "bytes": 1928,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/mac.svg",
+          "sha256": "3a2a0f93e8cb2513db961b2ddf03233567e40869d79772706e295b9d81553a7a",
+          "bytes": 1926,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "settings",
+      "name": "设置",
+      "group": "desktop",
+      "usage": "桌面／Dock／控制中心入口",
+      "source": "src/apps/scalable/preferences-system.svg",
+      "note": "齿轮符号，对应系统设置。",
+      "kind": "app",
+      "file": "svg/desktop/settings.svg",
+      "original_filename": "preferences-system.svg",
+      "sha256": "8c76f8f1da3c19542cdb4d4357dc7704a7c1edc419175c85bd7ed60c1c8d119b",
+      "bytes": 10773,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/settings.svg",
+          "sha256": "de86a00f1b618640083d9204bc57dbd42598c214f17b4f454c47481dadce4cab",
+          "bytes": 5242,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/settings.svg",
+          "sha256": "7a8b8f4730bc221f37b5b4fa3376de0099f2475adfca81bd1a12a5d8c7954107",
+          "bytes": 5240,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "display",
+      "name": "USB 副屏",
+      "group": "desktop",
+      "usage": "桌面／Dock／副屏连接页",
+      "source": "src/actions/24/org.remmina.Remmina-multi-monitor-symbolic.svg",
+      "note": "多显示器符号，配 Colloid 圆角底板，用于 USB 扩展屏入口。",
+      "kind": "glyph",
+      "file": "svg/desktop/display.svg",
+      "original_filename": "org.remmina.Remmina-multi-monitor-symbolic.svg",
+      "sha256": "775445724049872478409fda9300c6abafad8ef54c1b71b0cceb27637cae533d",
+      "bytes": 1919,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/display.svg",
+          "sha256": "6bd2fc98e8ae1137c0bf6d062b59b6c79ea9a35eed5fa619bcab73a5e15102e9",
+          "bytes": 2729,
+          "adaptation": {
+            "removed_embedded_images": 0,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 24 24",
+            "normalization_transform": "translate(12 12.835) scale(1.666667)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 0,
+            "added_rounded_plate": true,
+            "added_inner_rim": true,
+            "small_size_stroke_added": true,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/display.svg",
+          "sha256": "e42de91b3056b39644e2d7f6418d0ffa0fcbcb4f5704225b6e147a2e0a5d83f5",
+          "bytes": 2727,
+          "adaptation": {
+            "removed_embedded_images": 0,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 24 24",
+            "normalization_transform": "translate(12 12.835) scale(1.666667)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 0,
+            "added_rounded_plate": true,
+            "added_inner_rim": true,
+            "small_size_stroke_added": true,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "screen",
+      "name": "关闭屏幕",
+      "group": "desktop",
+      "usage": "桌面／控制中心熄屏操作",
+      "source": "src/apps/scalable/shutdown.svg",
+      "note": "电源符号；按钮行为仍为关闭屏幕。",
+      "kind": "app",
+      "file": "svg/desktop/screen.svg",
+      "original_filename": "shutdown.svg",
+      "sha256": "4aa1124673d0a996de478daabaaf83b18a2587fb88edf7005f81063243ed71b0",
+      "bytes": 7956,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/screen.svg",
+          "sha256": "0d6f388ddd12676ce75ae05059f464f77b302185edfb4b923f0788d3be4d3c66",
+          "bytes": 2408,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/screen.svg",
+          "sha256": "3a22e36309d7d7e9d9d49ca6715a86165139781f4dece8ee199746c64eea5771",
+          "bytes": 2406,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "file-manager",
+      "name": "文件管理",
+      "group": "planned",
+      "usage": "规划入口／TF 卡文件浏览与管理",
+      "source": "src/apps/scalable/file-manager.svg",
+      "note": "蓝色文件夹，用于 TF 卡目录浏览与文件管理。",
+      "kind": "app",
+      "file": "svg/planned/file-manager.svg",
+      "original_filename": "file-manager.svg",
+      "sha256": "3118fafd1c345bf979f63e2837818aeef95626d99a0a042978e6e6f6f4afe773",
+      "bytes": 8924,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/planned/file-manager.svg",
+          "sha256": "758ea92a1b58da1588e4986806dd3167df01fb38c6899555158f77d1f7ba2c60",
+          "bytes": 2852,
+          "adaptation": {
+            "removed_embedded_images": 2,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 4,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/planned/file-manager.svg",
+          "sha256": "a85a1a10c4d513736bec623571edd813e9dfc6df64d26c4bf02e429d5958c6b9",
+          "bytes": 2850,
+          "adaptation": {
+            "removed_embedded_images": 2,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 4,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "office-viewer",
+      "name": "Office 文档",
+      "group": "planned",
+      "usage": "规划入口／Office 文档查看",
+      "source": "src/apps/scalable/gnome-documents.svg",
+      "note": "文档内容与阅读眼镜，作为 Office 文档统一查看入口。",
+      "kind": "app",
+      "file": "svg/planned/office-viewer.svg",
+      "original_filename": "gnome-documents.svg",
+      "sha256": "53d8775c41a1581628a6355708c37841eb1cdf9321babbcdeac86041da9d72f7",
+      "bytes": 15506,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/planned/office-viewer.svg",
+          "sha256": "92396e083cbbf5cb73d6a66f45e72fb1bbacccd9f0c741e352843b4f7ff15d2f",
+          "bytes": 9919,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 1,
+            "removed_filter_references": 1,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 2,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/planned/office-viewer.svg",
+          "sha256": "c64e52d4f721fda048edc1b080b36352641bfa7b0ba98fb54c3a21f46fa4863f",
+          "bytes": 9917,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 1,
+            "removed_filter_references": 1,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 2,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "sub2api-monitor",
+      "name": "用量监控",
+      "group": "planned",
+      "usage": "规划入口／SUB2API Monitor 移植",
+      "source": "src/apps/scalable/utilities-system-monitor.svg",
+      "note": "图表网格与监测曲线，对应 Token、额度、费用及服务状态。",
+      "kind": "app",
+      "file": "svg/planned/sub2api-monitor.svg",
+      "original_filename": "utilities-system-monitor.svg",
+      "sha256": "82475ed2e52d2efa4def43858b90acae5ed776fdc3a062c0e6ea3c1021056056",
+      "bytes": 12348,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/planned/sub2api-monitor.svg",
+          "sha256": "ca5fcfb5c5bd95962aca0f9126142f8149008da44917268839ad1e16f8ca6265",
+          "bytes": 6921,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 2,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": true,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/planned/sub2api-monitor.svg",
+          "sha256": "ba2c65533cb414c805c4f280521cc3682b8ea43b5693da8b0e937c92bd68f3f0",
+          "bytes": 6919,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 2,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": true,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "wifi",
+      "name": "Wi-Fi",
+      "group": "settings",
+      "usage": "设置侧栏／无线详情入口",
+      "source": "src/devices/scalable/network-wireless.svg",
+      "note": "Wi-Fi 弧线，用于无线设置入口；不是实时信号强弱。",
+      "kind": "app",
+      "file": "svg/settings/wifi.svg",
+      "original_filename": "network-wireless.svg",
+      "sha256": "481a23f73be2d31a78701dc0d242f39c082c47cfdec402878a5d35481b1857e1",
+      "bytes": 7639,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/wifi.svg",
+          "sha256": "dc88b15c448fa82e2b95184d5c3e60e60455f11ee9602128a3e942868b7c31bb",
+          "bytes": 2089,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/wifi.svg",
+          "sha256": "4d50d853f0e375c14648a6ca7deea21e73b249b80332f09d29e1178a891c53fc",
+          "bytes": 2087,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "bluetooth",
+      "name": "蓝牙",
+      "group": "settings",
+      "usage": "设置侧栏／蓝牙详情入口",
+      "source": "src/apps/scalable/bluetooth.svg",
+      "note": "蓝牙符号，用于蓝牙设置。",
+      "kind": "app",
+      "file": "svg/settings/bluetooth.svg",
+      "original_filename": "bluetooth.svg",
+      "sha256": "d5efcdc56b0d32b03dd06a1e256a7df119bb5419931aaaf0c1364c3232863197",
+      "bytes": 7279,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/bluetooth.svg",
+          "sha256": "d1aeaebeaf769818d6424ad1faeb12dfc052c6007c5397f71b43646c5c034d67",
+          "bytes": 1695,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/bluetooth.svg",
+          "sha256": "2a22c4c783cd66a0d27d0aa48ebe26d78a186fb8d41f17c93c11bc5b89235438",
+          "bytes": 1693,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "display-settings",
+      "name": "显示器",
+      "group": "settings",
+      "usage": "设置侧栏／显示器页面",
+      "source": "src/devices/symbolic/video-display-symbolic.svg",
+      "note": "单显示器符号，配 Colloid 圆角底板，与副屏入口区分。",
+      "kind": "glyph",
+      "file": "svg/settings/display-settings.svg",
+      "original_filename": "video-display-symbolic.svg",
+      "sha256": "aa2c263b0c79f04efcbb3dc357a158bd4934c1f36bf0b9ab079ec834b31d3c59",
+      "bytes": 460,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/display-settings.svg",
+          "sha256": "2534d716e69c5793475fc6f56f15fa229a630a9d5fc82cd1e31ce1404f37e1d3",
+          "bytes": 1345,
+          "adaptation": {
+            "removed_embedded_images": 0,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16 16",
+            "normalization_transform": "translate(13 14.1875) scale(2.375)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 0,
+            "added_rounded_plate": true,
+            "added_inner_rim": true,
+            "small_size_stroke_added": true,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/display-settings.svg",
+          "sha256": "8b8a78538fc831be41a0f2005c9253f33d80fcb8a2348cd038c88dac678235b4",
+          "bytes": 1343,
+          "adaptation": {
+            "removed_embedded_images": 0,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16 16",
+            "normalization_transform": "translate(13 14.1875) scale(2.375)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 0,
+            "added_rounded_plate": true,
+            "added_inner_rim": true,
+            "small_size_stroke_added": true,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "date-time",
+      "name": "日期与时间",
+      "group": "settings",
+      "usage": "设置侧栏／日期与时间页面",
+      "source": "src/apps/scalable/calendar.svg",
+      "note": "日历页用于日期和时间设置；数字 26 是静态装饰。",
+      "kind": "app",
+      "file": "svg/settings/date-time.svg",
+      "original_filename": "calendar.svg",
+      "sha256": "3aadfd10ab1d90125bad810b412e2fcd69f825d94f58d45d86600a5a92ddbb7a",
+      "bytes": 8670,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/date-time.svg",
+          "sha256": "942b5a13b27eccac2b5dff3b69bcc1158705d6931d532e02b2cad4ef66c9be4d",
+          "bytes": 3160,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 4,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/date-time.svg",
+          "sha256": "317db43e119d5a3b6b420ba95527090b21c66264c56c4c823497a54ea55e1fa7",
+          "bytes": 3158,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 4,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "storage",
+      "name": "存储",
+      "group": "settings",
+      "usage": "设置侧栏／存储页面",
+      "source": "src/apps/scalable/org.gnome.DiskUtility.svg",
+      "note": "磁盘与齿轮，用于 TF 存储详情。",
+      "kind": "app",
+      "file": "svg/settings/storage.svg",
+      "original_filename": "org.gnome.DiskUtility.svg",
+      "sha256": "c12ddecd736b3e27116519b7891224e708a976fcf71a9af795eea0b80f8d5cfa",
+      "bytes": 18305,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/storage.svg",
+          "sha256": "a03fef2015b875b636d01afd93ac1f80a070b9dc73dfde8b206459ccb4b4b300",
+          "bytes": 11878,
+          "adaptation": {
+            "removed_embedded_images": 2,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 2,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/storage.svg",
+          "sha256": "eea8d3b766aa93374358d566a09f8407644ad576ecbeb20537f12b8529eca218",
+          "bytes": 11876,
+          "adaptation": {
+            "removed_embedded_images": 2,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 2,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "about",
+      "name": "关于",
+      "group": "settings",
+      "usage": "设置侧栏／关于／设备详情入口",
+      "source": "src/apps/scalable/userinfo.svg",
+      "note": "信息 i 符号，用于关于与设备详情。",
+      "kind": "app",
+      "file": "svg/settings/about.svg",
+      "original_filename": "userinfo.svg",
+      "sha256": "1e6ae7f4bed019a2869144f0b0386ea4aa43582c84d1eb1fe8e3c3e964fcd3aa",
+      "bytes": 7053,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/about.svg",
+          "sha256": "7d6f0363a60bee409c280b78aa99bae5e073dc6a6d1fb0580e535181b8c07274",
+          "bytes": 1500,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/about.svg",
+          "sha256": "ef10a5b9830a6a90051465aa89fce0a612b08e7a3232e3c0099ae472ea2e3a5e",
+          "bytes": 1498,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "usb",
+      "name": "USB",
+      "group": "settings",
+      "usage": "控制中心／USB 详情入口",
+      "source": "src/apps/scalable/usb-creator.svg",
+      "note": "USB 标记与外设形状，用于 USB 设备详情入口。",
+      "kind": "app",
+      "file": "svg/settings/usb.svg",
+      "original_filename": "usb-creator.svg",
+      "sha256": "bdc0c8ecee1d23c8c9f7cf937bc4444105641e0d5aafca95b57d03c9c06c5aef",
+      "bytes": 9199,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/usb.svg",
+          "sha256": "498527ad6cd25e2b7b80f00b142f87b86b03e2b457c35e8e39aabf8ddb37fee0",
+          "bytes": 3770,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 2,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": true,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/usb.svg",
+          "sha256": "79ac5755380d7edeee2ac34e6a1ea62ea18a7392556a7401366e4316a4a4e5ea",
+          "bytes": 3768,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 2,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": true,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "battery",
+      "name": "电池",
+      "group": "settings",
+      "usage": "控制中心／电池详情入口",
+      "source": "src/apps/scalable/gnome-power-manager.svg",
+      "note": "分格电池，用于电池详情；填充是静态装饰。",
+      "kind": "app",
+      "file": "svg/settings/battery.svg",
+      "original_filename": "gnome-power-manager.svg",
+      "sha256": "fbba54ff503dcbb6c9ac570f88adc459e25be5c231dee5b73f451b66d37e064d",
+      "bytes": 8930,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/battery.svg",
+          "sha256": "928b5f4ae70c9e9bdc9e601180eb3e60ff945cd23a32e3565ebe188ade102795",
+          "bytes": 2975,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 1,
+            "removed_filter_references": 5,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 6,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/battery.svg",
+          "sha256": "fde9195a20ae7b2d75883d3164119e906b032311c6678e61475941d74a02067b",
+          "bytes": 2973,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 1,
+            "removed_filter_references": 5,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 6,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "brightness",
+      "name": "亮度",
+      "group": "settings",
+      "usage": "控制中心／亮度入口",
+      "source": "src/status/32/video-display-brightness.svg",
+      "note": "显示器与太阳，配 Colloid 圆角底板，用于屏幕亮度。",
+      "kind": "glyph",
+      "file": "svg/settings/brightness.svg",
+      "original_filename": "video-display-brightness.svg",
+      "sha256": "caf153e0db2a205ac40db1326ea27b764d0543ab7174ecc61fdcdd4ddd423005",
+      "bytes": 6552,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/brightness.svg",
+          "sha256": "7d93eeb3ab5a4367c6757f8343ea57850254ce121164dd4a5877f184ec653b91",
+          "bytes": 6683,
+          "adaptation": {
+            "removed_embedded_images": 0,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 2,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 32 32",
+            "normalization_transform": "translate(8 8) scale(1.5)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 0,
+            "added_rounded_plate": true,
+            "added_inner_rim": true,
+            "small_size_stroke_added": true,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/brightness.svg",
+          "sha256": "46fa66d955cfb0c48768b1c7ca204c84e86009ca0f8c4d60f752ceeac5f6994c",
+          "bytes": 6681,
+          "adaptation": {
+            "removed_embedded_images": 0,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 2,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 32 32",
+            "normalization_transform": "translate(8 8) scale(1.5)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 0,
+            "added_rounded_plate": true,
+            "added_inner_rim": true,
+            "small_size_stroke_added": true,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "audio",
+      "name": "音量与媒体",
+      "group": "settings",
+      "usage": "Mac 控制／媒体分组入口",
+      "source": "src/devices/scalable/audio-speakers.svg",
+      "note": "扬声器，用于音量与媒体分组。",
+      "kind": "app",
+      "file": "svg/settings/audio.svg",
+      "original_filename": "audio-speakers.svg",
+      "sha256": "2d948df1738834f60530122cdc932b5a1b80bbb09e34a265ec2be0ac5aef6f0f",
+      "bytes": 10158,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/audio.svg",
+          "sha256": "70a3c525cf73bb58985e4db2b55649697ce8783a9b90d701fba4d387d5098bcf",
+          "bytes": 4646,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/audio.svg",
+          "sha256": "0e98b6f203549cc0190c5caa998d80d2fbaf9d99f749cc73f23d12a96696c142",
+          "bytes": 4644,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 16.933 16.933",
+            "normalization_transform": "scale(3.779601961)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "clock-alarm",
+      "name": "时钟备选",
+      "group": "alternatives",
+      "usage": "clock 备选",
+      "source": "src/apps/scalable/org.gnome.Evolution-alarm-notify.svg",
+      "note": "带扇区的钟面，作为时钟入口备选。",
+      "kind": "app",
+      "file": "svg/alternatives/clock-alarm.svg",
+      "original_filename": "org.gnome.Evolution-alarm-notify.svg",
+      "sha256": "ed93c825df522498240be6efca4ccef83c61427d353d27fdc4b09a9c6091596d",
+      "bytes": 7446,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/alternatives/clock-alarm.svg",
+          "sha256": "ba31997b27804289e5de2fe83f6132a05c0a22b7d0f1a527ea6dd4ced8dbe7e2",
+          "bytes": 1931,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/alternatives/clock-alarm.svg",
+          "sha256": "f781e46d6fbe225939df88b77ec68928aeb4dde16e71b9457c00cbf6e24cfaf2",
+          "bytes": 1929,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "timer-green",
+      "name": "计时器备选",
+      "group": "alternatives",
+      "usage": "timer 备选",
+      "source": "src/actions/24/chronometer.svg",
+      "note": "秒表扇区，使用绿色圆角底板，作为计时器备选。",
+      "kind": "glyph",
+      "file": "svg/alternatives/timer-green.svg",
+      "original_filename": "chronometer.svg",
+      "sha256": "33439b482a290c248463cef3891bb302e3d9521ac9e01d344129a461a87f6565",
+      "bytes": 1655,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/alternatives/timer-green.svg",
+          "sha256": "2a6a4169fcd24bdd706a1578b9fe8c4b8115662706ee31c8bbe839a4fd8f2655",
+          "bytes": 2351,
+          "adaptation": {
+            "removed_embedded_images": 0,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 1,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 24 24",
+            "normalization_transform": "translate(5 5) scale(2.25)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 0,
+            "added_rounded_plate": true,
+            "added_inner_rim": true,
+            "small_size_stroke_added": true,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/alternatives/timer-green.svg",
+          "sha256": "c2696245896b593072c56a6e9e756c80669d192f66088276aedee735c341cb4e",
+          "bytes": 2349,
+          "adaptation": {
+            "removed_embedded_images": 0,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 1,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 24 24",
+            "normalization_transform": "translate(5 5) scale(2.25)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 0,
+            "added_rounded_plate": true,
+            "added_inner_rim": true,
+            "small_size_stroke_added": true,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "notes-paper",
+      "name": "便签备选",
+      "group": "alternatives",
+      "usage": "notes 备选",
+      "source": "src/apps/scalable/com.github.philip_scott.notes-up.svg",
+      "note": "打开的笔记本，作为便签备选。",
+      "kind": "app",
+      "file": "svg/alternatives/notes-paper.svg",
+      "original_filename": "com.github.philip_scott.notes-up.svg",
+      "sha256": "edfdce80acbb9efba9e7f892de9c73d0607a439932e8227910987f80d5ea6336",
+      "bytes": 8440,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/alternatives/notes-paper.svg",
+          "sha256": "8e7cdbc9ba9d7fdc604e241cb84688efbf3da180b939c17e435585106f091604",
+          "bytes": 2929,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/alternatives/notes-paper.svg",
+          "sha256": "44aa172ff9c29ee83a1b8be123b2272b038a274cc206ac777e3afbb8361d4f2b",
+          "bytes": 2927,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "mac-shortcuts",
+      "name": "快捷键备选",
+      "group": "alternatives",
+      "usage": "mac 备选",
+      "source": "src/apps/scalable/preferences-desktop-keyboard-shortcuts.svg",
+      "note": "组合按键图案，作为 Mac 快捷键入口备选。",
+      "kind": "app",
+      "file": "svg/alternatives/mac-shortcuts.svg",
+      "original_filename": "preferences-desktop-keyboard-shortcuts.svg",
+      "sha256": "ae55211ec7f3d2e79bd794eeb26c08b143cf201d4a32df8ad7777fe5568aafbd",
+      "bytes": 8851,
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/alternatives/mac-shortcuts.svg",
+          "sha256": "c1fdaf9d5f1e955cbcfc31915e2d09c41d2409d34e0d3b7471989bf841f49feb",
+          "bytes": 3341,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/alternatives/mac-shortcuts.svg",
+          "sha256": "3b5f22bf0a6f86dcae2c42aeaab1b3cb4085abf80d551aad688a2e82b8117dc1",
+          "bytes": 3339,
+          "adaptation": {
+            "removed_embedded_images": 1,
+            "removed_filters": 0,
+            "removed_filter_references": 0,
+            "resolved_current_color": 0,
+            "source_vector_geometry_preserved": true,
+            "source_viewBox": "0 0 64 64",
+            "normalization_transform": "scale(1)",
+            "pure_vector": true,
+            "styles_expanded_to_attributes": true,
+            "shadow_layers_softened": 1,
+            "added_rounded_plate": false,
+            "added_inner_rim": true,
+            "small_size_stroke_added": false,
+            "usb_symbol_contrast_enhanced": false,
+            "irrelevant_upstream_decorations_hidden": 0
+          }
+        }
+      }
+    }
+  ]
+}

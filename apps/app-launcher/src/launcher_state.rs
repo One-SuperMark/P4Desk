@@ -11,7 +11,19 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use tiny_flutter::{PageController, Rect, ScrollController, Size};
 
-pub const APP_IDS: [&str; 6] = ["clock", "timer", "notes", "calculator", "mac", "settings"];
+pub const APP_IDS: [&str; 9] = [
+    "clock",
+    "timer",
+    "notes",
+    "calculator",
+    "mac",
+    "settings",
+    "file-manager",
+    "office-viewer",
+    "sub2api-monitor",
+];
+pub const MAX_BACKGROUND_APPS: usize = 4;
+pub const MAX_RECENT_APPS: usize = 4;
 #[derive(Clone)]
 pub enum ActiveApp {
     Launcher,
@@ -21,6 +33,7 @@ pub enum ActiveApp {
     Calculator(Arc<Mutex<CalcState>>),
     MacControls,
     Settings,
+    Planned(crate::planned_apps::PlannedApp),
     /// Temporary handoff page, never stored as a background app.
     DisplaySetup,
 }
@@ -34,6 +47,7 @@ impl ActiveApp {
             Self::Calculator(_) => Some("calculator"),
             Self::MacControls => Some("mac"),
             Self::Settings => Some("settings"),
+            Self::Planned(app) => Some(app.id()),
             Self::DisplaySetup => Some("display"),
         }
     }
@@ -59,6 +73,9 @@ pub enum UiCommand {
     Action(String),
     Media(u16),
     Brightness(u8),
+    Appearance { light: bool, glass: u8 },
+    IconTheme(crate::icon_theme::IconTheme),
+    IconLight(bool),
     Screen(bool),
     RequestTimeSync,
     SetTime(i64, i32),
@@ -72,12 +89,15 @@ pub struct LauncherState {
     pub total_pages: usize,
     pub active_app: ActiveApp,
     pub running_apps: HashMap<String, ActiveApp>,
+    pub(crate) background_order: VecDeque<String>,
+    pub(crate) recent_apps: VecDeque<&'static str>,
     pub page_controller: PageController,
     pub snapshot: Snapshot,
     pub timer: TimerService,
     pub timer_completion: TimerCompletionState,
     pub app_launch: AppLaunchState,
     pub desktop_backdrop: DesktopBackdropCache,
+    pub(crate) control_center_backdrop: crate::control_center_glass::Backdrop,
     pub settings: LocalSettings,
     pub radio: crate::radio::RadioSnapshot,
     pub settings_view: crate::radio::SettingsView,
@@ -89,6 +109,9 @@ pub struct LauncherState {
     pub status_panel_kind: crate::status_bar::StatusPanelKind,
     pub reset_reason: u32,
     pub time_valid: bool,
+    /// A recovered wall clock cannot account for time spent without power.
+    pub time_estimated: bool,
+    pub persistence_status: crate::session::PersistenceStatus,
     pub mode: Mode,
     pub unix_ms: i64,
     pub monotonic_ms: u64,
@@ -119,12 +142,15 @@ impl LauncherState {
             total_pages: 1,
             active_app: ActiveApp::Launcher,
             running_apps: HashMap::new(),
+            background_order: VecDeque::new(),
+            recent_apps: VecDeque::new(),
             page_controller: PageController::new(),
             snapshot: Snapshot::default(),
             timer: TimerService::default(),
             timer_completion: TimerCompletionState::default(),
             app_launch: AppLaunchState::default(),
             desktop_backdrop: Arc::new(Mutex::new(None)),
+            control_center_backdrop: Arc::new(Mutex::new(None)),
             settings: LocalSettings::default(),
             radio: crate::radio::RadioSnapshot::default(),
             settings_view: crate::radio::SettingsView::default(),
@@ -136,6 +162,8 @@ impl LauncherState {
             status_panel_kind: crate::status_bar::StatusPanelKind::Device,
             reset_reason: 0,
             time_valid: false,
+            time_estimated: false,
+            persistence_status: crate::session::PersistenceStatus::Pending,
             mode: Mode::Pad,
             unix_ms: 0,
             monotonic_ms: 0,
@@ -157,19 +185,47 @@ impl LauncherState {
     }
     pub fn open_app(&mut self, id: &str) {
         self.status_panel_open = false;
+        if self.active_app.id() == Some(id) {
+            self.changed();
+            return;
+        }
+        // Reserve the requested instance before hiding the foreground app.
+        // Otherwise a full queue could evict the very app being resumed.
+        let restored = self.running_apps.remove(id);
+        self.background_order.retain(|key| key != id);
         self.background_active_app();
-        self.active_app = self.running_apps.remove(id).unwrap_or_else(|| match id {
+        self.active_app = restored.unwrap_or_else(|| match id {
             "clock" => ActiveApp::Clock,
             "timer" => ActiveApp::Timer,
             "notes" => ActiveApp::Notes(Arc::new(Mutex::new(NotesView::default()))),
             "calculator" => ActiveApp::Calculator(Arc::new(Mutex::new(CalcState::new()))),
             "mac" => ActiveApp::MacControls,
             "settings" => ActiveApp::Settings,
+            "file-manager" => ActiveApp::Planned(crate::planned_apps::PlannedApp::Files),
+            "office-viewer" => ActiveApp::Planned(crate::planned_apps::PlannedApp::Office),
+            "sub2api-monitor" => ActiveApp::Planned(crate::planned_apps::PlannedApp::Usage),
             "display" => ActiveApp::DisplaySetup,
             _ => ActiveApp::Launcher,
         });
+        if let Some(id) = self.active_app.id() {
+            // History keeps identifiers only. Closing an application must still
+            // release its instance while leaving a shortcut to reopen it.
+            self.recent_apps.retain(|previous| *previous != id);
+            self.recent_apps.push_back(id);
+            while self.recent_apps.len() > MAX_RECENT_APPS {
+                self.recent_apps.pop_front();
+            }
+        }
         self.flip_clock.snap(&self.clock);
         self.changed();
+    }
+    /// Oldest hidden application first; resuming and hiding again moves it last.
+    pub fn background_app_ids(&self) -> impl Iterator<Item = &str> {
+        self.background_order.iter().map(String::as_str)
+    }
+    /// Recent distinct apps, oldest first. Independent of live background instances.
+    pub fn recent_app_ids(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.recent_apps.iter().copied()
     }
     pub fn background_active_app(&mut self) {
         if matches!(self.active_app, ActiveApp::DisplaySetup) {
@@ -194,7 +250,17 @@ impl LauncherState {
         self.desktop_backdrop.lock().unwrap().take();
         self.timer_completion.cancel();
         if let Some(id) = self.active_app.id().filter(|id| *id != "display") {
+            self.background_order.retain(|key| key != id);
             self.running_apps.insert(id.into(), self.active_app.clone());
+            self.background_order.push_back(id.into());
+            while self.background_order.len() > MAX_BACKGROUND_APPS {
+                if let Some(oldest) = self.background_order.pop_front() {
+                    self.running_apps.remove(&oldest);
+                    if oldest == "settings" {
+                        self.manual_time_open = false;
+                    }
+                }
+            }
         }
         self.active_app = ActiveApp::Launcher;
         self.flip_clock.snap(&self.clock);
@@ -239,6 +305,7 @@ impl LauncherState {
         self.timer_completion.cancel();
         if let Some(id) = self.active_app.id() {
             self.running_apps.remove(id);
+            self.background_order.retain(|key| key != id);
         }
         if matches!(self.active_app, ActiveApp::Settings) {
             self.manual_time_open = false;
@@ -253,6 +320,11 @@ impl LauncherState {
     /// Desktop launches animate; direct opens and status-bar resumes retain
     /// their existing routing and preserved app instances.
     pub fn launch_app(&mut self, id: &str, source: Rect) {
+        let desktop_clock = self
+            .time_valid
+            .then(|| crate::live_clock_icon::ClockTime::parse(&self.clock))
+            .flatten();
+        let desktop_dock = crate::folio_desktop::recent_apps(self);
         let backdrop = self.desktop_backdrop.lock().unwrap().take();
         self.open_app(id);
         if source.width > 0.0
@@ -263,6 +335,8 @@ impl LauncherState {
             if let Some(id) = self.active_app.id() {
                 *self.desktop_backdrop.lock().unwrap() = backdrop;
                 self.app_launch.start(id, source, self.monotonic_ms);
+                self.app_launch.set_desktop_dock(desktop_dock);
+                self.app_launch.set_desktop_clock(desktop_clock);
                 if id == "display" {
                     self.notice.clear();
                     self.display_request_pending = true;

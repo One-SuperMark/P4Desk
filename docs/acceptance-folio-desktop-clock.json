@@ -1,0 +1,114 @@
+{
+  "schema": "p4desk.folio-desktop-clock.acceptance.v1",
+  "recorded_at": "2026-09-30T14:10:37.492780+08:00",
+  "branch": "codex/folio-ui",
+  "base_commit": "87ec66c8375df2cecaeb0a0356ab8d58ac12adf0",
+  "implementation": {
+    "desktop_clock": "HH:MM:SS; unsynced --:--:--",
+    "card_values": "visible glyph bounds centered in the 70px area between heading and caption, same calculation for clock/timer",
+    "live_icon": "static SVG dial plus AA vector hour/minute/second hands using the same local time; card/grid/recent dock and frozen launch snapshot",
+    "refresh": "existing once-per-second time invalidation; no new animation task or framebuffer",
+    "status_plate": {
+      "width": 92,
+      "height": 152,
+      "padding": 12,
+      "columns": 2,
+      "rows": 3,
+      "cell_width": 34,
+      "cell_height": 42.666666666666664,
+      "alignment": "horizontal and vertical center",
+      "sequence": [
+        [
+          "battery",
+          "wifi"
+        ],
+        [
+          "usb",
+          "TF"
+        ],
+        [
+          "BLE",
+          null
+        ]
+      ],
+      "battery_silhouette": [
+        28,
+        14
+      ],
+      "interactive": false
+    }
+  },
+  "preview": {
+    "image": "docs/images/folio-desktop-live-clock.png",
+    "origin": "real Rust RGB565 renderer with synthetic fixture, not a device photo",
+    "clock_and_timer_visible_ink_y": [
+      83,
+      118
+    ],
+    "visible_ink_center_y": 100.5,
+    "available_region_center_y": 101,
+    "vector_source_reproducibility": "passed"
+  },
+  "tests": {
+    "workspace_passed": 235,
+    "log": ".cache/folio/tests-live-clock-final.log",
+    "coverage": [
+      "midnight rollover across numeric/card/grid/dock clocks",
+      "12-hour dial and fractional hand positions",
+      "invalid time",
+      "second-hand movement and clipping",
+      "launch time snapshot",
+      "existing touch/navigation and launch cache regressions"
+    ]
+  },
+  "build": {
+    "status": "passed",
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "bytes": 4418608,
+    "sha256": "f7833240bec2fe4fee871906d110981bf8aab2e13eacb623c811fa4b12597408",
+    "log": ".cache/folio/build-live-clock-final.log"
+  },
+  "flash": {
+    "status": "passed",
+    "verified_images": 3,
+    "backup_verified_by_device_tool": true,
+    "log": ".cache/folio/flash-live-clock.log"
+  },
+  "device": {
+    "status": "boot_verified",
+    "monitor_seconds": 45,
+    "log": ".cache/folio/monitor-live-clock.log",
+    "hardware": "1024x600 RGB565; rotation180; touch ready",
+    "tf_read_write": "passed",
+    "wifi_time_synced": true,
+    "time_synced_boot_ms": 15215,
+    "health_at_30s": {
+      "uptime_s": 30,
+      "mode": "pad",
+      "internal_free": 24563,
+      "internal_largest": 16384,
+      "psram_free": 19139792,
+      "psram_largest": 18350080,
+      "presented": 55,
+      "bad_jpeg": 0,
+      "parser_errors": 0,
+      "control_queue": 0,
+      "jpeg_received": 0,
+      "jpeg_dropped": 0,
+      "frame_ack_dropped": 0
+    },
+    "panic_or_watchdog_observed": false,
+    "scope": "45-second boot observation, not a physical UI acceptance or performance measurement"
+  },
+  "user_acceptance": {
+    "desktop_seconds_and_card_alignment": "passed",
+    "live_clock_icons": "passed",
+    "status_grid_spacing": "passed",
+    "touch_and_launch": "pending",
+    "confirmations": [
+      "秒数、居中和指针都正常",
+      "间距和居中都合适"
+    ]
+  }
+}

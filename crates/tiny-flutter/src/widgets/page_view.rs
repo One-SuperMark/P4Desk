@@ -1,9 +1,12 @@
+use super::page_motion::{DragVelocity, Settle};
+use super::page_raster::PageRasterCache;
 use crate::graphics::canvas::Canvas;
 use crate::graphics::geometry::{Offset, Point, Rect, Size};
 use crate::rendering::constraints::BoxConstraints;
 use crate::rendering::render_box::{RenderBox, TouchEvent};
 use crate::widgets::widget::Widget;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 /// Transition animation style between pages.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
@@ -24,6 +27,8 @@ pub struct PageController {
     drag_offset: Arc<Mutex<f32>>,
     is_settling: Arc<Mutex<bool>>,
     fade_factor: Arc<Mutex<f32>>,
+    settle: Arc<Mutex<Option<Settle>>>,
+    rasters: Arc<Mutex<PageRasterCache>>,
 }
 
 impl Default for PageController {
@@ -39,6 +44,8 @@ impl PageController {
             drag_offset: Arc::new(Mutex::new(0.0)),
             is_settling: Arc::new(Mutex::new(false)),
             fade_factor: Arc::new(Mutex::new(1.0)),
+            settle: Arc::new(Mutex::new(None)),
+            rasters: Arc::new(Mutex::new(PageRasterCache::default())),
         }
     }
 
@@ -48,6 +55,8 @@ impl PageController {
             drag_offset: Arc::new(Mutex::new(0.0)),
             is_settling: Arc::new(Mutex::new(false)),
             fade_factor: Arc::new(Mutex::new(1.0)),
+            settle: Arc::new(Mutex::new(None)),
+            rasters: Arc::new(Mutex::new(PageRasterCache::default())),
         }
     }
 
@@ -55,7 +64,12 @@ impl PageController {
         self.page.lock().map(|p| *p).unwrap_or(0)
     }
 
+    pub fn has_cached_pages(&self, key: u64, size: Size) -> bool {
+        self.rasters.lock().unwrap().contains(key, size)
+    }
+
     pub fn set_page(&self, page: usize) {
+        *self.settle.lock().unwrap() = None;
         if let Ok(mut p) = self.page.lock() {
             *p = page;
         }
@@ -85,9 +99,16 @@ impl PageController {
     }
 
     pub fn set_settling(&self, settling: bool) {
+        *self.settle.lock().unwrap() =
+            settling.then(|| Settle::new(self.drag_offset(), 0.0, 864.0));
         if let Ok(mut s) = self.is_settling.lock() {
             *s = settling;
         }
+    }
+
+    fn settle_with_velocity(&self, velocity: f32, width: f32) {
+        *self.settle.lock().unwrap() = Some(Settle::new(self.drag_offset(), velocity, width));
+        *self.is_settling.lock().unwrap() = true;
     }
 
     pub fn fade_factor(&self) -> f32 {
@@ -116,6 +137,7 @@ pub struct PageView {
     pub controller: PageController,
     pub on_page_changed: Option<Arc<dyn Fn(usize) + Send + Sync>>,
     pub transition: PageTransition,
+    pub raster_cache_key: Option<u64>,
 }
 
 impl PageView {
@@ -128,6 +150,7 @@ impl PageView {
             controller: PageController::new(),
             on_page_changed: None,
             transition: PageTransition::None,
+            raster_cache_key: None,
         }
     }
 
@@ -138,6 +161,12 @@ impl PageView {
 
     pub fn transition(mut self, transition: PageTransition) -> Self {
         self.transition = transition;
+        self
+    }
+
+    /// Cache transparent page content for smooth sliding over a stationary background.
+    pub fn raster_cache_key(mut self, key: u64) -> Self {
+        self.raster_cache_key = Some(key);
         self
     }
 
@@ -159,14 +188,18 @@ impl Widget for PageView {
             controller: self.controller.clone(),
             on_page_changed: self.on_page_changed.clone(),
             transition: self.transition,
+            raster_cache_key: self.raster_cache_key,
             current_page: self.controller.page(),
             drag_offset: self.controller.drag_offset(),
             touch_active: false,
             child_touch_canceled: false,
             is_swiping: false,
             gesture_handled: false,
+            last_event_changed: true,
             touch_start_x: 0.0,
             touch_start_y: 0.0,
+            touch_start_drag: 0.0,
+            velocity: DragVelocity::default(),
             size: Size::ZERO,
             offset: Offset::ZERO,
         })
@@ -178,14 +211,18 @@ pub struct RenderPageView {
     pub controller: PageController,
     pub on_page_changed: Option<Arc<dyn Fn(usize) + Send + Sync>>,
     pub transition: PageTransition,
+    pub raster_cache_key: Option<u64>,
     current_page: usize,
     drag_offset: f32,
     touch_active: bool,
     child_touch_canceled: bool,
     is_swiping: bool,
     gesture_handled: bool,
+    last_event_changed: bool,
     touch_start_x: f32,
     touch_start_y: f32,
+    touch_start_drag: f32,
+    velocity: DragVelocity,
     size: Size,
     offset: Offset,
 }
@@ -204,7 +241,15 @@ impl RenderBox for RenderPageView {
     }
 
     fn needs_rebuild(&self) -> bool {
-        self.controller.is_settling()
+        self.transition == PageTransition::Fade && self.controller.is_settling()
+    }
+
+    fn captures_touch(&self) -> bool {
+        self.touch_active
+    }
+    fn animation_dirty(&self) -> Option<Rect> {
+        (self.transition == PageTransition::Slide && self.controller.is_settling())
+            .then(|| Rect::from_ltwh(0.0, 0.0, self.size.width, self.size.height))
     }
 
     fn layout(&mut self, constraints: &BoxConstraints) -> Size {
@@ -246,17 +291,16 @@ impl RenderBox for RenderPageView {
                     self.controller.set_fade_factor(next_fade);
                 }
             }
-        } else {
-            // Smooth physics-based decay towards resting position (spring settling)
-            if self.controller.is_settling() {
-                let next_offset = self.drag_offset * 0.58;
-                if next_offset.abs() < 1.5 {
+        } else if self.controller.is_settling() {
+            let mut settle = self.controller.settle.lock().unwrap();
+            if let Some(motion) = *settle {
+                self.drag_offset = motion.position(motion.started.elapsed().as_secs_f32());
+                self.controller.set_drag_offset(self.drag_offset);
+                if self.drag_offset.abs() < 0.25 {
                     self.drag_offset = 0.0;
                     self.controller.set_drag_offset(0.0);
-                    self.controller.set_settling(false);
-                } else {
-                    self.drag_offset = next_offset;
-                    self.controller.set_drag_offset(next_offset);
+                    *self.controller.is_settling.lock().unwrap() = false;
+                    *settle = None;
                 }
             }
         }
@@ -269,6 +313,16 @@ impl RenderBox for RenderPageView {
             return;
         }
 
+        if let Some(key) = self
+            .raster_cache_key
+            .filter(|_| !self.touch_active && !self.controller.is_settling())
+        {
+            self.controller
+                .rasters
+                .lock()
+                .unwrap()
+                .prepare(key, self.size, &self.children);
+        }
         canvas.save();
         canvas.clip_rect(Rect::from_ltwh(
             offset.dx,
@@ -287,17 +341,17 @@ impl RenderBox for RenderPageView {
 
             // 1. Paint current active page
             let current_offset = offset + Offset::new(drag_x, 0.0);
-            self.children[current_page].paint(canvas, current_offset);
+            self.paint_slide_page(current_page, canvas, current_offset);
 
             // 2. Paint neighbor page if dragging or settling
             if drag_x < 0.0 && current_page + 1 < self.children.len() {
                 // Revealing next page on the right
                 let next_offset = offset + Offset::new(self.size.width + drag_x, 0.0);
-                self.children[current_page + 1].paint(canvas, next_offset);
+                self.paint_slide_page(current_page + 1, canvas, next_offset);
             } else if drag_x > 0.0 && current_page > 0 {
                 // Revealing previous page on the left
                 let prev_offset = offset + Offset::new(-self.size.width + drag_x, 0.0);
-                self.children[current_page - 1].paint(canvas, prev_offset);
+                self.paint_slide_page(current_page - 1, canvas, prev_offset);
             }
         }
 
@@ -305,6 +359,7 @@ impl RenderBox for RenderPageView {
     }
 
     fn dispatch_touch(&mut self, event: &TouchEvent) -> bool {
+        self.last_event_changed = true;
         if self.children.is_empty() {
             return false;
         }
@@ -321,9 +376,30 @@ impl RenderBox for RenderPageView {
                 self.touch_start_y = pt.y;
                 self.is_swiping = false;
                 self.gesture_handled = false;
-                self.drag_offset = 0.0;
+                self.touch_start_drag = if self.transition == PageTransition::Slide {
+                    self.controller.drag_offset()
+                } else {
+                    0.0
+                };
+                self.drag_offset = self.touch_start_drag;
+                // Invert edge resistance before grabbing an unfinished bounce,
+                // so the next sample continues exactly where the page was shown.
+                self.touch_start_drag = unresisted_drag(
+                    self.touch_start_drag,
+                    current_page,
+                    self.children.len(),
+                    self.size.width,
+                );
+                self.velocity = DragVelocity::default();
+                self.velocity.record(Instant::now(), self.drag_offset);
                 if self.transition == PageTransition::Slide {
                     self.controller.set_settling(false);
+                    if self.drag_offset.abs() > 0.25 {
+                        self.is_swiping = true;
+                        self.child_touch_canceled = true;
+                        self.children[current_page].dispatch_touch(&TouchEvent::Cancel);
+                        return true;
+                    }
                 }
 
                 // Pass down to active child so button hover/press can track
@@ -339,6 +415,12 @@ impl RenderBox for RenderPageView {
                 if self.transition == PageTransition::None
                     || self.transition == PageTransition::Fade
                 {
+                    // Continue owning this swipe without repainting the same
+                    // stationary page for every remaining finger sample.
+                    if self.gesture_handled {
+                        self.last_event_changed = false;
+                        return true;
+                    }
                     if !self.child_touch_canceled && (dx.abs() > 12.0 || dy.abs() > 12.0) {
                         // The page owns movement through release, including a
                         // move into another row. Cancel the original button even
@@ -383,38 +465,32 @@ impl RenderBox for RenderPageView {
 
                     self.children[current_page].dispatch_touch(event)
                 } else {
-                    if !self.is_swiping && (dx.abs() > 12.0 || dy.abs() > 12.0) {
-                        if dx.abs() > dy.abs() {
-                            self.is_swiping = true;
-                            self.controller.set_settling(false);
-                            // Cancel touch on child so button doesn't trigger tap
-                            self.children[current_page].dispatch_touch(&TouchEvent::Cancel);
-                        }
+                    if !self.child_touch_canceled && (dx.abs() > 8.0 || dy.abs() > 8.0) {
+                        self.children[current_page].dispatch_touch(&TouchEvent::Cancel);
+                        self.child_touch_canceled = true;
                     }
-
+                    if !self.is_swiping && dx.abs() > 8.0 && dx.abs() > dy.abs() * 1.1 {
+                        self.is_swiping = true;
+                        self.controller.set_settling(false);
+                    }
                     if self.is_swiping {
-                        // Limit overscroll resistance
-                        let clamped_dx = if (current_page == 0 && dx > 0.0)
-                            || (current_page + 1 == self.children.len() && dx < 0.0)
-                        {
-                            dx * 0.35 // rubber-band resistance at boundaries
-                        } else {
-                            dx
-                        };
-
-                        // Slew-rate limiter & EMA filter:
-                        let step = clamped_dx - self.drag_offset;
-                        let max_step = 32.0;
-                        let final_dx = self.drag_offset + step.clamp(-max_step, max_step);
-
-                        self.drag_offset = final_dx;
-                        self.controller.set_drag_offset(final_dx);
+                        self.drag_offset = drag_position(
+                            self.touch_start_drag + dx,
+                            current_page,
+                            self.children.len(),
+                            self.size.width,
+                        );
+                        self.velocity.record(Instant::now(), self.drag_offset);
+                        self.controller.set_drag_offset(self.drag_offset);
+                        true
+                    } else if self.child_touch_canceled {
                         true
                     } else {
                         self.children[current_page].dispatch_touch(event)
                     }
                 }
             }
+
             TouchEvent::Up(pt) if self.touch_active => {
                 self.touch_active = false;
                 if self.transition == PageTransition::Fade
@@ -461,29 +537,54 @@ impl RenderBox for RenderPageView {
                         self.children[current_page].dispatch_touch(event)
                     }
                 } else {
+                    let dx = pt.x - self.touch_start_x;
+                    let dy = pt.y - self.touch_start_y;
+                    if !self.child_touch_canceled && (dx.abs() > 8.0 || dy.abs() > 8.0) {
+                        self.children[current_page].dispatch_touch(&TouchEvent::Cancel);
+                        self.child_touch_canceled = true;
+                    }
+                    if !self.is_swiping && dx.abs() > 8.0 && dx.abs() > dy.abs() * 1.1 {
+                        self.is_swiping = true;
+                        self.children[current_page].dispatch_touch(&TouchEvent::Cancel);
+                        self.child_touch_canceled = true;
+                    }
                     if self.is_swiping {
-                        let dx = pt.x - self.touch_start_x;
+                        self.drag_offset = drag_position(
+                            self.touch_start_drag + dx,
+                            current_page,
+                            self.children.len(),
+                            self.size.width,
+                        );
+                        let now = Instant::now();
+                        self.velocity.record(now, self.drag_offset);
+                        let velocity = self.velocity.velocity(now);
                         self.is_swiping = false;
 
                         let mut page_changed = false;
-                        if dx < -50.0 && current_page + 1 < self.children.len() {
+                        if self.drag_offset < -self.size.width * 0.5
+                            && current_page + 1 < self.children.len()
+                        {
                             self.current_page += 1;
                             self.controller.set_page(self.current_page);
                             let new_drag = self.size.width + self.drag_offset;
                             self.drag_offset = new_drag;
                             self.controller.set_drag_offset(new_drag);
-                            self.controller.set_settling(true);
+                            self.controller
+                                .settle_with_velocity(velocity, self.size.width);
                             page_changed = true;
-                        } else if dx > 50.0 && current_page > 0 {
+                        } else if self.drag_offset > self.size.width * 0.5 && current_page > 0 {
                             self.current_page -= 1;
                             self.controller.set_page(self.current_page);
                             let new_drag = -self.size.width + self.drag_offset;
                             self.drag_offset = new_drag;
                             self.controller.set_drag_offset(new_drag);
-                            self.controller.set_settling(true);
+                            self.controller
+                                .settle_with_velocity(velocity, self.size.width);
                             page_changed = true;
                         } else if self.drag_offset.abs() > 1.0 {
-                            self.controller.set_settling(true);
+                            self.controller.set_drag_offset(self.drag_offset);
+                            self.controller
+                                .settle_with_velocity(velocity, self.size.width);
                         } else {
                             self.drag_offset = 0.0;
                             self.controller.set_drag_offset(0.0);
@@ -500,7 +601,11 @@ impl RenderBox for RenderPageView {
                         self.drag_offset = 0.0;
                         self.controller.set_drag_offset(0.0);
                         self.controller.set_settling(false);
-                        self.children[current_page].dispatch_touch(event)
+                        if self.child_touch_canceled {
+                            true
+                        } else {
+                            self.children[current_page].dispatch_touch(event)
+                        }
                     }
                 }
             }
@@ -533,7 +638,13 @@ impl RenderBox for RenderPageView {
     }
 
     fn hit_rect(&self, point: Point) -> Option<Rect> {
-        if self.transition == PageTransition::None && !self.is_swiping && !self.children.is_empty()
+        if !self.last_event_changed {
+            return Some(Rect::from_ltwh(0.0, 0.0, 0.0, 0.0));
+        }
+        if !self.is_swiping
+            && !self.controller.is_settling()
+            && self.drag_offset == 0.0
+            && !self.children.is_empty()
         {
             let child = &self.children[self.current_page.min(self.children.len() - 1)];
             let current = child.hit_rect(point);
@@ -546,10 +657,45 @@ impl RenderBox for RenderPageView {
             }
             return current;
         }
-        if self.hit_test(point) {
+        if self.hit_test(point) || self.touch_active || self.controller.is_settling() {
             Some(Rect::from_ltwh(0.0, 0.0, self.size.width, self.size.height))
         } else {
             None
         }
+    }
+}
+
+fn unresisted_drag(offset: f32, page: usize, count: usize, width: f32) -> f32 {
+    if (page == 0 && offset > 0.0) || (page + 1 == count && offset < 0.0) {
+        let limit = width * 0.18;
+        offset.signum() * limit * offset.abs() / (limit - offset.abs()).max(1.0)
+    } else {
+        offset
+    }
+}
+fn drag_position(dx: f32, page: usize, count: usize, width: f32) -> f32 {
+    if (page == 0 && dx > 0.0) || (page + 1 == count && dx < 0.0) {
+        let distance = dx.abs();
+        dx.signum() * width * 0.18 * distance / (width * 0.18 + distance)
+    } else {
+        dx.clamp(-width, width)
+    }
+}
+impl RenderPageView {
+    fn paint_slide_page(&self, page: usize, canvas: &mut Canvas, offset: Offset) {
+        if self.drag_offset.abs() > 0.0 {
+            if let Some(key) = self.raster_cache_key {
+                if self
+                    .controller
+                    .rasters
+                    .lock()
+                    .unwrap()
+                    .paint(key, self.size, page, canvas, offset)
+                {
+                    return;
+                }
+            }
+        }
+        self.children[page].paint(canvas, offset);
     }
 }

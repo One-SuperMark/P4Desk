@@ -73,6 +73,26 @@ pub struct RenderPositioned {
 }
 
 impl RenderBox for RenderPositioned {
+    fn drag_dirty(&self) -> Option<Rect> {
+        self.child
+            .drag_dirty()
+            .map(|r| r.shift(self.child.offset()))
+    }
+    fn paint_opaque_region(&self, canvas: &mut Canvas, offset: Offset, dirty: Rect) -> bool {
+        self.child
+            .paint_opaque_region(canvas, offset + self.child.offset(), dirty)
+    }
+    fn captures_touch(&self) -> bool {
+        self.child.captures_touch()
+    }
+    fn animation_dirty(&self) -> Option<Rect> {
+        self.child
+            .animation_dirty()
+            .map(|r| r.shift(self.child.offset()))
+    }
+    fn needs_rebuild(&self) -> bool {
+        self.child.needs_rebuild()
+    }
     fn size(&self) -> Size {
         self.size
     }
@@ -128,7 +148,11 @@ impl RenderBox for RenderPositioned {
         let local_p = event.point() - child_offset;
         let hit = self.child.hit_test(local_p);
         let is_up = matches!(event, TouchEvent::Up(_));
-        if hit || is_up || matches!(event, TouchEvent::Cancel) {
+        if hit
+            || (matches!(event, TouchEvent::Move(_)) && self.child.captures_touch())
+            || is_up
+            || matches!(event, TouchEvent::Cancel)
+        {
             let child_event = event.transform(local_p);
             return self.child.dispatch_touch(&child_event);
         }
@@ -146,7 +170,7 @@ impl RenderBox for RenderPositioned {
     fn hit_rect(&self, point: Point) -> Option<Rect> {
         let child_offset = self.child.offset();
         let local_p = point - child_offset;
-        if self.child.hit_test(local_p) {
+        if self.child.hit_test(local_p) || self.child.captures_touch() {
             self.child.hit_rect(local_p).map(|r| {
                 Rect::from_ltwh(
                     r.x + child_offset.dx,
@@ -210,6 +234,37 @@ pub struct RenderStack {
 }
 
 impl RenderBox for RenderStack {
+    fn drag_dirty(&self) -> Option<Rect> {
+        self.children
+            .iter()
+            .filter_map(|c| c.drag_dirty().map(|r| r.shift(c.offset())))
+            .reduce(|a, b| a.union(&b))
+    }
+    fn paint_opaque_region(&self, canvas: &mut Canvas, offset: Offset, dirty: Rect) -> bool {
+        for index in (0..self.children.len()).rev() {
+            let child = &self.children[index];
+            if child.paint_opaque_region(canvas, offset + child.offset(), dirty) {
+                // Preserve notices and other translucent overlays above it.
+                for overlay in &self.children[index + 1..] {
+                    overlay.paint(canvas, offset + overlay.offset());
+                }
+                return true;
+            }
+        }
+        false
+    }
+    fn captures_touch(&self) -> bool {
+        self.children.iter().any(|c| c.captures_touch())
+    }
+    fn animation_dirty(&self) -> Option<Rect> {
+        self.children
+            .iter()
+            .filter_map(|c| c.animation_dirty().map(|r| r.shift(c.offset())))
+            .reduce(|a, b| a.union(&b))
+    }
+    fn needs_rebuild(&self) -> bool {
+        self.children.iter().any(|child| child.needs_rebuild())
+    }
     fn size(&self) -> Size {
         self.size
     }
@@ -263,6 +318,15 @@ impl RenderBox for RenderStack {
         let local_p = event.point();
         let is_up = matches!(event, TouchEvent::Up(_));
 
+        if matches!(
+            event,
+            TouchEvent::Move(_) | TouchEvent::Up(_) | TouchEvent::Cancel
+        ) {
+            if let Some(child) = self.children.iter_mut().find(|c| c.captures_touch()) {
+                let local = event.point() - child.offset();
+                return child.dispatch_touch(&event.transform(local));
+            }
+        }
         for child in self.children.iter_mut().rev() {
             let child_offset = child.offset();
             let child_local_p = local_p - child_offset;
@@ -280,7 +344,7 @@ impl RenderBox for RenderStack {
         for child in self.children.iter_mut().rev() {
             let child_offset = child.offset();
             let child_local_p = point - child_offset;
-            if child.hit_test(child_local_p) {
+            if child.hit_test(child_local_p) || child.captures_touch() {
                 child.set_pressed_at(child_local_p, pressed);
             }
         }
@@ -290,7 +354,7 @@ impl RenderBox for RenderStack {
         for child in self.children.iter().rev() {
             let child_offset = child.offset();
             let child_local_p = point - child_offset;
-            if child.hit_test(child_local_p) {
+            if child.hit_test(child_local_p) || child.captures_touch() {
                 if let Some(r) = child.hit_rect(child_local_p) {
                     return Some(Rect::from_ltwh(
                         r.x + child_offset.dx,

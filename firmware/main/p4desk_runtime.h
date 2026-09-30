@@ -6,6 +6,9 @@
 #include "p4desk_protocol.h"
 
 void p4desk_runtime_init(board_p4_t *board);
+// Synchronous borrowed RGB565 rows; stride and pixel_count are u16 element counts.
+bool p4desk_pad_blit_rgb565(int32_t x1, int32_t y1, int32_t x2, int32_t y2,
+                           const uint16_t *pixels, size_t pixel_count, size_t stride);
 uint32_t p4desk_epoch(void);
 void p4desk_receive_message(const p4p_header_t *header, const uint8_t *payload, uint32_t epoch);
 void p4desk_usb_mount_changed(bool connected);

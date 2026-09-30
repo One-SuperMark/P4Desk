@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>P4Desk Folio round display</title>
+  <desc>Original P4Desk artwork inspired by Folio round layered geometry. Copyright 2026 P4Desk contributors. MIT License.</desc>
+  <circle cx="64" cy="64" r="56" fill="#d1eaeb" />
+  <rect x="29.11319" y="34.69777" width="49.80706" height="33.99529" rx="5.53412" fill="#d6efee" opacity=".65" />
+  <rect x="33.85672" y="39.4413" width="40.32" height="22.92706" rx="2.37176" fill="#2f6772" opacity=".7" />
+  <rect x="44.92496" y="47.34718" width="51.38824" height="34.78588" rx="5.53412" fill="#f2fcfa" />
+  <rect x="50.45907" y="52.8813" width="40.32" height="22.13647" rx="2.37176" fill="#6da6ad" />
+  <rect x="66.27084" y="81.34248" width="7.90588" height="10.27765" rx="2.37176" fill="#e5f5f1" />
+  <rect x="56.78378" y="90.03895" width="26.88" height="3.95294" rx="1.97647" fill="#f2fcfa" />
+</svg>

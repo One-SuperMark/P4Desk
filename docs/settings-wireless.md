@@ -30,7 +30,7 @@
 
 桌面沿用 250 ms 的快照轮询，在连接状态或信号档位变化时刷新；
 详情卡展开时刷新 RSSI 数值。BLE 广播和同一信号档位内的波动不会单独触发桌面重绘。
-C/Rust 内部快照追加 RSSI 和有效标志，双方检查 2456 字节与字段偏移；USB 协议不变。
+C/Rust 内部快照追加 RSSI 和有效标志，双方检查 2472 字节与字段偏移；USB 协议不变。
 
 ## Wi-Fi
 
@@ -82,3 +82,7 @@ cargo run -p app-launcher --features screenshots --example settings-preview
 
 `artifacts/settings` 下的截图使用合成数据验证布局，不能作为真实连接证据。
 实机验收与固件 SHA256 见 `docs/acceptance-settings-wireless.json`。
+
+## Wi-Fi 对时
+
+Wi-Fi 获取 IP 后自动发起 SNTP 对时。“设置 → 日期与时间”显示结果、上次成功时间，并支持立即对时。成功后每小时更新，超时后 5 分钟重试；断网保留已校准的运行时钟。内部 `RadioSnapshot` 末尾追加 16 字节对时状态，总大小为 2472 字节，两侧检查偏移 2456。USB 协议不变。详见 [Wi-Fi 对时与验证](wifi-time-sync.md)。

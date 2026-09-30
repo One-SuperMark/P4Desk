@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut app = App::new(build_launcher_ui(state.clone(), size), size);
     app.step(&mut backend);
     if std::env::args().nth(2).as_deref() == Some("pressed") {
-        backend.event(TouchEvent::Down(Point::new(392.0, 177.0)));
+        backend.event(TouchEvent::Down(Point::new(348.0, 278.0)));
         app.step_with_builder(&mut backend, |size| build_launcher_ui(state.clone(), size));
     }
     #[cfg(feature = "screenshots")]

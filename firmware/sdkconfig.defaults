@@ -66,3 +66,6 @@ CONFIG_BT_NIMBLE_LOG_LEVEL_WARNING=y
 
 # Mirror bounded diagnostic logs to the native FS debug connector.
 CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
+
+# Three public NTP servers; the radio worker controls retry/refresh timing.
+CONFIG_LWIP_SNTP_MAX_SERVERS=3

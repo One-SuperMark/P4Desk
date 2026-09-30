@@ -1,5 +1,9 @@
 # 中文构建说明
 
+## Pad 局部刷新接口
+
+`PlatformBackend::flush_strided` 可同步借用 RGB565 帧缓冲的一个区域，按原行距直接复制，省去滚动期间的中间打包。默认后端返回不支持并回退原 `flush`；P4 使用 `p4desk_pad_blit_rgb565`，`pixel_count` 与 `stride` 均以 `u16` 像素数计数（P4 上 `size_t`／Rust `usize` 为 32 位）。C 端核对矩形、行距和切片长度，借用在返回前结束，写入仍受原 Pad 锁保护，LCD 仍由唯一 display owner 提交。此为进程内 HAL 调用，USB 协议 v1 编码未改变。
+
 ## 固定环境
 
 | 项目 | 版本 |

@@ -403,7 +403,7 @@ fn rasterize(
             _ => None,
         };
         let row_rgb = row_color.map(|color| {
-            if matches!(paint.shader, Shader::Linear(_)) {
+            if matches!(paint.shader, Shader::Linear(_) | Shader::Mapped(_)) {
                 std::array::from_fn::<_, 4, _>(|x| dither(color, x as i32, y))
             } else {
                 [color.to_rgb565(); 4]
@@ -418,6 +418,7 @@ fn rasterize(
                 Some(color) => color,
                 None => match &paint.shader {
                     Shader::Linear(gradient) => gradient.color_at(x as f32 + 0.5, y as f32 + 0.5),
+                    Shader::Mapped(gradient) => gradient.color_at(x as f32 + 0.5, y as f32 + 0.5),
                     _ => continue,
                 },
             };
@@ -432,7 +433,7 @@ fn rasterize(
             }
             let rgb = if let Some(colors) = row_rgb {
                 colors[x as usize & 3]
-            } else if matches!(paint.shader, Shader::Linear(_)) {
+            } else if matches!(paint.shader, Shader::Linear(_) | Shader::Mapped(_)) {
                 // Preserve gradient precision on the panel's RGB565 output.
                 dither(color, x, y)
             } else {

@@ -1,0 +1,284 @@
+{
+  "schema": "p4desk.acceptance.settings-scroll.v1",
+  "date": "2026-09-30",
+  "changes": [
+    "Opt-in opaque scroll raster cache, 2 MiB maximum per controller; appearance uses 732x940 RGB565 = 1376160 bytes. Failed allocation or oversize content falls back to live painting.",
+    "Static appearance content reuses its cache across root rebuilds. Theme, icon palette, appearance, glass strength and geometry invalidate it. Old cache is released before replacement.",
+    "Press redraw is limited to the pressed control; empty-space press does not redraw. Vertical scroll cancels the press even at top/bottom limits.",
+    "Pointer ownership continues outside viewport; final Up coordinate is applied."
+  ],
+  "host_benchmark": {
+    "scope": "actual settings gesture/layout/render/headless output on arm64; not device FPS",
+    "before": {
+      "cold_us": 4925,
+      "draw_avg_us": 1766,
+      "max_us": 6249,
+      "median_us": 1965,
+      "output_avg_us": 43,
+      "p95_us": 4592,
+      "rendered_frames": 84,
+      "samples": 85,
+      "scope": "arm64 synthetic actual settings event/layout/render/headless output; not device FPS"
+    },
+    "after": {
+      "cold_us": 11183,
+      "draw_avg_us": 145,
+      "max_us": 507,
+      "median_us": 191,
+      "output_avg_us": 47,
+      "p95_us": 220,
+      "rendered_frames": 84,
+      "samples": 85,
+      "scope": "arm64 synthetic actual settings event/layout/render/headless output; not device FPS"
+    },
+    "first_paint_tradeoff": "first opening or changing style rasterizes all 940 rows once; first-paint time is separate from continuous scroll"
+  },
+  "validation": {
+    "passed": 180,
+    "failed": 0,
+    "packages": [
+      "app-launcher",
+      "tiny-flutter"
+    ],
+    "log": ".cache/folio/tests-scroll-regression.log",
+    "scenarios": [
+      "cached vs live viewport pixels",
+      "reuse across rebuilds",
+      "revision invalidation",
+      "over-budget fallback",
+      "pointer outside viewport",
+      "final release sample",
+      "cancel pressed button at scroll boundary",
+      "theme taps and vertical scroll cancellation"
+    ],
+    "visual": "production Rust renderer previews reviewed for both appearances; no physical-screen visual acceptance yet"
+  },
+  "build": {
+    "status": "passed",
+    "esp_idf": "6.0.2",
+    "bytes": 5427136,
+    "sha256": "8a72ee82891fac364daf94352ffa6e701e4037935899ad25e0b3dcdabe54f9c9",
+    "log": ".cache/folio/build-settings-scroll.log"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/folio/flash-settings-scroll.log",
+    "hash_verified_images": 3,
+    "reset": "hard_reset"
+  },
+  "device": {
+    "status": "observed_45_seconds",
+    "log": ".cache/folio/monitor-settings-scroll.log",
+    "session_restored": true,
+    "session_saved": true,
+    "panic_or_watchdog": false,
+    "render_windows": [
+      {
+        "frames": 1,
+        "draw_avg_us": 209796,
+        "output_avg_us": 16958,
+        "draw_max_us": 209796,
+        "total_max_us": 226754,
+        "render_cache_entries": 17,
+        "render_cache_bytes": 705376,
+        "cache_hits": 0,
+        "cache_misses": 17
+      },
+      {
+        "frames": 258,
+        "draw_avg_us": 53095,
+        "output_avg_us": 20123,
+        "draw_max_us": 2933520,
+        "total_max_us": 2950637,
+        "render_cache_entries": 119,
+        "render_cache_bytes": 5624176,
+        "cache_hits": 768,
+        "cache_misses": 204
+      }
+    ],
+    "scope": "mixed interaction window; not continuous-drag-only measurements"
+  },
+  "user_acceptance": "improved but still noticeable stalls during continuous dragging; not accepted yet",
+  "strided_followup": {
+    "changes": [
+      "P4 backend borrows clipped framebuffer rows with explicit stride; synchronous C validation and row copy under original Pad lock; no cropped packing buffer",
+      "separate continuous-drag frame timing and raster build/blit timing; aggregate numeric metrics only"
+    ],
+    "tests": {
+      "passed": 181,
+      "failed": 0,
+      "log": ".cache/folio/tests-scroll-strided.log"
+    },
+    "build": {
+      "status": "passed",
+      "esp_idf": "6.0.2",
+      "bytes": 5429376,
+      "sha256": "521d01439f499f4488f5f3b816d84151d57a8fbda5c3d74a1efe7b8636a07363",
+      "log": ".cache/folio/build-scroll-strided.log"
+    },
+    "flash": {
+      "status": "passed",
+      "log": ".cache/folio/flash-scroll-strided.log",
+      "hash_verified_images": 3,
+      "reset": "hard_reset"
+    },
+    "device": {
+      "status": "observed_60_seconds",
+      "log": ".cache/folio/monitor-scroll-strided.log",
+      "panic_or_watchdog": false,
+      "windows": {
+        "p4desk_ui_perf": [
+          {
+            "frames": 1,
+            "draw_avg_us": 435606,
+            "output_avg_us": 16003,
+            "draw_max_us": 435606,
+            "total_max_us": 451609,
+            "render_cache_entries": 36,
+            "render_cache_bytes": 929056,
+            "cache_hits": 0,
+            "cache_misses": 36
+          },
+          {
+            "frames": 210,
+            "draw_avg_us": 38977,
+            "output_avg_us": 13987,
+            "draw_max_us": 91700,
+            "total_max_us": 125380,
+            "render_cache_entries": 36,
+            "render_cache_bytes": 929056,
+            "cache_hits": 1092,
+            "cache_misses": 36
+          }
+        ],
+        "p4desk_drag_perf": [
+          {
+            "frames": 119,
+            "draw_avg_us": 32938,
+            "output_avg_us": 11435,
+            "total_max_us": 47616
+          }
+        ],
+        "p4desk_scroll_perf": [
+          {
+            "builds": 1,
+            "build_us": 237317,
+            "paints": 1,
+            "blit_avg_us": 10503,
+            "blit_max_us": 10503
+          },
+          {
+            "builds": 0,
+            "build_us": 0,
+            "paints": 210,
+            "blit_avg_us": 10232,
+            "blit_max_us": 19183
+          }
+        ]
+      }
+    },
+    "user_acceptance": "improved but not responsive enough during continuous dragging"
+  },
+  "opaque_followup": {
+    "changes": [
+      "Exact viewport damage for owned cached scroll drag",
+      "Opaque viewport replaces dirty pixels directly; skip obscured backgrounds and clear; paint later siblings above the replacement",
+      "Fallback remains for allocation failure, oversized content, pressed controls, launch animations and areas outside the viewport"
+    ],
+    "tests": {
+      "passed": 182,
+      "failed": 0,
+      "log": ".cache/folio/tests-scroll-opaque.log",
+      "added_scenarios": [
+        "fast repaint must actually be used during drag",
+        "background paints skipped",
+        "translucent overlay pixel equivalence to full repaint"
+      ]
+    },
+    "host_benchmark": {
+      "cold_us": 10325,
+      "draw_avg_us": 41,
+      "max_us": 362,
+      "median_us": 93,
+      "output_avg_us": 58,
+      "p95_us": 111,
+      "rendered_frames": 84,
+      "samples": 85,
+      "scope": "arm64 synthetic actual settings event/layout/render/headless output; not device FPS"
+    },
+    "build": {
+      "status": "passed",
+      "esp_idf": "6.0.2",
+      "bytes": 5431232,
+      "sha256": "362137c6de6b19ff72d6429ff919cce0b53a7714d27f3a9721d23b0fae69a5bb",
+      "log": ".cache/folio/build-scroll-opaque.log"
+    },
+    "flash": {
+      "status": "passed",
+      "log": ".cache/folio/flash-scroll-opaque.log",
+      "hash_verified_images": 3,
+      "reset": "hard_reset"
+    },
+    "device": {
+      "status": "observed_60_seconds",
+      "log": ".cache/folio/monitor-scroll-opaque.log",
+      "session_restored": true,
+      "session_saved": true,
+      "panic_or_watchdog": false,
+      "windows": {
+        "p4desk_ui_perf": [
+          {
+            "frames": 1,
+            "draw_avg_us": 435227,
+            "output_avg_us": 16799,
+            "draw_max_us": 435227,
+            "total_max_us": 452026,
+            "render_cache_entries": 36,
+            "render_cache_bytes": 929056,
+            "cache_hits": 0,
+            "cache_misses": 36
+          },
+          {
+            "frames": 290,
+            "draw_avg_us": 24202,
+            "output_avg_us": 12211,
+            "draw_max_us": 64629,
+            "total_max_us": 81362,
+            "render_cache_entries": 40,
+            "render_cache_bytes": 982880,
+            "cache_hits": 708,
+            "cache_misses": 40
+          }
+        ],
+        "p4desk_drag_perf": [
+          {
+            "frames": 229,
+            "draw_avg_us": 18511,
+            "output_avg_us": 11131,
+            "total_max_us": 34248,
+            "opaque_frames": 229
+          }
+        ],
+        "p4desk_scroll_perf": [
+          {
+            "builds": 1,
+            "build_us": 236775,
+            "paints": 1,
+            "blit_avg_us": 9662,
+            "blit_max_us": 9662
+          },
+          {
+            "builds": 0,
+            "build_us": 0,
+            "paints": 288,
+            "blit_avg_us": 15200,
+            "blit_max_us": 20034
+          }
+        ]
+      },
+      "measurement_scope": "render plus synchronous Pad output; not end-to-end input-to-LCD latency or display FPS"
+    },
+    "user_acceptance": "accepted: responsive enough and image normal"
+  },
+  "current_status": "accepted after opaque viewport and strided output optimizations"
+}

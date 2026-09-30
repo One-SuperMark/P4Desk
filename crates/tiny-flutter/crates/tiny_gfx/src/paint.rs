@@ -151,10 +151,46 @@ impl LinearGradient {
     }
 }
 
+/// Maps canvas coordinates to a normalized linear axis or radial unit circle.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MappedGradient {
+    pub transform: Transform,
+    pub radial: bool,
+    pub stops: Vec<GradientStop>,
+}
+impl MappedGradient {
+    pub fn color_at(&self, x: f32, y: f32) -> Color {
+        let p = self.transform.map_point(Point::new(x, y));
+        let t = if self.radial { p.x.hypot(p.y) } else { p.x }.clamp(0.0, 1.0);
+        let Some(first) = self.stops.first() else {
+            return Color::TRANSPARENT;
+        };
+        if t <= first.position {
+            return first.color;
+        }
+        for pair in self.stops.windows(2) {
+            let (a, b) = (&pair[0], &pair[1]);
+            if t <= b.position {
+                let f =
+                    ((t - a.position) / (b.position - a.position).max(0.000001)).clamp(0.0, 1.0);
+                let mix = |a: u8, b: u8| (a as f32 * (1.0 - f) + b as f32 * f + 0.5) as u8;
+                return Color::from_rgba(
+                    mix(a.color.r, b.color.r),
+                    mix(a.color.g, b.color.g),
+                    mix(a.color.b, b.color.b),
+                    mix(a.color.a, b.color.a),
+                );
+            }
+        }
+        self.stops.last().unwrap().color
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Shader<'a> {
     SolidColor(Color),
     Linear(LinearGradient),
+    Mapped(MappedGradient),
     #[doc(hidden)]
     _Phantom(core::marker::PhantomData<&'a ()>),
 }

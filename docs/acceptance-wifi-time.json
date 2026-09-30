@@ -1,0 +1,93 @@
+{
+  "schema": "p4desk.wifi-time.acceptance.v1",
+  "recorded_at": "2026-09-30T13:55:55.102307+08:00",
+  "branch": "codex/folio-ui",
+  "base_commit": "87ec66c8375df2cecaeb0a0356ab8d58ac12adf0",
+  "implementation": {
+    "auto": "on Wi-Fi IP, then hourly after success",
+    "attempt_timeout_seconds": 60,
+    "retry_seconds": 300,
+    "manual": "Settings / Date & Time / Sync now",
+    "servers": [
+      "ntp.aliyun.com",
+      "time.cloudflare.com",
+      "pool.ntp.org"
+    ],
+    "timezone": "existing device setting retained",
+    "radio_abi_bytes": 2472,
+    "time_snapshot_offset": 2456,
+    "usb_protocol": "v1 unchanged"
+  },
+  "tests": {
+    "rust_passed": 232,
+    "rust_log": ".cache/folio/tests-wifi-time.log",
+    "c_scenarios_passed": 5,
+    "sanitizers": [
+      "address",
+      "undefined"
+    ],
+    "c_log": ".cache/folio/tests-wifi-time-c.log",
+    "font_reproducibility": "passed",
+    "font_log": ".cache/folio/font-wifi-time-check.log"
+  },
+  "preview": {
+    "image": "docs/images/settings-wifi-time.png",
+    "origin": "actual Rust UI, synthetic time/network fixture, not a board photograph",
+    "verified": "layout, Chinese glyphs and control positions"
+  },
+  "build": {
+    "status": "passed",
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "bytes": 4416448,
+    "sha256": "6b868c5ba10895b322f0ce3c22e44ac43503300d46ca7b19602804fc59d03bed",
+    "log": ".cache/folio/build-wifi-time.log",
+    "sntp_override": "linker map resolves strong sntp_sync_time to main/p4desk_time_sync.c.obj"
+  },
+  "flash": {
+    "status": "passed",
+    "verified_images": 3,
+    "backup_verified_by_tool": true,
+    "log": ".cache/folio/flash-wifi-time.log"
+  },
+  "device": {
+    "status": "wifi_ntp_sync_verified",
+    "monitor_seconds": 45,
+    "log": ".cache/folio/monitor-wifi-time.log",
+    "request_started_boot_ms": 10684,
+    "synced_boot_ms": 12652,
+    "synced_unix_s": 1790747679,
+    "request_to_success_ms": 1968,
+    "time_applied": "p4desk_time_set_checked returned true; common system clock marked valid",
+    "tf_read_write": "passed",
+    "hardware": "1024x600 RGB565, rotation180, touch ready",
+    "health_at_30s": {
+      "uptime_s": 30,
+      "mode": "pad",
+      "internal_free": 24867,
+      "internal_largest": 17408,
+      "psram_free": 19144712,
+      "psram_largest": 18350080,
+      "presented": 60,
+      "bad_jpeg": 0,
+      "parser_errors": 0,
+      "control_queue": 0,
+      "jpeg_received": 0,
+      "jpeg_dropped": 0,
+      "frame_ack_dropped": 0
+    },
+    "panic_or_watchdog_observed": false,
+    "scope": "automatic network synchronization and 45-second boot observation; not one-hour or disconnect endurance acceptance"
+  },
+  "user_acceptance": {
+    "settings_display_and_manual_sync": "passed",
+    "wifi_reconnect": "pending",
+    "long_run_hourly_refresh": "not physically exercised; covered by monotonic policy test",
+    "confirmation": "时间、状态和立即对时都正常",
+    "verified_items": [
+      "设备时间显示正确",
+      "Wi-Fi 对时状态显示正常",
+      "板上立即对时操作正常"
+    ]
+  }
+}

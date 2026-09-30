@@ -1,0 +1,212 @@
+{
+  "schema": "p4desk.acceptance.appearance.v1",
+  "date": "2026-09-30",
+  "branch": "codex/folio-ui",
+  "features": {
+    "appearance": [
+      "dark",
+      "light"
+    ],
+    "glass_amounts": [
+      0,
+      25,
+      65,
+      100
+    ],
+    "default": {
+      "light": false,
+      "glass": 65
+    },
+    "desktop_mac_offline_banner": "hidden",
+    "sidebar_row_padding_px": 8,
+    "storage": "existing onboard settings journal"
+  },
+  "tests": {
+    "workspace_passed": 254,
+    "workspace_log": ".cache/folio/tests-appearance-final.log",
+    "sidebar_followup_passed": 11,
+    "sidebar_log": ".cache/folio/tests-appearance-sidebar.log",
+    "glyph_reproduction": "passed",
+    "glass_resource_reproduction": "passed",
+    "screenshots": "synthetic actual Rust RGB565 rendering; inspected dark and light settings, desktop, clock and calculator"
+  },
+  "implementation": {
+    "material": "custom tiny_gfx; not native Apple Liquid Glass",
+    "backdrop": "prefiltered immutable wallpaper; no live application blur",
+    "source_texture_bytes_each": 115200,
+    "source_texture_count": 2,
+    "new_fullscreen_buffers": 0,
+    "material_heap_allocations": 0,
+    "source_format": "RGB888",
+    "output": "RGB565 with ordered dithering",
+    "desktop_launch_cache": "reused"
+  },
+  "build": {
+    "status": "passed",
+    "esp_idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "bytes": 4887696,
+    "sha256": "950d5c2dcbf0a66af071fbae3863a01f21413e4fbf058f09a57597c74d0994dd",
+    "log": ".cache/folio/build-appearance.log"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/folio/flash-appearance.log",
+    "hash_verifications": 3,
+    "existing_full_backup_verified": true,
+    "hard_reset": true
+  },
+  "device": {
+    "status": "startup_observed",
+    "observation_seconds": 45,
+    "log": ".cache/folio/monitor-appearance.log",
+    "tf_read_write_passed": true,
+    "session_writer": "ready",
+    "session_restore": "ok",
+    "restored_recent_app_count": 4,
+    "save_success_count": 6,
+    "save_elapsed_ms": [
+      117,
+      99,
+      98,
+      87,
+      100,
+      142
+    ],
+    "writer_stack_min_free_bytes": 3940,
+    "ntp_synced": true,
+    "uptime_30s": {
+      "uptime_s": 30,
+      "internal_free": 27595,
+      "internal_largest": 18432,
+      "psram_free": 20199988,
+      "psram_largest": 17825792,
+      "presented": 96,
+      "bad_jpeg": 0,
+      "parser_errors": 0,
+      "control_queue": 0
+    },
+    "panic_or_watchdog_observed": false
+  },
+  "user_acceptance": {
+    "dark_light_and_glass": "refinement_requested: 应用内不要露出桌面图片；桌面两个小卡片的玻璃不明显",
+    "sidebar_corner_fix": "passed: 用户确认圆角和留白正常",
+    "desktop_banner_removed": "pending",
+    "touch_and_smoothness": "pending",
+    "saved_appearance_after_reboot": "pending"
+  },
+  "host_benchmarks": {
+    "0": {
+      "glass_amount": 0,
+      "results": [
+        {
+          "allocated_bytes_per_paint": 156606,
+          "allocations_per_paint": 937,
+          "case": "desktop",
+          "median_us": 2512.167,
+          "p95_us": 2936.917
+        },
+        {
+          "allocated_bytes_per_paint": 16560,
+          "allocations_per_paint": 3,
+          "case": "wallpaper",
+          "median_us": 430.75,
+          "p95_us": 506.875
+        },
+        {
+          "allocated_bytes_per_paint": 6644,
+          "allocations_per_paint": 51,
+          "case": "circle_150ms",
+          "median_us": 358.0,
+          "p95_us": 487.709
+        },
+        {
+          "allocated_bytes_per_paint": 6644,
+          "allocations_per_paint": 51,
+          "case": "circle_220ms",
+          "median_us": 323.542,
+          "p95_us": 401.125
+        },
+        {
+          "allocated_bytes_per_paint": 4596,
+          "allocations_per_paint": 50,
+          "case": "bridge_300ms",
+          "median_us": 186.625,
+          "p95_us": 206.875
+        },
+        {
+          "allocated_bytes_per_paint": 10145,
+          "allocations_per_paint": 83,
+          "case": "reveal_640ms",
+          "median_us": 601.458,
+          "p95_us": 733.625
+        },
+        {
+          "allocated_bytes_per_paint": 8097,
+          "allocations_per_paint": 82,
+          "case": "timer",
+          "median_us": 289.792,
+          "p95_us": 357.459
+        }
+      ],
+      "samples_per_case": 40,
+      "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+    },
+    "65": {
+      "glass_amount": 65,
+      "results": [
+        {
+          "allocated_bytes_per_paint": 156606,
+          "allocations_per_paint": 937,
+          "case": "desktop",
+          "median_us": 4973.542,
+          "p95_us": 8919.542
+        },
+        {
+          "allocated_bytes_per_paint": 16560,
+          "allocations_per_paint": 3,
+          "case": "wallpaper",
+          "median_us": 456.5,
+          "p95_us": 950.541
+        },
+        {
+          "allocated_bytes_per_paint": 6644,
+          "allocations_per_paint": 51,
+          "case": "circle_150ms",
+          "median_us": 393.542,
+          "p95_us": 1036.625
+        },
+        {
+          "allocated_bytes_per_paint": 6644,
+          "allocations_per_paint": 51,
+          "case": "circle_220ms",
+          "median_us": 417.083,
+          "p95_us": 699.875
+        },
+        {
+          "allocated_bytes_per_paint": 4596,
+          "allocations_per_paint": 50,
+          "case": "bridge_300ms",
+          "median_us": 217.5,
+          "p95_us": 470.041
+        },
+        {
+          "allocated_bytes_per_paint": 10145,
+          "allocations_per_paint": 83,
+          "case": "reveal_640ms",
+          "median_us": 721.542,
+          "p95_us": 1930.208
+        },
+        {
+          "allocated_bytes_per_paint": 8097,
+          "allocations_per_paint": 82,
+          "case": "timer",
+          "median_us": 373.583,
+          "p95_us": 419.542
+        }
+      ],
+      "samples_per_case": 40,
+      "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+    }
+  }
+}

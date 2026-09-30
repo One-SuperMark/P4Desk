@@ -2,12 +2,14 @@ pub mod canvas;
 pub mod color;
 pub mod geometry;
 mod glass;
+mod material;
 pub mod paint;
 pub mod path;
 pub mod pixmap;
 pub mod raster;
 mod vector;
 pub use glass::GlassFill;
+pub use material::GlassFinish;
 
 pub use canvas::Canvas;
 pub use color::{

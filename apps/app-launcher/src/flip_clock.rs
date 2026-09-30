@@ -4,6 +4,7 @@
 use crate::launcher_state::LauncherState;
 use std::sync::{Arc, Mutex};
 use tiny_flutter::prelude::*;
+use tiny_flutter::theme::Folio;
 
 pub const CLOCK_CONTENT_ORIGIN: Offset = Offset::new(24.0, 78.0);
 // Leave enough visible travel on the LCD before the next wall second. The
@@ -21,10 +22,6 @@ const DIGITS: &[u8; 11 * DIGIT_WIDTH * DIGIT_HEIGHT] =
     include_bytes!("../../../assets/clock/flip-digits.alpha");
 // Lift the plates away from the black background, including when the moving
 // leaf is shaded. These grays quantize to matching RGB565 channel intensities.
-const TOP: Color = Color::from_hex(0x424242);
-const BOTTOM: Color = Color::from_hex(0x313131);
-const CARD_BASE: Color = Color::from_hex(0x181818);
-const HINGE_HIGHLIGHT: Color = Color::from_hex(0x525252);
 
 #[derive(Clone, Copy)]
 pub enum ClockControl {
@@ -57,7 +54,7 @@ impl CustomPainter for ClockControlPainter {
                 32.0,
                 32.0,
             ),
-            Color::WHITE,
+            Folio::ink(),
         );
     }
 }
@@ -227,7 +224,7 @@ impl CustomPainter for FlipClockPainter {
         let layout = ClockLayout::new(size);
         canvas.draw_rect(
             Rect::from_ltwh(0.0, 0.0, size.width, size.height),
-            Color::BLACK,
+            tiny_flutter::theme::Folio::bg(),
         );
         for (i, card) in layout.cards.iter().copied().enumerate() {
             if !visible(canvas, card.inflate(DAMAGE_MARGIN * layout.scale)) {
@@ -238,7 +235,7 @@ impl CustomPainter for FlipClockPainter {
                     card.shift(Offset::new(0.0, 6.0 * layout.scale)),
                     20.0 * layout.scale,
                 ),
-                CARD_BASE,
+                card_base(),
             );
             let turning = sample.progress < 1.0 && sample.from.cards[i] != sample.to.cards[i];
             paint_half(canvas, card, sample.to.cards[i], true);
@@ -269,11 +266,11 @@ impl CustomPainter for FlipClockPainter {
             let hinge = (card.y + card.height * 0.5).round();
             canvas.draw_rect(
                 Rect::from_ltwh(card.x, hinge - 2.0, card.width, 4.0),
-                Color::BLACK,
+                tiny_flutter::theme::Folio::bg(),
             );
             canvas.draw_rect(
                 Rect::from_ltwh(card.x + 2.0, hinge + 2.0, card.width - 4.0, 1.0),
-                HINGE_HIGHLIGHT,
+                hinge_highlight(),
             );
             if i == 0 {
                 if let Some(period) = sample.to.period {
@@ -285,7 +282,7 @@ impl CustomPainter for FlipClockPainter {
                             card.x + 18.0 * layout.scale,
                             card.bottom() - 57.0 * layout.scale,
                         ),
-                        Color::WHITE,
+                        Folio::ink(),
                     );
                 }
             }
@@ -319,17 +316,13 @@ fn paint_half(canvas: &mut Canvas, card: Rect, digits: [u8; 2], upper: bool) {
             Rect::from_ltwh(card.x, hinge - height, card.width, height * 2.0),
             (20.0 * card.width / 309.0).min(height),
         ),
-        if upper { TOP } else { BOTTOM },
+        if upper { plate_top() } else { plate_bottom() },
     );
     paint_digits(
         canvas,
         card,
         digits,
-        if upper {
-            Color::WHITE
-        } else {
-            Color::from_hex(0xf4f4f4)
-        },
+        if upper { Folio::ink() } else { Folio::ink() },
     );
     canvas.restore();
 }
@@ -460,7 +453,7 @@ fn paint_cast_shadow(canvas: &mut Canvas, card: Rect, leaf: FlipLeaf) {
                     card.width,
                     1.0,
                 ),
-                Color::BLACK.with_opacity(strength * leaf.sine * fade * fade),
+                tiny_flutter::theme::Folio::bg().with_opacity(strength * leaf.sine * fade * fade),
             );
         }
         canvas.restore();
@@ -510,10 +503,24 @@ fn paint_leaf(canvas: &mut Canvas, card: Rect, digits: [u8; 2], leaf: FlipLeaf) 
     let texture_scale = slot_width / DIGIT_WIDTH as f32;
     let radius = 20.0 * scale;
     let shade = 1.0 - if leaf.upper { 0.50 } else { 0.32 } * leaf.sine;
-    let background = ((if leaf.upper { TOP.r } else { BOTTOM.r }) as f32 * shade).round() as u16;
-    let ink = ((if leaf.upper { 255.0 } else { 244.0 }) * shade).round() as u16;
+    let background = ((if leaf.upper {
+        plate_top().r
+    } else {
+        plate_bottom().r
+    }) as f32
+        * shade)
+        .round() as u16;
+    let ink = ((if Folio::is_light() {
+        24.0
+    } else if leaf.upper {
+        255.0
+    } else {
+        244.0
+    }) * shade)
+        .round() as u16;
     let palette: [u16; 256] = std::array::from_fn(|a| {
-        let gray = background + ((ink - background) * a as u16 + 127) / 255;
+        let gray = (background as i32 + ((ink as i32 - background as i32) * a as i32 + 127) / 255)
+            .clamp(0, 255) as u16;
         // Match 5- and 6-bit channel intensities so changing shadows stay gray.
         let r = gray >> 3;
         (r << 11) | (((r << 1) | (r >> 4)) << 5) | r
@@ -604,4 +611,20 @@ fn sample_digit_row(digits: [u8; 2], count: usize, u: i32, v: i32) -> u8 {
     let a = alpha(x, y) * (256 - fx) + alpha(x + 1, y) * fx;
     let b = alpha(x, y + 1) * (256 - fx) + alpha(x + 1, y + 1) * fx;
     ((a * (256 - fy) + b * fy + 32768) >> 16) as u8
+}
+
+fn plate_top() -> Color {
+    Folio::pick(Color::from_hex(0x46464b), Color::from_hex(0xe4e7eb))
+}
+
+fn plate_bottom() -> Color {
+    Folio::pick(Color::from_hex(0x343438), Color::from_hex(0xd3d8df))
+}
+
+fn card_base() -> Color {
+    Folio::pick(Color::from_hex(0x202023), Color::from_hex(0xabb4c0))
+}
+
+fn hinge_highlight() -> Color {
+    Folio::pick(Color::from_hex(0x525252), Color::from_hex(0xf5f7fa))
 }

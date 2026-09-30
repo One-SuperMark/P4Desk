@@ -56,6 +56,10 @@ impl Default for TimerService {
     }
 }
 impl TimerService {
+    pub(crate) fn restore_paused(&mut self) {
+        self.deadline_ms = None;
+        self.finished_at_ms = None;
+    }
     pub fn is_running(&self) -> bool {
         self.deadline_ms.is_some()
     }

@@ -1,7 +1,8 @@
 use crate::expression::{evaluate, finite, float_binary, Token, MAX_TOKENS};
 use crate::{BinaryOp, CalcError, ProgrammerState};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CalcMode {
     Basic,
     Scientific,
@@ -16,12 +17,12 @@ impl CalcMode {
         }
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AngleUnit {
     Degrees,
     Radians,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UnaryOp {
     Square,
     Cube,
@@ -79,7 +80,7 @@ impl UnaryOp {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalcState {
     pub current_input: String,
     pub just_calculated: bool,
@@ -105,6 +106,29 @@ impl Default for CalcState {
     }
 }
 impl CalcState {
+    /// Bound persisted input before it can enter the expression engine.
+    pub fn valid_checkpoint(&self) -> bool {
+        self.current_input.len() <= 128
+            && self.current_input.is_ascii()
+            && self.secondary.len() <= 16_384
+            && self.memory.is_finite()
+            && self.exact.is_none_or(f64::is_finite)
+            && self.percent_ratio.is_none_or(f64::is_finite)
+            && self.repeated.is_none_or(|(_, value, ratio)| {
+                value.is_finite() && ratio.is_none_or(f64::is_finite)
+            })
+            && self.tokens.len() <= MAX_TOKENS
+            && self
+                .tokens
+                .iter()
+                .all(|t| !matches!(t, Token::Number(n) if !n.is_finite()))
+            && self.pending_unary.len() <= 8
+            && self.group_unary.len() <= MAX_TOKENS
+            && self.group_unary.iter().all(|(i, ops)| {
+                *i < self.tokens.len() && matches!(self.tokens[*i], Token::Left) && ops.len() <= 8
+            })
+            && self.programmer.valid_checkpoint()
+    }
     pub fn new() -> Self {
         Self {
             current_input: "0".into(),

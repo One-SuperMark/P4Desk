@@ -1,0 +1,140 @@
+{
+  "schema": "p4desk.acceptance.numix-icons.v1",
+  "date": "2026-09-30",
+  "branch": "codex/folio-ui",
+  "request": "替换深浅 Numix SVG，新增文件管理、Office、用量监控桌面入口",
+  "implementation": {
+    "svg_count": 42,
+    "themes": [
+      "dark",
+      "light"
+    ],
+    "bitmap_bytes_embedded": 0,
+    "upstream_revision": "6d4a4aad60994e688ab9dc8f021cb4ec86e9e532",
+    "asset_license": "GPL-3.0-or-later",
+    "desktop_pages": [
+      8,
+      3
+    ],
+    "new_entry_ids": [
+      "file-manager",
+      "office-viewer",
+      "sub2api-monitor"
+    ],
+    "feature_scope": "launch entries and preparation pages only; file operations, Office parser and usage service are not implemented",
+    "clock": "actual time hands; authored fixed hands removed",
+    "usb_reveal_theme": "explicit atomic theme snapshot across render threads"
+  },
+  "tests": {
+    "workspace_passed": 260,
+    "workspace_failed": 0,
+    "log": ".cache/folio/tests-numix-final.log",
+    "resource_reproducibility": "passed: 42 SVG and 4383 UI glyphs",
+    "new_tests": [
+      "page navigation, entry click, cached animation equivalence and Home",
+      "entry session roundtrip and closed app semantics",
+      "42 vectors at three sizes and 11 dark/light app mappings",
+      "USB first frame color on different thread"
+    ],
+    "previews": "actual Rust RGB565 synthetic scenes; not board photographs"
+  },
+  "build": {
+    "status": "passed",
+    "esp_idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "bytes": 5019632,
+    "sha256": "46527d8b4ccb5b620577d9ef8da5dd193ac8536b25dbf758a7006274b25ee43f",
+    "log": ".cache/folio/build-numix.log"
+  },
+  "host_benchmark": {
+    "glass_amount": 65,
+    "results": [
+      {
+        "allocated_bytes_per_paint": 418210,
+        "allocations_per_paint": 1794,
+        "case": "desktop",
+        "median_us": 9041.333,
+        "p95_us": 9419.542
+      },
+      {
+        "allocated_bytes_per_paint": 16560,
+        "allocations_per_paint": 3,
+        "case": "wallpaper",
+        "median_us": 421.542,
+        "p95_us": 450.25
+      },
+      {
+        "allocated_bytes_per_paint": 42188,
+        "allocations_per_paint": 185,
+        "case": "circle_150ms",
+        "median_us": 901.875,
+        "p95_us": 972.708
+      },
+      {
+        "allocated_bytes_per_paint": 42188,
+        "allocations_per_paint": 185,
+        "case": "circle_220ms",
+        "median_us": 858.166,
+        "p95_us": 884.542
+      },
+      {
+        "allocated_bytes_per_paint": 40140,
+        "allocations_per_paint": 184,
+        "case": "bridge_300ms",
+        "median_us": 737.667,
+        "p95_us": 777.917
+      },
+      {
+        "allocated_bytes_per_paint": 10145,
+        "allocations_per_paint": 83,
+        "case": "reveal_640ms",
+        "median_us": 586.459,
+        "p95_us": 612.542
+      },
+      {
+        "allocated_bytes_per_paint": 8097,
+        "allocations_per_paint": 82,
+        "case": "timer",
+        "median_us": 300.0,
+        "p95_us": 331.542
+      }
+    ],
+    "samples_per_case": 40,
+    "scope": "synthetic arm64 release render-only; not device latency or resident heap"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/folio/flash-numix.log",
+    "hash_verifications": 3,
+    "existing_full_backup_verified": true,
+    "hard_reset": true
+  },
+  "device": {
+    "status": "startup_observed",
+    "observation_seconds": 45,
+    "log": ".cache/folio/monitor-numix.log",
+    "tf_read_write_passed": true,
+    "session_restore": "ok",
+    "session_writer": "ready",
+    "save_success_count": 3,
+    "save_elapsed_ms": [
+      119,
+      92,
+      126
+    ],
+    "ntp_synced": true,
+    "uptime_30s": {
+      "internal_free": 29319,
+      "psram_free": 18286200,
+      "presented": 63,
+      "bad_jpeg": 0,
+      "parser_errors": 0
+    },
+    "panic_or_watchdog_observed": false
+  },
+  "user_acceptance": {
+    "dark_light_icons": "passed: user confirmed both themes",
+    "new_entry_navigation": "not accepted: user reports lag during paging",
+    "touch_and_animation": "performance follow-up requested; see acceptance-numix-performance.json"
+  }
+}

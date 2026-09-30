@@ -1,0 +1,831 @@
+{
+  "version": 1,
+  "modified": "2026-09-30",
+  "themes": {
+    "light": {
+      "name": "浅色主题",
+      "page": "#f3f5f8",
+      "card": "#ffffff",
+      "ink": "#293a51",
+      "muted": "#677a91",
+      "rim": "#52627c",
+      "rim_opacity": 0.1,
+      "shadow_opacity_scale": 0.6
+    },
+    "dark": {
+      "name": "深色主题",
+      "page": "#161e2c",
+      "card": "#233044",
+      "ink": "#e7f0fd",
+      "muted": "#a6b6cf",
+      "rim": "#d4e6ff",
+      "rim_opacity": 0.16,
+      "shadow_opacity_scale": 0.45
+    }
+  },
+  "icons": {
+    "clock": {
+      "light": {
+        "#333": "#333",
+        "#4d4d4d": "#4d4d4d",
+        "#666": "#666",
+        "#d35f5f": "#d35f5f",
+        "#daf6ed": "#daf6ed",
+        "#ececec": "#ececec",
+        "#fbfffd": "#fbfffd",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#333": "#18293e",
+        "#4d4d4d": "#2f4359",
+        "#666": "#415970",
+        "#d35f5f": "#ff8b91",
+        "#daf6ed": "#28463f",
+        "#ececec": "#2d3b4e",
+        "#fbfffd": "#4b6962",
+        "#fff": "#edf5ff"
+      },
+      "gradient_stops": {
+        "b": {
+          "light": [
+            "#ececec",
+            "#fff"
+          ],
+          "dark": [
+            "#2a384b",
+            "#4a5b71"
+          ]
+        }
+      }
+    },
+    "timer": {
+      "light": {
+        "#000": "#000",
+        "#2d2d2d": "#2d2d2d",
+        "#6b6b6b": "#6b6b6b",
+        "#e5e5e5": "#e5e5e5",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#000": "#000",
+        "#2d2d2d": "#cedcef",
+        "#6b6b6b": "#f2f6ff",
+        "#e5e5e5": "#2a3549",
+        "#fff": "#56637b"
+      },
+      "overrides": [
+        {
+          "match": {},
+          "light": {
+            "opacity": "0"
+          },
+          "dark": {
+            "opacity": "0"
+          },
+          "tag": "path",
+          "d_prefix": "M43.527 12.188"
+        },
+        {
+          "match": {
+            "x": "170.25"
+          },
+          "light": {
+            "opacity": "0"
+          },
+          "dark": {
+            "opacity": "0"
+          },
+          "tag": "rect"
+        }
+      ],
+      "modification_note": "Two unrelated upstream decorative remnants hidden."
+    },
+    "notes": {
+      "light": {
+        "#0069f5": "#0069f5",
+        "#0079fd": "#0079fd",
+        "#4092ff": "#4092ff",
+        "#88888b": "#88888b",
+        "#d4d4d8": "#d4d4d8",
+        "#f3f1ee": "#f3f1ee",
+        "#f79500": "#f79500",
+        "#fb3027": "#fb3027",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#0069f5": "#1657b5",
+        "#0079fd": "#90b8ff",
+        "#4092ff": "#4b94ec",
+        "#88888b": "#798aab",
+        "#d4d4d8": "#b4c3da",
+        "#f3f1ee": "#26354c",
+        "#f79500": "#f6c06a",
+        "#fb3027": "#ff8c87",
+        "#fff": "#3b4c67"
+      }
+    },
+    "calculator": {
+      "light": {
+        "#161616": "#161616",
+        "#1a7fd4": "#1a7fd4",
+        "#2f5fdd": "#2f5fdd",
+        "#474747": "#474747",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#161616": "#14233b",
+        "#1a7fd4": "#457cba",
+        "#2f5fdd": "#315bad",
+        "#474747": "#2e425f",
+        "#fff": "#edf5ff"
+      }
+    },
+    "mac": {
+      "light": {
+        "#2e2e2e": "#2e2e2e",
+        "#505050": "#505050",
+        "#d7d7d7": "#d7d7d7",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#2e2e2e": "#202a3c",
+        "#505050": "#3a4861",
+        "#d7d7d7": "#b1c6e6",
+        "#fff": "#edf4ff"
+      }
+    },
+    "settings": {
+      "light": {
+        "#535351": "#535351",
+        "#595958": "#595958",
+        "#616160": "#616160",
+        "#6a6a68": "#6a6a68",
+        "#727270": "#727270",
+        "#899091": "#899091",
+        "#8e8f8f": "#8e8f8f",
+        "#93918e": "#93918e",
+        "#959594": "#959594",
+        "#cdd5d7": "#cdd5d7",
+        "#d4e4ea": "#d4e4ea",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#535351": "#36475b",
+        "#595958": "#52677c",
+        "#616160": "#59708a",
+        "#6a6a68": "#657b93",
+        "#727270": "#6c8198",
+        "#899091": "#8ba0b6",
+        "#8e8f8f": "#9aacc2",
+        "#93918e": "#29394b",
+        "#959594": "#8397b2",
+        "#cdd5d7": "#dae8f3",
+        "#d4e4ea": "#526474",
+        "#fff": "#e3edfb"
+      },
+      "overrides": [
+        {
+          "match": {
+            "fill": "url(#radialGradient2005)"
+          },
+          "light": {
+            "fill": "none"
+          },
+          "dark": {
+            "fill": "none"
+          }
+        }
+      ],
+      "modification_note": "Undefined upstream radialGradient2005 reference replaced with explicit none; matches librsvg source rendering."
+    },
+    "display": {
+      "light": {
+        "#363636": "#347dc1"
+      },
+      "dark": {
+        "#363636": "#b8d9ff"
+      },
+      "plate": {
+        "light": [
+          "#fbfdff",
+          "#dceafa"
+        ],
+        "dark": [
+          "#456489",
+          "#253952"
+        ]
+      },
+      "transform": "translate(12 12.835) scale(1.666667)",
+      "modification_note": "WhiteSur-proportioned gradient plate added."
+    },
+    "screen": {
+      "light": {
+        "#b81e31": "#b81e31",
+        "#ff5c5c": "#ff5c5c",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#b81e31": "#722c45",
+        "#ff5c5c": "#bf5c71",
+        "#fff": "#fff0f3"
+      }
+    },
+    "file-manager": {
+      "light": {
+        "#000": "#000",
+        "#009ef8": "#009ef8",
+        "#27affa": "#27affa",
+        "#3ab8fb": "#3ab8fb",
+        "#60c4fb": "#60c4fb",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#000": "#000",
+        "#009ef8": "#2e75c7",
+        "#27affa": "#569de3",
+        "#3ab8fb": "#4097e6",
+        "#60c4fb": "#8ac7f7",
+        "#fff": "#e0f2ff"
+      },
+      "overrides": [
+        {
+          "match": {
+            "x": "4",
+            "y": "4",
+            "width": "56",
+            "height": "56"
+          },
+          "light": {
+            "fill": "#fff"
+          },
+          "dark": {
+            "fill": "#2d3e56"
+          },
+          "tag": "rect"
+        }
+      ],
+      "rim_radius": "13.8"
+    },
+    "office-viewer": {
+      "light": {
+        "#000": "#000",
+        "#3b3b3b": "#3b3b3b",
+        "#636363": "#636363",
+        "#999": "#999",
+        "#aeaeae": "#aeaeae",
+        "#edeeef": "#edeeef",
+        "#fcfcfc": "#fcfcfc",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#000": "#000",
+        "#3b3b3b": "#d0e2fb",
+        "#636363": "#9eb6d6",
+        "#999": "#8094b2",
+        "#aeaeae": "#adbcd5",
+        "#edeeef": "#2b364a",
+        "#fcfcfc": "#4b5972",
+        "#fff": "#e6f0ff"
+      }
+    },
+    "sub2api-monitor": {
+      "light": {
+        "#030000": "#030000",
+        "#1a211f": "#1a211f",
+        "#2eeed7": "#2eeed7",
+        "#2fedd4": "#2fedd4",
+        "#52ffe9": "#52ffe9",
+        "#767574": "#767574",
+        "#a1fbe6": "#a1fbe6",
+        "#c1fdee": "#c1fdee",
+        "#d1e7ee": "#d1e7ee"
+      },
+      "dark": {
+        "#030000": "#101f24",
+        "#1a211f": "#172d31",
+        "#2eeed7": "#62ecd0",
+        "#2fedd4": "#4de2c8",
+        "#52ffe9": "#73eedc",
+        "#767574": "#2a575b",
+        "#a1fbe6": "#89d9c5",
+        "#c1fdee": "#c6ffee",
+        "#d1e7ee": "#69a09f"
+      },
+      "overrides": [
+        {
+          "match": {
+            "fill": "#c1fdee"
+          },
+          "light": {
+            "stroke": "#c1fdee",
+            "stroke-width": "0.075",
+            "stroke-linejoin": "round"
+          },
+          "dark": {
+            "stroke": "#c6ffee",
+            "stroke-width": "0.09",
+            "stroke-linejoin": "round"
+          },
+          "tag": "path"
+        }
+      ],
+      "modification_note": "Main waveform stroke strengthened for small rendering."
+    },
+    "wifi": {
+      "light": {
+        "#0095ff": "#0095ff",
+        "#00e7ff": "#00e7ff",
+        "#f1efeb": "#f1efeb",
+        "#fdfcfc": "#fdfcfc"
+      },
+      "dark": {
+        "#0095ff": "#5caafa",
+        "#00e7ff": "#b1edff",
+        "#f1efeb": "#243850",
+        "#fdfcfc": "#455e7b"
+      }
+    },
+    "bluetooth": {
+      "light": {
+        "#0e71de": "#0e71de",
+        "#25c9ff": "#25c9ff",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#0e71de": "#1a447e",
+        "#25c9ff": "#327fba",
+        "#fff": "#e2f4ff"
+      }
+    },
+    "display-settings": {
+      "light": {
+        "#000": "#000",
+        "#4285db": "#4285db",
+        "#4d4d4d": "#4d4d4d",
+        "#50b0ec": "#50b0ec",
+        "#adb3ba": "#adb3ba",
+        "#c1c1c1": "#c1c1c1",
+        "#c8cbd1": "#c8cbd1",
+        "#d1d1d1": "#d1d1d1",
+        "#f5f5f5": "#f5f5f5"
+      },
+      "dark": {
+        "#000": "#000",
+        "#4285db": "#3c73b6",
+        "#4d4d4d": "#1b2c43",
+        "#50b0ec": "#91d0fb",
+        "#adb3ba": "#29394e",
+        "#c1c1c1": "#6e89a7",
+        "#c8cbd1": "#56667b",
+        "#d1d1d1": "#8facca",
+        "#f5f5f5": "#d9e8f6"
+      },
+      "rim_radius": "13.8"
+    },
+    "date-time": {
+      "light": {
+        "#000": "#000",
+        "#1a1a1a": "#1a1a1a",
+        "#999": "#999",
+        "#c2c2c2": "#c2c2c2",
+        "#ececec": "#ececec",
+        "#f24236": "#f24236",
+        "#fe6b62": "#fe6b62",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#000": "#000",
+        "#1a1a1a": "#172d43",
+        "#999": "#7d92ae",
+        "#c2c2c2": "#889cb7",
+        "#ececec": "#c0cfdf",
+        "#f24236": "#f7949f",
+        "#fe6b62": "#ffc0c5",
+        "#fff": "#e5edf7"
+      },
+      "overrides": [
+        {
+          "match": {
+            "width": "14.817",
+            "height": "14.817",
+            "x": "1.058",
+            "y": "1.05"
+          },
+          "light": {
+            "fill": "#fff"
+          },
+          "dark": {
+            "fill": "#34425a"
+          },
+          "tag": "rect"
+        }
+      ]
+    },
+    "storage": {
+      "light": {
+        "#1a1c20": "#1a1c20",
+        "#1e1e1e": "#1e1e1e",
+        "#1f2021": "#1f2021",
+        "#233242": "#233242",
+        "#292929": "#292929",
+        "#2d2e30": "#2d2e30",
+        "#313131": "#313131",
+        "#333": "#333",
+        "#3d3c3c": "#3d3c3c",
+        "#3e3f41": "#3e3f41",
+        "#404041": "#404041",
+        "#423d3f": "#423d3f",
+        "#463d40": "#463d40",
+        "#50484b": "#50484b",
+        "#525252": "#525252",
+        "#555": "#555",
+        "#585d61": "#585d61",
+        "#5d5c5b": "#5d5c5b",
+        "#656866": "#656866",
+        "#70787e": "#70787e",
+        "#797a7a": "#797a7a",
+        "#7a7b7b": "#7a7b7b",
+        "#7a8285": "#7a8285",
+        "#7c7a74": "#7c7a74",
+        "#8396a5": "#8396a5",
+        "#848f95": "#848f95",
+        "#868f93": "#868f93",
+        "#8a8a8a": "#8a8a8a",
+        "#8b8789": "#8b8789",
+        "#8f9ea5": "#8f9ea5",
+        "#918b7f": "#918b7f",
+        "#939b9d": "#939b9d",
+        "#959a9e": "#959a9e",
+        "#98aab4": "#98aab4",
+        "#99acb5": "#99acb5",
+        "#9ea5a8": "#9ea5a8",
+        "#9fa6aa": "#9fa6aa",
+        "#a8b1b6": "#a8b1b6",
+        "#c0d5dc": "#c0d5dc",
+        "#c2d5dc": "#c2d5dc",
+        "#c2dfea": "#c2dfea",
+        "#cbdae1": "#cbdae1",
+        "#e5eef3": "#e5eef3",
+        "#eaeef3": "#eaeef3",
+        "#eaf5f9": "#eaf5f9",
+        "#eff4f7": "#eff4f7",
+        "#f2f5f8": "#f2f5f8",
+        "#f6f7f7": "#f6f7f7",
+        "#f8fafb": "#f8fafb",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#1a1c20": "#1a1c20",
+        "#1e1e1e": "#1e1e1e",
+        "#1f2021": "#1f2021",
+        "#233242": "#233242",
+        "#292929": "#202f43",
+        "#2d2e30": "#2d2e30",
+        "#313131": "#313131",
+        "#333": "#333",
+        "#3d3c3c": "#3d3c3c",
+        "#3e3f41": "#3e3f41",
+        "#404041": "#404041",
+        "#423d3f": "#423d3f",
+        "#463d40": "#463d40",
+        "#50484b": "#50484b",
+        "#525252": "#4a5e78",
+        "#555": "#555",
+        "#585d61": "#585d61",
+        "#5d5c5b": "#5d5c5b",
+        "#656866": "#656866",
+        "#70787e": "#70787e",
+        "#797a7a": "#797a7a",
+        "#7a7b7b": "#7a7b7b",
+        "#7a8285": "#7a8285",
+        "#7c7a74": "#7c7a74",
+        "#8396a5": "#8396a5",
+        "#848f95": "#848f95",
+        "#868f93": "#868f93",
+        "#8a8a8a": "#8a8a8a",
+        "#8b8789": "#8b8789",
+        "#8f9ea5": "#8f9ea5",
+        "#918b7f": "#918b7f",
+        "#939b9d": "#939b9d",
+        "#959a9e": "#959a9e",
+        "#98aab4": "#98aab4",
+        "#99acb5": "#99acb5",
+        "#9ea5a8": "#6f8d9f",
+        "#9fa6aa": "#8dabbc",
+        "#a8b1b6": "#a8b1b6",
+        "#c0d5dc": "#9cbdcb",
+        "#c2d5dc": "#c0dce8",
+        "#c2dfea": "#c2dfea",
+        "#cbdae1": "#cbdae1",
+        "#e5eef3": "#e5eef3",
+        "#eaeef3": "#3d5067",
+        "#eaf5f9": "#eaf5f9",
+        "#eff4f7": "#eff4f7",
+        "#f2f5f8": "#f2f5f8",
+        "#f6f7f7": "#f6f7f7",
+        "#f8fafb": "#8399b0",
+        "#fff": "#fff"
+      }
+    },
+    "about": {
+      "light": {
+        "#0e71de": "#0e71de",
+        "#25c9ff": "#25c9ff",
+        "#c6e4fa": "#c6e4fa",
+        "#edfbff": "#edfbff"
+      },
+      "dark": {
+        "#0e71de": "#184880",
+        "#25c9ff": "#377eb5",
+        "#c6e4fa": "#b4d4f3",
+        "#edfbff": "#f0faff"
+      }
+    },
+    "usb": {
+      "light": {
+        "#040404": "#040404",
+        "#121212": "#121212",
+        "#171717": "#171717",
+        "#1a1a1a": "#1a1a1a",
+        "#24785a": "#24785a",
+        "#2a2b2d": "#2a2b2d",
+        "#2b2b2d": "#2b2b2d",
+        "#2c2c2e": "#2c2c2e",
+        "#323232": "#323232",
+        "#4d4d4d": "#4d4d4d",
+        "#67e5b8": "#67e5b8",
+        "#b6b9bf": "#b6b9bf",
+        "#dddfe2": "#dddfe2",
+        "#fff": "#fff",
+        "gray": "gray"
+      },
+      "dark": {
+        "#040404": "#040404",
+        "#121212": "#121212",
+        "#171717": "#171717",
+        "#1a1a1a": "#1a1a1a",
+        "#24785a": "#3ba989",
+        "#2a2b2d": "#2a2b2d",
+        "#2b2b2d": "#2b2b2d",
+        "#2c2c2e": "#2c2c2e",
+        "#323232": "#323232",
+        "#4d4d4d": "#263848",
+        "#67e5b8": "#b2f6d7",
+        "#b6b9bf": "#749eb6",
+        "#dddfe2": "#b3d9e7",
+        "#fff": "#effbff",
+        "gray": "#4c6475"
+      },
+      "overrides": [
+        {
+          "match": {},
+          "light": {
+            "fill": "#596576",
+            "opacity": "0.95"
+          },
+          "dark": {
+            "fill": "#34596e",
+            "opacity": "1"
+          },
+          "tag": "path",
+          "d_prefix": "m38.398 19.278"
+        }
+      ],
+      "modification_note": "USB trident label contrast enhanced."
+    },
+    "battery": {
+      "light": {
+        "#262626": "#262626",
+        "#2d2d2d": "#2d2d2d",
+        "#3e3e3e": "#3e3e3e",
+        "#454545": "#454545",
+        "#4a4a4a": "#4a4a4a",
+        "#565656": "#565656",
+        "#5b9709": "#5b9709",
+        "#646563": "#646563",
+        "#6d6d6d": "#6d6d6d",
+        "#6f6f6f": "#6f6f6f",
+        "#818181": "#818181",
+        "#838383": "#838383",
+        "#848484": "#848484",
+        "#848585": "#848585",
+        "#8aba3b": "#8aba3b",
+        "#8bbb3b": "#8bbb3b",
+        "#8d8d8d": "#8d8d8d",
+        "#969596": "#969596",
+        "#a3d65f": "#a3d65f",
+        "#cecfce": "#cecfce",
+        "#d0d0d0": "#d0d0d0",
+        "#d4d4d2": "#d4d4d2",
+        "#d6d6d5": "#d6d6d5",
+        "#d8d9d9": "#d8d9d9",
+        "#fff": "#fff",
+        "gray": "gray",
+        "silver": "silver"
+      },
+      "dark": {
+        "#262626": "#233e32",
+        "#2d2d2d": "#2d2d2d",
+        "#3e3e3e": "#3e3e3e",
+        "#454545": "#454545",
+        "#4a4a4a": "#4f6b52",
+        "#565656": "#565656",
+        "#5b9709": "#528931",
+        "#646563": "#646563",
+        "#6d6d6d": "#6d6d6d",
+        "#6f6f6f": "#6f6f6f",
+        "#818181": "#818181",
+        "#838383": "#838383",
+        "#848484": "#848484",
+        "#848585": "#848585",
+        "#8aba3b": "#99c964",
+        "#8bbb3b": "#a0d25f",
+        "#8d8d8d": "#8d8d8d",
+        "#969596": "#969596",
+        "#a3d65f": "#d3ed99",
+        "#cecfce": "#cecfce",
+        "#d0d0d0": "#d0d0d0",
+        "#d4d4d2": "#d4d4d2",
+        "#d6d6d5": "#c4e2cb",
+        "#d8d9d9": "#d8d9d9",
+        "#fff": "#f2fff7",
+        "gray": "gray",
+        "silver": "silver"
+      }
+    },
+    "brightness": {
+      "light": {
+        "#f2f2f2": "#a77726"
+      },
+      "dark": {
+        "#f2f2f2": "#ffe4a6"
+      },
+      "plate": {
+        "light": [
+          "#fffaf0",
+          "#ece3cc"
+        ],
+        "dark": [
+          "#77653f",
+          "#403a2c"
+        ]
+      },
+      "transform": "translate(8 8) scale(1.5)",
+      "modification_note": "WhiteSur-proportioned gradient plate added."
+    },
+    "audio": {
+      "light": {
+        "#17181a": "#17181a",
+        "#1f1f1f": "#1f1f1f",
+        "#333": "#333",
+        "#36383b": "#36383b",
+        "#3d4043": "#3d4043",
+        "#84848c": "#84848c",
+        "#909299": "#909299",
+        "#919699": "#919699",
+        "#9c9da5": "#9c9da5",
+        "#b5b7bf": "#b5b7bf",
+        "#e5e5e5": "#e5e5e5",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#17181a": "#273b56",
+        "#1f1f1f": "#22364e",
+        "#333": "#3c5570",
+        "#36383b": "#546e8d",
+        "#3d4043": "#526f92",
+        "#84848c": "#6d8bb0",
+        "#909299": "#99acc5",
+        "#919699": "#b9cce2",
+        "#9c9da5": "#a5b7d0",
+        "#b5b7bf": "#cad9eb",
+        "#e5e5e5": "#bbd2ec",
+        "#fff": "#eaf4ff"
+      },
+      "plate": {
+        "light": [
+          "#fdfdff",
+          "#e1e5ee"
+        ],
+        "dark": [
+          "#526279",
+          "#2d3b52"
+        ]
+      },
+      "transform": "translate(7 7) scale(2.952814032)",
+      "modification_note": "WhiteSur-proportioned gradient plate added."
+    },
+    "clock-alarm": {
+      "light": {
+        "#000": "#000",
+        "#241f31": "#241f31",
+        "#333": "#333",
+        "#4d4d4d": "#4d4d4d",
+        "#666": "#666",
+        "#daf6ed": "#daf6ed",
+        "#e01b24": "#e01b24",
+        "#e6e6e6": "#e6e6e6",
+        "#ececec": "#ececec",
+        "#f2f2f2": "#f2f2f2",
+        "#fbfffd": "#fbfffd",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#000": "#000",
+        "#241f31": "#573746",
+        "#333": "#1b2b40",
+        "#4d4d4d": "#31465f",
+        "#666": "#59728c",
+        "#daf6ed": "#375850",
+        "#e01b24": "#f67582",
+        "#e6e6e6": "#c9d9f3",
+        "#ececec": "#28384e",
+        "#f2f2f2": "#f4f7ff",
+        "#fbfffd": "#5d8276",
+        "#fff": "#eaf1fd"
+      },
+      "gradient_stops": {
+        "b": {
+          "light": [
+            "#ececec",
+            "#fff"
+          ],
+          "dark": [
+            "#2a384b",
+            "#4a5b71"
+          ]
+        }
+      }
+    },
+    "timer-green": {
+      "light": {
+        "#363636": "#318453"
+      },
+      "dark": {
+        "#363636": "#c4f0ce"
+      },
+      "plate": {
+        "light": [
+          "#f1fff6",
+          "#cfe8d7"
+        ],
+        "dark": [
+          "#4b7460",
+          "#253f34"
+        ]
+      },
+      "transform": "translate(5 5) scale(2.25)",
+      "modification_note": "WhiteSur-proportioned gradient plate added."
+    },
+    "notes-paper": {
+      "light": {
+        "#0d50d1": "#0d50d1",
+        "#424c72": "#424c72",
+        "#57d1f7": "#57d1f7",
+        "#a9a9a9": "#a9a9a9",
+        "#e4e7ef": "#e4e7ef",
+        "#f1efeb": "#f1efeb",
+        "#fdfcfc": "#fdfcfc",
+        "#fff": "#fff"
+      },
+      "dark": {
+        "#0d50d1": "#356da9",
+        "#424c72": "#294d82",
+        "#57d1f7": "#7adef4",
+        "#a9a9a9": "#72869e",
+        "#e4e7ef": "#acc4e2",
+        "#f1efeb": "#2c3850",
+        "#fdfcfc": "#53617c",
+        "#fff": "#e4efff"
+      }
+    },
+    "mac-shortcuts": {
+      "light": {
+        "#b2b2b2": "#b2b2b2",
+        "#e3e3e3": "#e3e3e3",
+        "#e5e5e5": "#e5e5e5",
+        "#fcfcfc": "#fcfcfc",
+        "gray": "gray"
+      },
+      "dark": {
+        "#b2b2b2": "#577592",
+        "#e3e3e3": "#bbd0ea",
+        "#e5e5e5": "#8ba8c8",
+        "#fcfcfc": "#e4f1ff",
+        "gray": "#314b6b"
+      },
+      "plate": {
+        "light": [
+          "#fafcfe",
+          "#dee5ed"
+        ],
+        "dark": [
+          "#52677f",
+          "#293950"
+        ]
+      },
+      "transform": "translate(10 10) scale(2.598476349)",
+      "modification_note": "WhiteSur-proportioned gradient plate added."
+    }
+  }
+}

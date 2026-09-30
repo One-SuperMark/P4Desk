@@ -1,6 +1,47 @@
 //! Fixed C/Rust radio ABI. No credentials or network identifiers are logged.
 use std::fmt;
 #[repr(C)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub struct TimeSyncSnapshot {
+    /// 0 waiting for Wi-Fi, 1 syncing, 2 synced, 3 waiting to retry.
+    pub phase: u32,
+    pub error: u32,
+    pub last_sync_unix_s: u32,
+    pub success_count: u32,
+}
+impl TimeSyncSnapshot {
+    pub fn status(&self, connected: bool) -> &'static str {
+        if !connected {
+            "等待 Wi-Fi 连接"
+        } else {
+            match self.phase {
+                1 => "正在与网络时间同步…",
+                2 => "已通过 Wi-Fi 对时",
+                3 => match self.error {
+                    1 => "对时超时，5 分钟后重试",
+                    3 => "时间响应无效，稍后重试",
+                    _ => "对时未完成，稍后重试",
+                },
+                _ => "等待自动对时",
+            }
+        }
+    }
+    pub fn can_request(&self, connected: bool) -> bool {
+        connected && self.phase != 1
+    }
+    pub fn last_sync_label(&self, timezone_minutes: i32) -> String {
+        if self.last_sync_unix_s == 0 {
+            return "尚未通过 Wi-Fi 对时".into();
+        }
+        let (time, date) = crate::launcher_state::clock_strings(
+            i64::from(self.last_sync_unix_s) * 1000,
+            timezone_minutes,
+        );
+        // Include the date: the saved result may precede a long offline period.
+        format!("上次：{}  {time}", date.split("  ").next().unwrap_or(&date))
+    }
+}
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct WifiAp {
     pub id: u32,
@@ -50,6 +91,7 @@ pub struct RadioSnapshot {
     pub services: [[u8; 40]; 12],
     pub wifi_rssi_dbm: i32,
     pub wifi_rssi_valid: u32,
+    pub time_sync: TimeSyncSnapshot,
 }
 impl Default for RadioSnapshot {
     fn default() -> Self {
@@ -60,7 +102,9 @@ impl Default for RadioSnapshot {
 const _: () = {
     assert!(std::mem::size_of::<WifiAp>() == 48);
     assert!(std::mem::size_of::<BleDevice>() == 64);
-    assert!(std::mem::size_of::<RadioSnapshot>() == 2456);
+    assert!(std::mem::size_of::<TimeSyncSnapshot>() == 16);
+    assert!(std::mem::size_of::<RadioSnapshot>() == 2472);
+    assert!(std::mem::offset_of!(RadioSnapshot, time_sync) == 2456);
     assert!(std::mem::offset_of!(RadioSnapshot, wifi_rssi_dbm) == 2448);
     assert!(std::mem::offset_of!(RadioSnapshot, aps) == 176);
     assert!(std::mem::offset_of!(RadioSnapshot, services) == 1968);
@@ -212,6 +256,7 @@ pub enum RadioCommand {
     WifiDisconnect,
     WifiForget,
     WifiSavedConnect,
+    WifiTimeSync,
     BleEnable(bool),
     BleScan,
     BleConnect(u32),
@@ -240,23 +285,27 @@ impl RadioCommand {
             Self::BlePair => (10, 0, &[]),
             Self::BleForget => (11, 0, &[]),
             Self::WifiSavedConnect => (12, 0, &[]),
+            Self::WifiTimeSync => (13, 0, &[]),
         }
     }
 }
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SettingsSection {
     #[default]
     Wifi,
     Bluetooth,
+    #[serde(alias = "Theme")]
+    Appearance,
     Display,
     DateTime,
     Storage,
     About,
 }
 impl SettingsSection {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Wifi,
         Self::Bluetooth,
+        Self::Appearance,
         Self::Display,
         Self::DateTime,
         Self::Storage,
@@ -266,6 +315,7 @@ impl SettingsSection {
         match self {
             Self::Wifi => "Wi-Fi",
             Self::Bluetooth => "蓝牙",
+            Self::Appearance => "外观",
             Self::Display => "显示器",
             Self::DateTime => "日期与时间",
             Self::Storage => "存储",
@@ -275,6 +325,7 @@ impl SettingsSection {
 }
 #[derive(Default)]
 pub struct SettingsView {
+    pub appearance_scroll: tiny_flutter::widgets::ScrollController,
     pub section: SettingsSection,
     pub page: usize,
     pub selected_ble: Option<u32>,

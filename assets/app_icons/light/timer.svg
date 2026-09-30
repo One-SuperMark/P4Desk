@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>P4Desk Folio round timer</title>
+  <desc>Original P4Desk artwork inspired by Folio round layered geometry. Copyright 2026 P4Desk contributors. MIT License.</desc>
+  <circle cx="64" cy="64" r="56" fill="#f3d9d0" />
+  <rect x="55.7037" y="30.81481" width="16.59259" height="6.63704" rx="3.31852" fill="#ffffff" />
+  <rect x="60.68148" y="35.79259" width="6.63704" height="9.12593" rx="2.48889" fill="#ffe5da" />
+  <path d="M80.59259 43.25926L86.4 48.23704" stroke="#ffe5da" stroke-width="5.80741" stroke-linecap="round" />
+  <circle cx="64.82963" cy="71.46667" r="26.54815" fill="#9e514b" opacity=".25" />
+  <circle cx="63.17037" cy="68.97778" r="26.54815" fill="#fff5ef" />
+  <circle cx="63.17037" cy="68.97778" r="19.91111" fill="#e6a494" />
+  <path d="M63.17037 49.06667C73.95556 49.06667 83.08148 58.19259 83.08148 68.97778L63.17037 68.97778Z" fill="#ffffff" />
+  <path d="M63.17037 53.21481L63.17037 68.97778L54.87407 75.61481" stroke="#ad544b" stroke-width="3.73333" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>

@@ -2,6 +2,8 @@
 
 | 内容 | 固定来源／版本 | 许可与保留位置 |
 | --- | --- | --- |
+| Folio 视觉设计、色板与分组控件规则 | [McCal-Codes/folio](https://github.com/McCal-Codes/folio)，`2590bc164aaccaca79dc445272be6c56dff07dc1` | MIT，保留 `third_party/folio/LICENSE`；Rust 适配说明见 `docs/folio-ui.md` |
+| Colloid 深浅图标与静态矢量派生 | 用户提供的 P4Desk 精选包；上游 `vinceliuice/Colloid-icon-theme`，`ceac6608ecd0e40025cbc2ebbd32bf0e0f4ebc6a` | GPL-3.0，`third_party/colloid-p4desk/{dark,light}/LICENSE`；源 SHA256 与规范化记录见 `assets/colloid-icons.json` |
 | tiny-flutter、tiny_gfx、应用桌面、计算器 | pomelos-on-sale/esp32-rust-ui，`0b75870835902cbf950505d1539dbb8f6e0a7197` | MIT，`third_party/licenses/esp32-rust-ui-MIT.txt` |
 | 7B GPIO、DSI 供电、EK79007 时序、SDMMC 引脚初始化 | 微雪 BSP 3.0.1，提取到 `firmware/components/board_p4` | Apache-2.0，原 SPDX 与 `Espressif-Apache-2.0.txt` |
 | EK79007 驱动 | espressif/esp_lcd_ek79007 2.0.2~1 | Apache-2.0，`EK79007-Apache-2.0.txt` |
@@ -30,3 +32,21 @@ ESP-IDF 驱动依赖由 manifest 的 `==` 版本及 `firmware/dependencies.lock`
 桌面的图标绘制组件、图标网格、横向分页、页码圆点与状态栏后台应用入口基于参考项目相应 Rust 模块适配。具体职责与首版重写的纠偏记录见 [Rust UI 移植说明](rust-ui-port.md)。自制 SVG 图标及静态 Rust 矢量几何可用 `python3 scripts/generate-vector-icons.py` 重现，源码和生成几何使用本项目 MIT 许可；通用图标的许可同时保存在 `assets/ui_icons/LICENSE`。
 
 项目新代码使用根 MIT 许可；第三方文件与派生板级代码继续遵循其原许可。
+
+Folio 分支的状态电池数字同样使用固定 DINish Heavy 原始轮廓。`scripts/generate-battery-vectors.swift` 从本地固定 SHA256 字体提取 11 个等宽数字／横线，生成 `apps/app-launcher/src/battery_digits_generated.rs`；这些字形遵循已有 SIL OFL 1.1 及 `third_party/licenses/DINish-OFL.txt`，不使用 Apple 字体。
+
+## Numix Circle 深浅图标（2026-09-30）
+
+用户提供 `/Volumes/work/workspace/Numix-Circle-SVG/P4Desk精选/` 内的深浅衍生 SVG，来源清单记录上游 `numixproject/numix-icon-theme-circle` 的 `6d4a4aad60994e688ab9dc8f021cb4ec86e9e532`。集成每套 21 枚：8 个现有桌面图标、3 个新增入口和 10 个设置图标；4 个备选图标未选用。
+
+这些 SVG 及其规范化 SVG、生成的 `numix_icons_generated.rs` 静态几何使用 **GPL-3.0-or-later**，保留完整许可证、来源清单、配色表与修改说明于 `third_party/numix-p4desk/` 和 `assets/numix/LICENSE`。它们不改标为根 MIT 许可。通用自制操作 SVG、原有软件组件和字体继续分别按各自许可证标注。
+
+构建阶段用固定 fontTools 4.60.1 解析路径、弧线和变换，生成器属于项目工具代码；转换后仍为矢量。时钟去除固定指针与指针阴影，由真实时间绘制指针。可识别的圆形贝塞尔路径转换为现有圆形抗锯齿快路径，识别误差上限为 128 单位图标画布上的 0.16 单位。详细资源哈希与转换输出见 `assets/numix-icons.json`。
+
+## WhiteSur 双主题图标（2026-09-30）
+
+从用户提供的 `/Volumes/work/workspace/WhiteSur-SVG/P4Desk精选/` 导入深浅各 21 个实际使用的 SVG。清单记录上游 `vinceliuice/WhiteSur-icon-theme` 固定提交 `73d8040da51a9ed74e47c7366e7e9ff437601a5c`，GPL-3.0。原字节主题 SVG、作者、源清单与许可保存在 `third_party/whitesur-p4desk/`；文件 SHA256 在生成时验证。
+
+`assets/whitesur/` 保留规范化派生矢量，完整 64×64 画布等比转为 128×128，保留多段、非垂直与径向渐变、透明度、圆角轮廓。经过数量校验后删除 4 层时钟固定指针／阴影，设备动态绘制当前时间。源包已移除内嵌位图阴影；固件未引入位图替代。源包的 USB 矩形裁剪经包围盒验证冗余后展开。生成器会拒绝新增的未支持元素／非冗余裁剪。源清单中的 4 个备选项未导入。
+
+新增 Folio 浅色底板为项目原有原创 SVG 的衍生，仍使用 MIT，不混入第三方图标许可。两者生成记录分别见 `assets/whitesur-icons.json`、`assets/folio-light-icons.json`。

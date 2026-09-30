@@ -125,7 +125,11 @@ impl RenderBox for RenderCustomPaint {
             let hit = child.hit_test(local_p);
             let is_up = matches!(event, TouchEvent::Up(_));
             let is_cancel = matches!(event, TouchEvent::Cancel);
-            if hit || is_up || is_cancel {
+            if hit
+                || (matches!(event, TouchEvent::Move(_)) && child.captures_touch())
+                || is_up
+                || is_cancel
+            {
                 let child_event = event.transform(local_p);
                 return child.dispatch_touch(&child_event);
             }
@@ -142,6 +146,13 @@ impl RenderBox for RenderCustomPaint {
         let child = self.child.as_ref()?;
         let offset = child.offset();
         child.hit_rect(point - offset).map(|r| r.shift(offset))
+    }
+    fn captures_touch(&self) -> bool {
+        self.child.as_ref().is_some_and(|c| c.captures_touch())
+    }
+    fn animation_dirty(&self) -> Option<Rect> {
+        let child = self.child.as_ref()?;
+        child.animation_dirty().map(|r| r.shift(child.offset()))
     }
     fn needs_rebuild(&self) -> bool {
         self.child

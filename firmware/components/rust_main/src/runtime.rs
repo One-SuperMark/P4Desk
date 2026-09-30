@@ -69,6 +69,8 @@ pub struct DeviceRuntime<H: Hal> {
     last_battery_poll_ms: Option<u64>,
     last_radio_poll_ms: Option<u64>,
     status: Option<(Mode, bool, bool, u64)>,
+    session_writer: Option<crate::persistence::SessionWriter>,
+    recovered_clock: Option<(i64, u64)>,
 }
 impl<H: Hal> DeviceRuntime<H> {
     pub fn new(mut hal: H, root: impl Into<PathBuf>, local_root: impl Into<PathBuf>) -> Self {
@@ -88,6 +90,44 @@ impl<H: Hal> DeviceRuntime<H> {
                 Err(_) => state.notice = "资源恢复失败，基本工具仍可用".into(),
             }
         }
+        let session_store = store.session_store();
+        let mut recovered_clock = None;
+        match session_store.load() {
+            Ok(Some(session)) => {
+                session.restore(&mut state);
+                recovered_clock = session.unix_ms.map(|ms| (ms, hal.monotonic_ms()));
+                println!(
+                    "p4desk_session: restore=ok apps={} recent={} clock={} timer=paused",
+                    session.background.len() + usize::from(session.foreground.is_some()),
+                    session.recent.len(),
+                    session.unix_ms.is_some()
+                );
+            }
+            Ok(None) => println!("p4desk_session: restore=empty"),
+            Err(_) => {
+                state.persistence_status = app_launcher::session::PersistenceStatus::Failed;
+                state.notice = "应用状态恢复失败，请检查存储".into();
+                println!("p4desk_session: restore=failed");
+            }
+        }
+        let session_writer = match crate::persistence::SessionWriter::new(session_store) {
+            Ok(writer) => Some(writer),
+            Err(error) => {
+                println!("p4desk_session: thread_start_error={error}");
+                None
+            }
+        };
+        if session_writer.is_none() {
+            state.persistence_status = app_launcher::session::PersistenceStatus::Failed;
+        }
+        println!(
+            "p4desk_session: writer={}",
+            if session_writer.is_some() {
+                "ready"
+            } else {
+                "unavailable"
+            }
+        );
         let was_connected = hal.connected();
         Self {
             hal,
@@ -100,6 +140,8 @@ impl<H: Hal> DeviceRuntime<H> {
             last_battery_poll_ms: None,
             last_radio_poll_ms: None,
             status: None,
+            session_writer,
+            recovered_clock,
         }
     }
     fn ack(
@@ -339,14 +381,16 @@ impl<H: Hal> DeviceRuntime<H> {
         {
             self.last_radio_poll_ms = Some(now);
             if let Some(next) = self.hal.radio_snapshot(state.radio.revision) {
-                let wifi_changed = next.wifi_status_changed(&state.radio)
+                let desktop_radio_changed = next.wifi_status_changed(&state.radio)
+                    || next.bt_on != state.radio.bt_on
+                    || next.bt_ready != state.radio.bt_ready
                     || (state.status_panel_open
                         && state.status_panel_kind
                             == app_launcher::status_bar::StatusPanelKind::Wifi
                         && next.wifi_rssi_dbm != state.radio.wifi_rssi_dbm);
                 state.radio = next;
                 if matches!(state.active_app, app_launcher::ActiveApp::Settings)
-                    || (wifi_changed
+                    || (desktop_radio_changed
                         && matches!(state.active_app, app_launcher::ActiveApp::Launcher))
                 {
                     state.changed();
@@ -379,8 +423,50 @@ impl<H: Hal> DeviceRuntime<H> {
         if mode == Mode::Display && !self.hal.display_transition_pending() {
             state.complete_display_launch();
         }
-        state.tick(now, self.hal.unix_ms());
-        let status = (mode, sd_ready, state.time_valid, state.snapshot.generation);
+        let live_time = self.hal.unix_ms();
+        let live_valid = (MIN_UNIX_MS..=MAX_UNIX_MS).contains(&live_time);
+        if live_valid {
+            self.recovered_clock = None;
+        }
+        let estimated = !live_valid && self.recovered_clock.is_some();
+        let unix_ms = if live_valid {
+            live_time
+        } else {
+            self.recovered_clock
+                .map(|(saved, start)| {
+                    saved
+                        .saturating_add(now.saturating_sub(start).min(i64::MAX as u64) as i64)
+                        .min(MAX_UNIX_MS)
+                })
+                .unwrap_or(0)
+        };
+        if state.time_estimated != estimated {
+            state.time_estimated = estimated;
+            state.last_time_refresh();
+            state.changed();
+        }
+        state.tick(now, unix_ms);
+        if let Some(writer) = &mut self.session_writer {
+            if writer.due(now) {
+                let snapshot = app_launcher::session::Session::capture(&state);
+                let animating = state.app_launch.frame(now).is_some()
+                    || state.timer_completion.progress(now).is_some();
+                if let Some(ok) = writer.sample(now, snapshot, animating) {
+                    state.persistence_status = if ok {
+                        app_launcher::session::PersistenceStatus::Saved
+                    } else {
+                        app_launcher::session::PersistenceStatus::Failed
+                    };
+                    state.changed();
+                }
+            }
+        }
+        let status = (
+            mode,
+            sd_ready,
+            state.time_valid && !state.time_estimated,
+            state.snapshot.generation,
+        );
         let changed = state.revision != before;
         drop(state);
         if connected && self.hello && self.status != Some(status) {
@@ -449,6 +535,53 @@ impl<H: Hal> DeviceRuntime<H> {
                         Ok(())
                     } else {
                         Err("mac_offline")
+                    }
+                }
+                UiCommand::Appearance { light, glass } => {
+                    let mut settings = self.state.lock().unwrap().settings.clone();
+                    settings.icon_light_override = Some(settings.light_icons());
+                    settings.light_appearance = light;
+                    settings.glass_amount = glass;
+                    match self.store.save_settings(&settings) {
+                        Ok(()) => {
+                            let mut state = self.state.lock().unwrap();
+                            state.settings = settings;
+                            state.desktop_backdrop.lock().unwrap().take();
+                            state.app_launch.cancel();
+                            state.changed();
+                            Ok(())
+                        }
+                        Err(e) => Err(e),
+                    }
+                }
+                UiCommand::IconTheme(theme) => {
+                    let mut settings = self.state.lock().unwrap().settings.clone();
+                    settings.icon_theme = theme;
+                    match self.store.save_settings(&settings) {
+                        Ok(()) => {
+                            let mut state = self.state.lock().unwrap();
+                            state.settings = settings;
+                            state.desktop_backdrop.lock().unwrap().take();
+                            state.app_launch.cancel();
+                            state.changed();
+                            Ok(())
+                        }
+                        Err(e) => Err(e),
+                    }
+                }
+                UiCommand::IconLight(light) => {
+                    let mut settings = self.state.lock().unwrap().settings.clone();
+                    settings.icon_light_override = Some(light);
+                    match self.store.save_settings(&settings) {
+                        Ok(()) => {
+                            let mut state = self.state.lock().unwrap();
+                            state.settings = settings;
+                            state.desktop_backdrop.lock().unwrap().take();
+                            state.app_launch.cancel();
+                            state.changed();
+                            Ok(())
+                        }
+                        Err(e) => Err(e),
                     }
                 }
                 UiCommand::Brightness(value) => {
@@ -641,7 +774,12 @@ mod tests {
         }
     }
     fn runtime() -> DeviceRuntime<Mock> {
-        let path = std::env::temp_dir().join(format!("p4desk-runtime-{}", std::process::id()));
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "p4desk-runtime-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
         DeviceRuntime::new(
             Mock {
                 now: 0,
@@ -722,6 +860,23 @@ mod tests {
         r.hal.radio.wifi_rssi_valid = 0;
         assert!(r.tick());
         assert_eq!(r.state.lock().unwrap().radio.wifi_signal_level(), None);
+    }
+    #[test]
+    fn folio_bluetooth_state_refreshes_rail_without_waiting_for_clock() {
+        let mut r = runtime();
+        r.tick();
+        r.hal.now = 250;
+        r.hal.radio.revision = 1;
+        r.hal.radio.bt_on = 1;
+        assert!(r.tick());
+        r.hal.now = 500;
+        r.hal.radio.revision = 2;
+        r.hal.radio.bt_ready = 1;
+        assert!(r.tick());
+        r.hal.now = 750;
+        r.hal.radio.revision = 3;
+        r.hal.radio.ble_count = 4;
+        assert!(!r.tick(), "scan count is not shown in the rail");
     }
     #[test]
     fn battery_is_polled_offline_and_in_display_without_inventing_charging() {
@@ -1278,5 +1433,183 @@ mod tests {
         }
         drop(r);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn asynchronous_wifi_time_refreshes_ui_without_mac_or_changing_timer_and_timezone() {
+        let mut r = runtime();
+        r.hal.connected = false;
+        {
+            let mut s = r.state.lock().unwrap();
+            s.open_app("settings");
+            s.settings.timezone_minutes = -60;
+            s.timer.set_countdown_seconds(10);
+            s.timer.toggle(0);
+        }
+        r.tick();
+        assert!(!r.state.lock().unwrap().time_valid);
+        r.hal.now = 1000;
+        r.hal.wall = 946684800000;
+        r.hal.radio.revision = 1;
+        r.hal.radio.wifi_on = 1;
+        r.hal.radio.wifi_phase = 5;
+        r.hal.radio.time_sync.phase = 2;
+        r.hal.radio.time_sync.last_sync_unix_s = 946684800;
+        assert!(r.tick());
+        {
+            let s = r.state.lock().unwrap();
+            assert!(s.time_valid);
+            assert_eq!(s.clock, "23:00:00");
+            assert_eq!(s.settings.timezone_minutes, -60);
+            assert_eq!(s.timer.remaining_ms, 9000);
+            assert_eq!(s.radio.time_sync.phase, 2);
+        }
+        // A failed refresh keeps the running clock; a later backwards correction
+        // still cannot extend the monotonic countdown.
+        r.hal.radio.revision = 2;
+        r.hal.radio.time_sync.phase = 3;
+        r.hal.now = 3000;
+        r.tick();
+        assert!(r.state.lock().unwrap().time_valid);
+        r.hal.wall -= 3600000;
+        r.hal.now = 10000;
+        r.tick();
+        assert!(r.state.lock().unwrap().timer.finished);
+        assert_eq!(r.state.lock().unwrap().timer.remaining_ms, 0);
+    }
+    #[test]
+    fn reboot_uses_saved_clock_as_estimate_until_real_sync_without_resuming_timer() {
+        let path = std::env::temp_dir().join(format!(
+            "p4-reboot-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = GenerationStore::new(path.join("sd"), path.join("flash"));
+        let mut state = LauncherState::new();
+        state.tick(100, 1_790_800_000_000);
+        state.open_app("timer");
+        state.timer.set_countdown_seconds(10);
+        state.timer.toggle(100);
+        state.timer.tick(2600);
+        store
+            .session_store()
+            .save(&app_launcher::session::Session::capture(&state))
+            .unwrap();
+        let mut hal = runtime().hal;
+        hal.wall = 0;
+        hal.now = 200;
+        let mut r = DeviceRuntime::new(hal, path.join("sd"), path.join("flash"));
+        r.tick();
+        {
+            let s = r.state.lock().unwrap();
+            assert_eq!(s.unix_ms, 1_790_800_000_000);
+            assert!(s.time_estimated && s.time_valid);
+            assert_eq!(s.timer.remaining_ms, 7500);
+            assert!(!s.timer.is_running());
+            assert_eq!(s.active_app.id(), Some("timer"));
+        }
+        r.control(1, br#"{"op":"hello","request_id":1,"version":1}"#);
+        r.hal.now = 1200;
+        r.tick();
+        assert_eq!(r.state.lock().unwrap().unix_ms, 1_790_800_001_000);
+        assert!(r.hal.messages.iter().any(|(_, m)| matches!(
+            m,
+            DeviceMessage::Status {
+                time_valid: false,
+                ..
+            }
+        )));
+        r.hal.wall = 1_790_900_000_000;
+        r.hal.now = 1300;
+        r.tick();
+        {
+            let s = r.state.lock().unwrap();
+            assert!(!s.time_estimated);
+            assert_eq!(s.unix_ms, r.hal.wall);
+            assert_eq!(s.timer.remaining_ms, 7500);
+            assert!(!s.timer.is_running());
+        }
+        assert!(r.hal.messages.iter().any(|(_, m)| matches!(
+            m,
+            DeviceMessage::Status {
+                time_valid: true,
+                ..
+            }
+        )));
+        drop(r);
+        std::fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn appearance_is_durable_and_failure_keeps_the_previous_selection() {
+        let mut r = runtime();
+        r.state.lock().unwrap().queue(UiCommand::Appearance {
+            light: true,
+            glass: 25,
+        });
+        r.process_commands();
+        assert!(r.state.lock().unwrap().settings.light_appearance);
+        assert_eq!(r.store.load_settings().glass_amount, 25);
+        assert!(r.store.load_settings().light_appearance);
+        r.state.lock().unwrap().queue(UiCommand::Appearance {
+            light: false,
+            glass: 255,
+        });
+        r.process_commands();
+        assert!(r.state.lock().unwrap().settings.light_appearance);
+        assert_eq!(r.store.load_settings().glass_amount, 25);
+    }
+
+    #[test]
+    fn icon_theme_is_durable_and_failed_write_keeps_current_theme() {
+        use app_launcher::icon_theme::IconTheme;
+        let mut r = runtime();
+        for theme in IconTheme::ALL {
+            r.state.lock().unwrap().queue(UiCommand::IconTheme(theme));
+            r.process_commands();
+            assert_eq!(r.store.load_settings().icon_theme, theme);
+            assert_eq!(r.state.lock().unwrap().settings.icon_theme, theme);
+        }
+        let blocked =
+            std::env::temp_dir().join(format!("p4desk-theme-blocked-{}", std::process::id()));
+        std::fs::write(&blocked, b"not a directory").unwrap();
+        r.store = GenerationStore::new(blocked.join("sd"), blocked.join("local"));
+        r.state
+            .lock()
+            .unwrap()
+            .queue(UiCommand::IconTheme(IconTheme::Folio));
+        r.process_commands();
+        assert_eq!(
+            r.state.lock().unwrap().settings.icon_theme,
+            IconTheme::WhiteSur
+        );
+        std::fs::remove_file(blocked).unwrap();
+    }
+    #[test]
+    fn icon_palette_is_independent_durable_and_preserved_on_write_failure() {
+        let mut r = runtime();
+        for (appearance, icons) in [(true, false), (false, true)] {
+            r.state.lock().unwrap().queue(UiCommand::IconLight(icons));
+            r.process_commands();
+            r.state.lock().unwrap().queue(UiCommand::Appearance {
+                light: appearance,
+                glass: 65,
+            });
+            r.process_commands();
+            let settings = r.store.load_settings();
+            assert_eq!(settings.light_appearance, appearance);
+            assert_eq!(settings.light_icons(), icons);
+            assert_eq!(settings.icon_light_override, Some(icons));
+        }
+        let blocked =
+            std::env::temp_dir().join(format!("p4desk-palette-blocked-{}", std::process::id()));
+        std::fs::write(&blocked, b"not a directory").unwrap();
+        r.store = GenerationStore::new(blocked.join("sd"), blocked.join("local"));
+        r.state.lock().unwrap().queue(UiCommand::IconLight(false));
+        r.process_commands();
+        assert!(r.state.lock().unwrap().settings.light_icons());
+        std::fs::remove_file(blocked).unwrap();
     }
 }

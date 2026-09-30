@@ -20,6 +20,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (CalcMode::Programmer, "programmer"),
     ] {
         let state = Arc::new(Mutex::new(LauncherState::new()));
+        state.lock().unwrap().settings.light_appearance =
+            std::env::args().nth(2).as_deref() == Some("light");
         state.lock().unwrap().open_app("calculator");
         if let ActiveApp::Calculator(calc) = &state.lock().unwrap().active_app {
             let mut c = calc.lock().unwrap();

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use tiny_flutter::prelude::*;
 
 const SIZE: Size = Size::new(1024.0, 600.0);
-const CLOCK: Point = Point::new(151.0, 177.0);
+const CLOCK: Point = Point::new(132.0, 278.0);
 struct TrackedBackend {
     inner: HeadlessBackend,
     flushes: Vec<Rect>,
@@ -38,6 +38,74 @@ fn setup() -> (Arc<Mutex<LauncherState>>, App, TrackedBackend) {
     backend.flushes.clear();
     (state, app, backend)
 }
+
+#[test]
+fn continuous_swipe_keeps_adjacent_pages_and_commits_only_after_halfway_release() {
+    let (state, mut app, mut backend) = setup();
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Down(Point::new(780.0, 278.0)),
+    );
+    for x in [700.0, 560.0, 400.0, 280.0] {
+        backend.flushes.clear();
+        event(
+            &state,
+            &mut app,
+            &mut backend,
+            TouchEvent::Move(Point::new(x, 278.0)),
+        );
+        let s = state.lock().unwrap();
+        assert_eq!(
+            s.current_page, 0,
+            "page changes on release, not while dragging"
+        );
+        assert!((s.page_controller.drag_offset() - (x - 780.0)).abs() < 0.01);
+        assert!(
+            !backend.flushes.is_empty(),
+            "each drag must move both pages"
+        );
+    }
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Up(Point::new(280.0, 278.0)),
+    );
+    assert_eq!(state.lock().unwrap().current_page, 1);
+    assert!(matches!(
+        state.lock().unwrap().active_app,
+        ActiveApp::Launcher
+    ));
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    app.step_with_builder(&mut backend, |size| build_launcher_ui(state.clone(), size));
+    assert_eq!(state.lock().unwrap().page_controller.drag_offset(), 0.0);
+    assert!(!state.lock().unwrap().page_controller.is_settling());
+}
+#[test]
+fn short_drag_and_release_without_move_never_activate_a_tile() {
+    for (end, include_move) in [
+        (Point::new(70.0, 278.0), true),
+        (Point::new(132.0, 310.0), false),
+    ] {
+        let (state, mut app, mut backend) = setup();
+        event(&state, &mut app, &mut backend, TouchEvent::Down(CLOCK));
+        if include_move {
+            event(&state, &mut app, &mut backend, TouchEvent::Move(end));
+        }
+        event(&state, &mut app, &mut backend, TouchEvent::Up(end));
+        assert!(matches!(
+            state.lock().unwrap().active_app,
+            ActiveApp::Launcher
+        ));
+        assert_eq!(state.lock().unwrap().current_page, 0);
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        app.step_with_builder(&mut backend, |size| build_launcher_ui(state.clone(), size));
+        assert_eq!(state.lock().unwrap().page_controller.drag_offset(), 0.0);
+    }
+}
+
 fn event(
     state: &Arc<Mutex<LauncherState>>,
     app: &mut App,
@@ -78,7 +146,10 @@ fn desktop_press_uses_only_the_touched_slot_and_matches_a_fresh_full_frame() {
     root.dispatch_touch(&TouchEvent::Down(CLOCK));
     let mut full = tiny_gfx::Pixmap565::new(1024, 600).unwrap();
     root.paint(&mut Canvas::new(full.as_mut()), Offset::ZERO);
-    assert_eq!(backend.inner.pixels, full.data());
+    assert!(
+        backend.inner.pixels == full.data(),
+        "clipped press differs from full render"
+    );
     event(&state, &mut app, &mut backend, TouchEvent::Cancel);
     assert_eq!(
         backend.inner.pixels, before,
@@ -90,8 +161,8 @@ fn all_eight_desktop_buttons_expose_their_own_damage_rectangle() {
     let state = Arc::new(Mutex::new(LauncherState::new()));
     let mut root = build_launcher_ui(state, SIZE).create_render_object();
     root.layout(&BoxConstraints::tight(SIZE));
-    for y in [177.0, 403.0] {
-        for x in [151.0, 392.0, 632.0, 873.0] {
+    for y in [278.0, 466.0] {
+        for x in [132.0, 348.0, 564.0, 780.0] {
             let p = Point::new(x, y);
             root.dispatch_touch(&TouchEvent::Down(p));
             let r = root
@@ -109,25 +180,37 @@ fn all_eight_desktop_buttons_expose_their_own_damage_rectangle() {
 #[test]
 fn canceled_drag_clears_feedback_and_returning_to_origin_never_opens_an_app() {
     for excursion in [
-        Point::new(151.0, 190.0),
-        Point::new(151.0, 403.0),
-        Point::new(90.0, 177.0),
+        Point::new(132.0, 307.0),
+        Point::new(132.0, 466.0),
+        // Outward on page one: cancels the press without paging. An inward
+        // swipe now correctly reaches the requested second page of apps.
+        Point::new(174.0, 278.0),
     ] {
         let (state, mut app, mut backend) = setup();
         let before = backend.inner.pixels.clone();
         event(&state, &mut app, &mut backend, TouchEvent::Down(CLOCK));
         event(&state, &mut app, &mut backend, TouchEvent::Move(excursion));
-        assert_eq!(
-            backend.inner.pixels, before,
-            "Move must erase the original pressed tile"
-        );
+        if excursion.x == CLOCK.x {
+            assert!(
+                backend.inner.pixels == before,
+                "vertical drag must erase feedback"
+            );
+        } else {
+            assert!(
+                state.lock().unwrap().page_controller.drag_offset() > 0.0,
+                "outward drag should show bounded rubber resistance"
+            );
+        }
         event(&state, &mut app, &mut backend, TouchEvent::Move(CLOCK));
         event(&state, &mut app, &mut backend, TouchEvent::Up(CLOCK));
         let mut s = state.lock().unwrap();
         assert!(matches!(s.active_app, ActiveApp::Launcher));
         assert!(s.running_apps.is_empty());
         assert!(s.take_commands().is_empty());
-        assert_eq!(backend.inner.pixels, before);
+        assert!(
+            backend.inner.pixels == before,
+            "release must restore the unpressed page"
+        );
     }
 }
 #[test]
@@ -148,4 +231,118 @@ fn small_touch_jitter_keeps_press_feedback_and_opens_on_release() {
     // A duplicate/late release must not open another app or repeat the action.
     event(&state, &mut app, &mut backend, TouchEvent::Up(p));
     assert_eq!(state.lock().unwrap().revision, revision);
+}
+
+#[test]
+fn settling_repaints_only_the_grid_without_rebuilding_the_desktop() {
+    let (state, mut app, mut backend) = setup();
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Down(Point::new(780.0, 380.0)),
+    );
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Move(Point::new(450.0, 380.0)),
+    );
+    backend
+        .inner
+        .event(TouchEvent::Up(Point::new(450.0, 380.0)));
+    backend.flushes.clear();
+    let mut rebuilds = 0;
+    app.step_with_builder(&mut backend, |size| {
+        rebuilds += 1;
+        build_launcher_ui(state.clone(), size)
+    });
+    assert_eq!(rebuilds, 0, "release must keep the active tree");
+    assert!(state.lock().unwrap().page_controller.is_settling());
+    assert!(!backend.flushes.is_empty());
+    assert!(backend
+        .flushes
+        .iter()
+        .all(|r| r.y >= 208.0 && r.height <= 376.0 && r.width <= 864.0));
+    app.step_with_builder(&mut backend, |size| {
+        rebuilds += 1;
+        build_launcher_ui(state.clone(), size)
+    });
+    assert_eq!(rebuilds, 0, "animation frame must not remount widgets");
+    std::thread::sleep(std::time::Duration::from_millis(240));
+    app.step_with_builder(&mut backend, |size| {
+        rebuilds += 1;
+        build_launcher_ui(state.clone(), size)
+    });
+    assert_eq!(
+        rebuilds, 1,
+        "apply deferred revisions and refresh launch backdrop at rest"
+    );
+    assert_eq!(state.lock().unwrap().page_controller.drag_offset(), 0.0);
+}
+
+#[test]
+fn owned_drag_follows_outside_grid_and_regrabbing_edge_bounce_does_not_jump() {
+    let (state, mut app, mut backend) = setup();
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Down(Point::new(132.0, 278.0)),
+    );
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Move(Point::new(260.0, 278.0)),
+    );
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Up(Point::new(260.0, 278.0)),
+    );
+    let before = state.lock().unwrap().page_controller.drag_offset();
+    assert!(before > 1.0);
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Down(Point::new(260.0, 278.0)),
+    );
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Move(Point::new(260.0, 278.0)),
+    );
+    assert!((state.lock().unwrap().page_controller.drag_offset() - before).abs() < 0.01);
+    event(&state, &mut app, &mut backend, TouchEvent::Cancel);
+    state.lock().unwrap().page_controller.set_page(0);
+    app.request_rebuild();
+    app.step_with_builder(&mut backend, |size| build_launcher_ui(state.clone(), size));
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Down(Point::new(700.0, 380.0)),
+    );
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Move(Point::new(0.0, 380.0)),
+    );
+    assert_eq!(state.lock().unwrap().page_controller.drag_offset(), -700.0);
+    event(
+        &state,
+        &mut app,
+        &mut backend,
+        TouchEvent::Up(Point::new(0.0, 380.0)),
+    );
+    assert_eq!(state.lock().unwrap().current_page, 1);
+    assert!(matches!(
+        state.lock().unwrap().active_app,
+        ActiveApp::Launcher
+    ));
 }

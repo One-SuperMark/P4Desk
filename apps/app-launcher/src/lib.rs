@@ -1,13 +1,21 @@
 pub mod app_icons;
 pub mod app_launch;
+pub mod appearance;
 pub mod battery;
+mod battery_digits_generated;
 pub mod boot_diagnostics;
+mod control_center_glass;
 pub mod flip_clock;
+pub mod folio_desktop;
 pub mod headless;
+pub mod icon_theme;
 pub mod launcher_state;
 pub mod launcher_ui;
+pub mod live_clock_icon;
 pub mod manual_clock;
+pub mod planned_apps;
 pub mod pomodoro_ui;
+pub mod session;
 pub mod status_bar;
 pub mod storage;
 pub mod timer;
@@ -16,7 +24,7 @@ pub mod widgets;
 
 pub use launcher_state::{ActiveApp, LauncherState, UiCommand, APP_IDS};
 pub use launcher_ui::build_launcher_ui;
-pub use status_bar::build_status_bar;
+pub use status_bar::build_status_rail;
 pub use storage::{GenerationStore, LocalSettings};
 pub use timer::TimerService;
 

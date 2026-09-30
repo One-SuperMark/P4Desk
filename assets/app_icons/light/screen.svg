@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>P4Desk Folio round screen</title>
+  <desc>Original P4Desk artwork inspired by Folio round layered geometry. Copyright 2026 P4Desk contributors. MIT License.</desc>
+  <circle cx="64" cy="64" r="56" fill="#e4dcef" />
+  <circle cx="64.82963" cy="66.45503" r="26.54815" fill="#564667" opacity=".22" />
+  <path d="M50.72593 44.05503C41.6 49.0328 37.45185 56.49947 37.45185 65.6254C37.45185 79.7291 49.06667 91.34392 64 91.34392C78.93333 91.34392 90.54815 79.7291 90.54815 65.6254C90.54815 56.49947 86.4 49.0328 77.27407 44.05503" fill="none" stroke="#e1d9ef" stroke-width="8.2963" stroke-linecap="round" />
+  <path d="M64 32.44021L64 61.47725" fill="none" stroke="#ffffff" stroke-width="8.2963" stroke-linecap="round" />
+</svg>

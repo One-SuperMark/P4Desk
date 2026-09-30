@@ -1,4 +1,5 @@
 use crate::graphics::canvas::Canvas;
+use crate::graphics::color::Color;
 use crate::graphics::geometry::{Offset, Point, Rect, Size};
 use crate::rendering::constraints::BoxConstraints;
 use crate::rendering::render_box::{RenderBox, TouchEvent};
@@ -9,18 +10,18 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone, Default)]
 pub struct ScrollController {
     offset: Arc<Mutex<f32>>,
+    raster: Arc<Mutex<super::scroll_raster::ScrollRaster>>,
 }
 
 impl ScrollController {
     pub fn new() -> Self {
-        Self {
-            offset: Arc::new(Mutex::new(0.0)),
-        }
+        Self::default()
     }
 
     pub fn with_offset(initial: f32) -> Self {
         Self {
             offset: Arc::new(Mutex::new(initial)),
+            ..Self::default()
         }
     }
 
@@ -40,6 +41,7 @@ pub struct SingleChildScrollView {
     pub child: Box<dyn Widget>,
     pub controller: Option<ScrollController>,
     pub auto_scroll_to_bottom: bool,
+    raster_cache: Option<(u64, Color)>,
 }
 
 impl SingleChildScrollView {
@@ -48,6 +50,7 @@ impl SingleChildScrollView {
             child: Box::new(child),
             controller: None,
             auto_scroll_to_bottom: false,
+            raster_cache: None,
         }
     }
 
@@ -58,6 +61,13 @@ impl SingleChildScrollView {
 
     pub fn auto_scroll_to_bottom(mut self, auto: bool) -> Self {
         self.auto_scroll_to_bottom = auto;
+        self
+    }
+
+    /// For static content over a uniform opaque background only. Change the key
+    /// whenever any rendered value changes. At most 2 MiB is retained per controller.
+    pub fn raster_cache(mut self, revision: u64, background: Color) -> Self {
+        self.raster_cache = Some((revision, background));
         self
     }
 }
@@ -73,9 +83,17 @@ impl Widget for SingleChildScrollView {
             max_scroll: 0.0,
             is_dragging: false,
             touch_start_y: 0.0,
+            touch_start_x: 0.0,
+            child_canceled: false,
             touch_start_offset: 0.0,
             size: Size::ZERO,
             offset: Offset::ZERO,
+            raster_cache: self.raster_cache,
+            raster: self
+                .controller
+                .as_ref()
+                .map(|c| c.raster.clone())
+                .unwrap_or_default(),
         })
     }
 }
@@ -88,12 +106,52 @@ pub struct RenderSingleChildScrollView {
     max_scroll: f32,
     is_dragging: bool,
     touch_start_y: f32,
+    touch_start_x: f32,
+    child_canceled: bool,
     touch_start_offset: f32,
     size: Size,
     offset: Offset,
+    raster_cache: Option<(u64, Color)>,
+    raster: Arc<Mutex<super::scroll_raster::ScrollRaster>>,
 }
 
 impl RenderBox for RenderSingleChildScrollView {
+    fn drag_dirty(&self) -> Option<Rect> {
+        (self.is_dragging && self.child_canceled && self.raster_cache.is_some())
+            .then(|| Rect::from_ltwh(0.0, 0.0, self.size.width, self.size.height))
+    }
+    fn paint_opaque_region(&self, canvas: &mut Canvas, offset: Offset, dirty: Rect) -> bool {
+        if self.is_dragging && !self.child_canceled {
+            return false;
+        }
+        let Some((key, background)) = self.raster_cache else {
+            return false;
+        };
+        let child_size = self.child.size();
+        if child_size.width < self.size.width
+            || child_size.height < self.size.height
+            || dirty.x < offset.dx
+            || dirty.y < offset.dy
+            || dirty.right() > offset.dx + self.size.width
+            || dirty.bottom() > offset.dy + self.size.height
+        {
+            return false;
+        }
+        self.raster.lock().unwrap().paint(
+            self.child.as_ref(),
+            key,
+            background,
+            canvas,
+            Offset::new(offset.dx, offset.dy - self.scroll_offset),
+        )
+    }
+    fn captures_touch(&self) -> bool {
+        self.is_dragging
+    }
+
+    fn needs_rebuild(&self) -> bool {
+        self.child.needs_rebuild()
+    }
     fn size(&self) -> Size {
         self.size
     }
@@ -160,7 +218,22 @@ impl RenderBox for RenderSingleChildScrollView {
         ));
 
         let child_offset = Offset::new(offset.dx, offset.dy - self.scroll_offset);
-        self.child.paint(canvas, child_offset);
+        // Pending taps use the actual pressed child. Once scrolling has canceled
+        // the tap, replay the resting snapshot instead of rasterizing SVGs at
+        // every new y coordinate. The controller retains it across root rebuilds.
+        let cached = (!self.is_dragging || self.child_canceled)
+            && self.raster_cache.is_some_and(|(key, background)| {
+                self.raster.lock().unwrap().paint(
+                    self.child.as_ref(),
+                    key,
+                    background,
+                    canvas,
+                    child_offset,
+                )
+            });
+        if !cached {
+            self.child.paint(canvas, child_offset);
+        }
 
         canvas.restore();
     }
@@ -174,11 +247,37 @@ impl RenderBox for RenderSingleChildScrollView {
                 self.auto_scroll_to_bottom = false;
                 self.is_dragging = true;
                 self.touch_start_y = pt.y;
+                self.touch_start_x = pt.x;
+                self.child_canceled = false;
                 self.touch_start_offset = self.scroll_offset;
+                self.child
+                    .dispatch_touch(&event.transform(Point::new(pt.x, pt.y + self.scroll_offset)));
                 true
             }
             TouchEvent::Move(pt) if self.is_dragging => {
                 let dy = pt.y - self.touch_start_y;
+                let dx = pt.x - self.touch_start_x;
+                // A horizontal slider may claim its gesture; vertical movement
+                // still cancels it and belongs to this scroll view.
+                if !self.child_canceled
+                    && (self.child.captures_touch()
+                        || (dx.abs() > 8.0 && dx.abs() > dy.abs() * 1.2))
+                {
+                    let handled = self.child.dispatch_touch(
+                        &event.transform(Point::new(pt.x, pt.y + self.scroll_offset)),
+                    );
+                    if handled && self.child.captures_touch() {
+                        return true;
+                    }
+                }
+                let canceled_now = !self.child_canceled && (dy.abs() > 8.0 || dx.abs() > 8.0);
+                if canceled_now {
+                    self.child.dispatch_touch(&TouchEvent::Cancel);
+                    self.child_canceled = true;
+                }
+                if !self.child_canceled {
+                    return false;
+                }
                 let new_offset = (self.touch_start_offset - dy).clamp(0.0, self.max_scroll);
                 if (new_offset - self.scroll_offset).abs() > 0.5 {
                     self.scroll_offset = new_offset;
@@ -187,11 +286,28 @@ impl RenderBox for RenderSingleChildScrollView {
                     }
                     true
                 } else {
-                    false
+                    canceled_now
                 }
             }
-            TouchEvent::Up(_) if self.is_dragging => {
+            TouchEvent::Up(pt) if self.is_dragging => {
                 self.is_dragging = false;
+                if self.child.captures_touch() {
+                    return self.child.dispatch_touch(
+                        &event.transform(Point::new(pt.x, pt.y + self.scroll_offset)),
+                    );
+                }
+                if self.child_canceled
+                    || (pt.y - self.touch_start_y).abs() > 8.0
+                    || (pt.x - self.touch_start_x).abs() > 8.0
+                {
+                    self.child.dispatch_touch(&TouchEvent::Cancel);
+                    self.scroll_offset = (self.touch_start_offset - (pt.y - self.touch_start_y))
+                        .clamp(0.0, self.max_scroll);
+                } else {
+                    self.child.dispatch_touch(
+                        &event.transform(Point::new(pt.x, pt.y + self.scroll_offset)),
+                    );
+                }
                 if let Some(ctrl) = &self.controller {
                     ctrl.set_offset(self.scroll_offset);
                 }
@@ -199,7 +315,8 @@ impl RenderBox for RenderSingleChildScrollView {
             }
             TouchEvent::Cancel => {
                 self.is_dragging = false;
-                false
+                self.child.dispatch_touch(event);
+                true
             }
             _ => {
                 let local_p = Point::new(p.x, p.y + self.scroll_offset);
@@ -214,8 +331,23 @@ impl RenderBox for RenderSingleChildScrollView {
     }
 
     fn hit_rect(&self, point: Point) -> Option<Rect> {
-        if self.hit_test(point) {
-            Some(Rect::from_ltwh(0.0, 0.0, self.size.width, self.size.height))
+        if self.hit_test(point) || self.is_dragging {
+            let viewport = Rect::from_ltwh(0.0, 0.0, self.size.width, self.size.height);
+            if self.is_dragging && !self.child_canceled {
+                // A press only changes its button, not the entire scroll page.
+                // A press on empty space needs no paint but still owns the drag.
+                Some(
+                    self.child
+                        .hit_rect(Point::new(point.x, point.y + self.scroll_offset))
+                        .and_then(|r| {
+                            r.shift(Offset::new(0.0, -self.scroll_offset))
+                                .intersect(&viewport)
+                        })
+                        .unwrap_or(Rect::ZERO),
+                )
+            } else {
+                Some(viewport)
+            }
         } else {
             None
         }

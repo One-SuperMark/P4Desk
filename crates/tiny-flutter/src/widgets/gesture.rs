@@ -197,6 +197,26 @@ pub struct RenderBackListener {
 }
 
 impl RenderBox for RenderBackListener {
+    fn drag_dirty(&self) -> Option<Rect> {
+        self.child
+            .drag_dirty()
+            .map(|r| r.shift(self.child.offset()))
+    }
+    fn paint_opaque_region(&self, canvas: &mut Canvas, offset: Offset, dirty: Rect) -> bool {
+        self.child
+            .paint_opaque_region(canvas, offset + self.child.offset(), dirty)
+    }
+    fn captures_touch(&self) -> bool {
+        self.child.captures_touch()
+    }
+    fn animation_dirty(&self) -> Option<Rect> {
+        self.child
+            .animation_dirty()
+            .map(|r| r.shift(self.child.offset()))
+    }
+    fn needs_rebuild(&self) -> bool {
+        self.child.needs_rebuild()
+    }
     fn size(&self) -> Size {
         self.size
     }

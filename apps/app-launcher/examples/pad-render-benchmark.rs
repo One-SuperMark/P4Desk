@@ -30,10 +30,17 @@ unsafe impl GlobalAlloc for CountedAllocator {
 static ALLOCATOR: CountedAllocator = CountedAllocator;
 
 fn main() {
+    let glass = std::env::args()
+        .nth(1)
+        .and_then(|s| s.parse::<u8>().ok())
+        .unwrap_or(65)
+        .min(100);
     let size = Size::new(1024.0, 600.0);
     let mut results = Vec::new();
     for (name, elapsed) in [
         ("desktop", None),
+        ("slide-quarter", None),
+        ("slide-half", None),
         ("wallpaper", None),
         ("circle_150ms", Some(150)),
         ("circle_220ms", Some(220)),
@@ -42,6 +49,7 @@ fn main() {
         ("timer", Some(940)),
     ] {
         let state = Arc::new(Mutex::new(LauncherState::new()));
+        state.lock().unwrap().settings.glass_amount = glass;
         if let Some(now) = elapsed {
             // Production prepares the backdrop during the initial complete
             // desktop paint, before the user presses the icon.
@@ -50,7 +58,7 @@ fn main() {
             let mut pixels = tiny_gfx::Pixmap565::new(1024, 600).unwrap();
             desktop.paint(&mut Canvas::new(pixels.as_mut()), Offset::ZERO);
             let mut s = state.lock().unwrap();
-            s.launch_app("timer", Rect::from_ltwh(323.0, 108.0, 137.24, 137.24));
+            s.launch_app("timer", Rect::from_ltwh(282.2, 212.2, 131.6, 131.6));
             s.tick(now, 0);
         }
         let mut root = if name == "wallpaper" {
@@ -62,6 +70,17 @@ fn main() {
         };
         root.layout(&BoxConstraints::tight(size));
         let mut pixels = tiny_gfx::Pixmap565::new(1024, 600).unwrap();
+        let cold_start = Instant::now();
+        root.paint(&mut Canvas::new(pixels.as_mut()), Offset::ZERO);
+        let cold_us = cold_start.elapsed().as_micros();
+        if name.starts_with("slide-") {
+            root.dispatch_touch(&TouchEvent::Down(Point::new(780.0, 380.0)));
+            root.dispatch_touch(&TouchEvent::Move(Point::new(
+                if name == "slide-half" { 348.0 } else { 564.0 },
+                380.0,
+            )));
+            root.layout(&BoxConstraints::tight(size));
+        }
         for _ in 0..3 {
             root.paint(&mut Canvas::new(pixels.as_mut()), Offset::ZERO);
         }
@@ -76,10 +95,10 @@ fn main() {
         let allocations = ALLOCS.load(Ordering::Relaxed) / 40;
         let bytes = ALLOC_BYTES.load(Ordering::Relaxed) / 40;
         times.sort_unstable();
-        results.push(serde_json::json!({"case":name,"median_us":times[20] as f64/1000.0,"p95_us":times[38] as f64/1000.0,"allocations_per_paint":allocations,"allocated_bytes_per_paint":bytes}));
+        results.push(serde_json::json!({"case":name,"first_paint_us":cold_us,"median_us":times[20] as f64/1000.0,"p95_us":times[38] as f64/1000.0,"allocations_per_paint":allocations,"allocated_bytes_per_paint":bytes}));
     }
     println!(
         "{}",
-        serde_json::json!({"scope":"synthetic arm64 release render-only; not device latency or resident heap","samples_per_case":40,"results":results})
+        serde_json::json!({"scope":"synthetic arm64 release render-only; not device latency or resident heap","glass_amount":glass,"samples_per_case":40,"results":results})
     );
 }

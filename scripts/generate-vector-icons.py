@@ -17,7 +17,8 @@ def number(value):
     result = float(value)
     if not (-1e6 < result < 1e6):
         raise ValueError('Non-finite or unreasonable coordinate')
-    return f'{result:.6f}'.rstrip('0').rstrip('.') + ('.0' if result == int(result) else '')
+    text = f'{result:.6f}'.rstrip('0').rstrip('.')
+    return text if '.' in text else text + '.0'
 
 
 def color(value, opacity=1.0):
@@ -62,13 +63,16 @@ def compile_svg(path, name):
         raise ValueError('Only origin-aligned viewBox matching width/height is supported')
     gradients = {}
     for element in root.iter():
-        if element.tag.endswith('}linearGradient'):
+        if element.tag.endswith(('}linearGradient','}radialGradient')):
+            if element.get('data-p4desk-matrix'):
+                gradients[element.attrib['id']] = element
+                continue
             if element.get('gradientUnits') != 'userSpaceOnUse' or element.get('x1') != element.get('x2'):
                 raise ValueError('Only vertical user-space linear gradients are supported')
             stops = list(element)
             if len(stops) != 2 or [s.get('offset') for s in stops] != ['0', '1']:
                 raise ValueError('Gradient must have stops at 0 and 1')
-            gradients[element.attrib['id']] = (element.attrib['y1'], element.attrib['y2'], stops[0].attrib['stop-color'], stops[1].attrib['stop-color'])
+            gradients[element.attrib['id']] = (element.attrib['y1'], element.attrib['y2'], [(s.attrib['stop-color'], float(s.get('stop-opacity',1))) for s in stops])
     layers = []
     def visit(element, inherited):
         tag = element.tag.rsplit('}', 1)[-1]
@@ -104,11 +108,24 @@ def compile_svg(path, name):
             if not 0 <= opacity <= 1:
                 raise ValueError('Invalid SVG opacity')
             if value.startswith('url(#') and value.endswith(')'):
-                y1, y2, top, bottom = gradients[value[5:-1]]
-                # The SVGs' gradients are opaque; enforce this rather than losing alpha.
-                if opacity != 1:
-                    raise ValueError('Gradient opacity must be baked into its stops')
-                return 'Some(VectorPaint::VerticalGradient {' + f'y1:{number(y1)},y2:{number(y2)},top:Color::from_hex(0x{top[1:]}),bottom:Color::from_hex(0x{bottom[1:]})' + '})'
+                gradient = gradients[value[5:-1]]
+                if isinstance(gradient, ET.Element):
+                    matrix=','.join(number(v) for v in gradient.attrib['data-p4desk-matrix'].split())
+                    stops=[]
+                    for stop in gradient:
+                        alpha=float(stop.get('stop-opacity',1))*opacity
+                        c=color(stop.get('stop-color','#000000'),alpha).removeprefix('Some(VectorPaint::Solid(').removesuffix('))')
+                        stops.append('('+number(stop.get('offset'))+','+c+')')
+                    radial=str(gradient.tag.endswith('}radialGradient')).lower()
+                    return 'Some(VectorPaint::MappedGradient {matrix:['+matrix+'],radial:'+radial+',stops:&['+','.join(stops)+']})'
+                y1, y2, stops = gradient
+                def stop_color(stop):
+                    value, alpha=stop
+                    if not 0 <= alpha <= 1:raise ValueError('Invalid stop opacity')
+                    # Keep opaque output stable for existing owned and Numix assets.
+                    if alpha*opacity==1:return f'Color::from_hex(0x{value[1:]})'
+                    return color(value,alpha*opacity).removeprefix('Some(VectorPaint::Solid(').removesuffix('))')
+                return 'Some(VectorPaint::VerticalGradient {' + f'y1:{number(y1)},y2:{number(y2)},top:{stop_color(stops[0])},bottom:{stop_color(stops[1])}' + '})'
             return color(value,opacity)
         cap = {'butt':'Butt','round':'Round','square':'Square'}[attributes.get('stroke-linecap','butt')]
         join = {'miter':'Miter','round':'Round','bevel':'Bevel'}[attributes.get('stroke-linejoin','miter')]

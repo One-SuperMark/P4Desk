@@ -1,0 +1,484 @@
+{
+  "schema": "p4desk.folio-ui.acceptance.v1",
+  "recorded_at": "2026-09-30T11:30:28.072686+08:00",
+  "branch": "codex/folio-ui",
+  "base_commit": "87ec66c8375df2cecaeb0a0356ab8d58ac12adf0",
+  "upstream": {
+    "url": "https://github.com/McCal-Codes/folio",
+    "commit": "2590bc164aaccaca79dc445272be6c56dff07dc1",
+    "license": "third_party/folio/LICENSE"
+  },
+  "implementation": {
+    "scope": "Pad desktop, all existing apps and system panels; Rust tiny-flutter/tiny_gfx retained",
+    "icons": "eight original circular SVGs; internal artwork max extent 60% of unchanged disk diameter; 34 common SVGs; no Minimal O assets",
+    "wallpaper_spans_bytes": 50352,
+    "display_owner": "unchanged; PPA rotation and touch direction retained",
+    "transport_ffi": "unchanged USB protocol and C/Rust radio layout",
+    "desktop_refinement": {
+      "headings_removed": [
+        "今天",
+        "P4Desk"
+      ],
+      "rail_clock_removed": true,
+      "status_plate_interaction": "none; separate control-center button retained",
+      "battery": "shares top row with Wi-Fi; 28px square slot, 28x14px body+terminal; white charge fill/gray empty portion; black DINish Heavy vector numerals; no percent sign, outline or bolt",
+      "icon_proportions": [
+        {
+          "icon": "calculator",
+          "outer_diameter": 112,
+          "inner_max_extent": 67.2,
+          "ratio": 0.6
+        },
+        {
+          "icon": "clock",
+          "outer_diameter": 112,
+          "inner_max_extent": 67.2,
+          "ratio": 0.6
+        },
+        {
+          "icon": "display",
+          "outer_diameter": 112,
+          "inner_max_extent": 67.20001,
+          "ratio": 0.6
+        },
+        {
+          "icon": "mac",
+          "outer_diameter": 112,
+          "inner_max_extent": 67.2,
+          "ratio": 0.6
+        },
+        {
+          "icon": "notes",
+          "outer_diameter": 112,
+          "inner_max_extent": 67.2,
+          "ratio": 0.6
+        },
+        {
+          "icon": "screen",
+          "outer_diameter": 112,
+          "inner_max_extent": 67.20001,
+          "ratio": 0.6
+        },
+        {
+          "icon": "settings",
+          "outer_diameter": 112,
+          "inner_max_extent": 67.2,
+          "ratio": 0.6
+        },
+        {
+          "icon": "timer",
+          "outer_diameter": 112,
+          "inner_max_extent": 67.20001,
+          "ratio": 0.6
+        }
+      ],
+      "status_rows": [
+        [
+          "battery",
+          "wifi"
+        ],
+        [
+          "usb",
+          "TF"
+        ],
+        [
+          "bluetooth",
+          null
+        ]
+      ],
+      "status_plate_size": [
+        92,
+        152
+      ],
+      "dock": "four most recently opened distinct apps in this boot; oldest open first, top to bottom at y=310/382/454/526; closing retains shortcut; reopening moves to end; actual background instance limit remains four with oldest-hide eviction; recent history stores static identifiers only; USB display included, screen-off command excluded; launch backdrop frozen before reordering",
+      "control_center_press": "same 92x48 capsule and 24px radius as glass backdrop; transparent at rest, 10 percent white overlay when pressed; no shape change"
+    },
+    "battery_glyphs": {
+      "source": "assets/fonts/source/DINish-Heavy.ttf",
+      "generated": "apps/app-launcher/src/battery_digits_generated.rs",
+      "generator": "scripts/generate-battery-vectors.swift",
+      "license": "third_party/licenses/DINish-OFL.txt",
+      "count": 11,
+      "check": "passed"
+    },
+    "app_details": {
+      "reference": "FolioTokens.kt / IosControls.kt / SettingsGroup.kt / docs/standards/design.md at fixed upstream revision",
+      "navigation": "48px circular targets, 24px vector glyphs",
+      "controls": "shared hue-preserving press, same geometry; grouped/segmented surfaces and inset separators",
+      "clock": "centered date capsule; accepted mechanical face unchanged",
+      "timer": "mode and duration segments; secondary pills; existing theme and completion motion",
+      "calculator": "result card, shared neutral hierarchy, dark-on-orange selected labels, quiet disabled keys",
+      "notes": "app badge, title/body separator, measured two-line title at supported 28px, destructive delete and empty state",
+      "mac": "action-kind icons, measured two-line labels, media separator, meaningful pagination/empty state",
+      "settings": "grouped sidebar, list separators, connected-network marker, AA switch thumb, form layers, supported CJK sizes",
+      "usb": "wrapped connection status and separated primary action",
+      "resources": "no new font pack, raster icon, framebuffer or blur buffer"
+    }
+  },
+  "host_tests": {
+    "status": "passed",
+    "workspace_passed": 229,
+    "final_ui_passed": 229,
+    "logs": [
+      ".cache/folio/tests-workspace.log",
+      ".cache/folio/tests-final-desktop.log",
+      ".cache/folio/tests-battery-polish.log",
+      ".cache/folio/tests-battery-small.log",
+      ".cache/folio/tests-compact-rail.log",
+      ".cache/folio/tests-background-dock.log",
+      ".cache/folio/tests-background-limit.log",
+      ".cache/folio/tests-controls-pill.log",
+      ".cache/folio/tests-recent-dock.log",
+      ".cache/folio/tests-app-details.log",
+      ".cache/folio/tests-app-details-final.log"
+    ],
+    "covers": [
+      "eight icon routes",
+      "drag cancellation and pressed-region repaint",
+      "background state restore",
+      "control-center commands and modal dismissal",
+      "widget/Dock icon origins",
+      "full-vs-clipped cached/uncached launch rendering",
+      "USB first-frame hold and failure recovery",
+      "BLE ready-state desktop refresh",
+      "passive top status plate; notification does not cover enlarged icon rows",
+      "empty Dock is only wallpaper and cannot launch an app",
+      "four recent entries in last-open order, top to bottom",
+      "fifth hidden app releases oldest instance; reopened calculator starts fresh",
+      "full queue resumes oldest notes instance without losing selection; rehiding moves it last",
+      "same foreground reopen and USB handoff do not consume background slots",
+      "cached and uncached launch rendering with one-app/four-app Dock",
+      "control-center normal/pressed/canceled snapshots: feedback within capsule; canceled pixels equal normal",
+      "closed recent entries remain clickable in all four slots",
+      "closed calculator reopened from Dock is a new instance with cleared input",
+      "recent history retains no application instance and does not change four-background limit",
+      "USB display can be recorded without retaining a background instance; unknown app is excluded"
+    ],
+    "workspace_note": "Final application-detail sources passed 229 workspace tests after typography corrections and shared-control updates.",
+    "prior_refinement_passed": 59,
+    "latest_regression_passed": 229
+  },
+  "generated_assets": {
+    "svg_check": "passed",
+    "icons": 42,
+    "wallpaper_check": "passed"
+  },
+  "previews": {
+    "status": "visually inspected",
+    "renderer": "actual Rust RGB565 renderer; synthetic fixtures",
+    "files": [
+      "docs/images/folio-desktop.png",
+      "docs/images/folio-control-center.png",
+      "docs/images/folio-pages.png",
+      "docs/images/folio-background-apps.png",
+      "docs/images/folio-controls-press.png",
+      "docs/images/folio-recent-apps.png",
+      "docs/images/folio-app-details.png",
+      "docs/images/folio-detail-notes.png",
+      "docs/images/folio-detail-mac.png",
+      "docs/images/folio-detail-settings-wifi.png",
+      "docs/images/folio-detail-basic.png",
+      "docs/images/folio-detail-pomodoro-countdown.png",
+      "docs/images/folio-app-details-highlight.png"
+    ],
+    "scenes": [
+      "desktop",
+      "control center",
+      "clock",
+      "timer",
+      "notes",
+      "Mac actions",
+      "calculator basic/scientific/programmer",
+      "Wi-Fi",
+      "BLE",
+      "USB connection",
+      "battery 10/79/100 percent and unavailable",
+      "desktop with no background apps",
+      "desktop with two background apps",
+      "desktop with four background apps",
+      "four recent apps, all explicitly closed",
+      "notes empty/delete/long title and scrolling body",
+      "Mac empty and long label",
+      "timer focus/running/paused/break/finished/countdown",
+      "Wi-Fi password form and BLE details",
+      "settings display/date/storage/about",
+      "USB disconnected"
+    ],
+    "control_center_press_check": {
+      "change_bounds": [
+        908,
+        192,
+        1000,
+        240
+      ],
+      "changed_pixels": 3894,
+      "outside_pill": 0,
+      "cancel_matches_normal": true
+    }
+  },
+  "benchmark": {
+    "results": [
+      {
+        "allocated_bytes_per_paint": 186930,
+        "allocations_per_paint": 1135,
+        "case": "desktop",
+        "median_us": 2514.709,
+        "p95_us": 3481.875
+      },
+      {
+        "allocated_bytes_per_paint": 16560,
+        "allocations_per_paint": 3,
+        "case": "wallpaper",
+        "median_us": 403.916,
+        "p95_us": 415.417
+      },
+      {
+        "allocated_bytes_per_paint": 6644,
+        "allocations_per_paint": 51,
+        "case": "circle_150ms",
+        "median_us": 346.375,
+        "p95_us": 431.542
+      },
+      {
+        "allocated_bytes_per_paint": 6644,
+        "allocations_per_paint": 51,
+        "case": "circle_220ms",
+        "median_us": 302.375,
+        "p95_us": 345.333
+      },
+      {
+        "allocated_bytes_per_paint": 4596,
+        "allocations_per_paint": 50,
+        "case": "bridge_300ms",
+        "median_us": 184.709,
+        "p95_us": 212.959
+      },
+      {
+        "allocated_bytes_per_paint": 10145,
+        "allocations_per_paint": 83,
+        "case": "reveal_640ms",
+        "median_us": 532.292,
+        "p95_us": 600.541
+      },
+      {
+        "allocated_bytes_per_paint": 8097,
+        "allocations_per_paint": 82,
+        "case": "timer",
+        "median_us": 264.416,
+        "p95_us": 282.625
+      }
+    ],
+    "samples_per_case": 40,
+    "scope": "synthetic arm64 release render-only; not device latency or resident heap",
+    "revision_note": "Measured large vector battery before its final size reduction; not a device benchmark."
+  },
+  "build": {
+    "status": "passed",
+    "sdk": "ESP-IDF 6.0.2",
+    "rust": "nightly-2026-09-27",
+    "bytes": 4388960,
+    "sha256": "5fcb5a101cd8e4cba89496d87a1dd058e9a7e710f8ef8701af8e6be142e8b23f",
+    "log": ".cache/folio/build-app-details.log",
+    "saved_artifact": ".cache/folio/p4desk.bin"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/folio/flash-app-details.log",
+    "verification": "esptool Hash of data verified for three images; hard reset",
+    "full_backup_verified": "backups/2026-09-28/p4-before-p4desk.bin",
+    "base_app_backup": ".cache/folio/restore/p4desk.bin"
+  },
+  "device_boot": {
+    "status": "passed",
+    "log": ".cache/folio/monitor-app-details.log",
+    "observation_seconds": 45,
+    "panel": "1024x600 RGB565; rotation=180; touch correction=0",
+    "touch_initialized": true,
+    "TF_read_write_passed": true,
+    "diagnostics": [
+      {
+        "uptime_s": 30,
+        "mode": "pad",
+        "internal_free": 24671,
+        "internal_largest": 19456,
+        "psram_free": 19146792,
+        "psram_largest": 18350080,
+        "presented": 64,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0,
+        "jpeg_received": 0,
+        "jpeg_dropped": 0,
+        "frame_ack_dropped": 0
+      }
+    ],
+    "crash_markers": false,
+    "limits": "Boot and 30-second numeric health sample only; not real-device FPS, long-run stability or visual/touch acceptance of the application-detail changes."
+  },
+  "user_acceptance": {
+    "status": "latest Folio application details awaiting physical review",
+    "requested_icon_direction": "round disks; internal artwork max extent 60% of outer disk diameter",
+    "feedback": {
+      "visual": "图标还需要调整",
+      "interaction": "动画和点击都正常",
+      "battery": "大小和数字都合适，不要单独占一行"
+    },
+    "accepted": [
+      "launch animations smooth",
+      "desktop/Home/control-center/Wi-Fi taps normal",
+      "28x14 battery size and vector numeral readability"
+    ],
+    "pending": [
+      "60 percent internal icon size",
+      "fixed two-column passive status plate",
+      "recent-app Dock keeps closed shortcuts; reopen/resume; top-to-bottom four-entry order",
+      "USB display transition with this branch",
+      "control-center press retains capsule shape on physical display",
+      "Folio application details on LCD: appearance, list/keyboard/paging taps, app transitions"
+    ],
+    "accepted_build": "7005a1b760a19f62a5fd2f9b25c37972e510172cbd4bea5b602e2debf451b0fc",
+    "small_battery_accepted_build": "0e22544a5f39e5c17ce408bd4a5b471d4c17ebdc3f7a8b7312231a2f2722a85c"
+  },
+  "notes": [
+    "No device FPS is inferred from the macOS render benchmark.",
+    "BLE scan/connection implementation is inherited; real pairing with an external BLE device remains unverified.",
+    "Changes remain local and uncommitted on the new branch."
+  ],
+  "previous_device_boot": {
+    "status": "passed",
+    "logs": [
+      ".cache/folio/monitor-battery-small.log",
+      ".cache/folio/monitor-battery-small-health.log"
+    ],
+    "observations_seconds": [
+      35,
+      35
+    ],
+    "observation_note": "Two bounded UART observations; serial reopening restarted the board. The latest complete health sample is 30 seconds into the subsequent boot.",
+    "panel": "1024x600 RGB565; 180-degree rotation and touch correction=0",
+    "touch_initialized": true,
+    "TF_read_write_passed": true,
+    "diagnostics": [
+      {
+        "uptime_s": 30,
+        "mode": "pad",
+        "internal_free": 25603,
+        "internal_largest": 18432,
+        "psram_free": 19142932,
+        "psram_largest": 18350080,
+        "presented": 66,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0,
+        "jpeg_received": 0,
+        "jpeg_dropped": 0,
+        "frame_ack_dropped": 0
+      }
+    ],
+    "crash_markers": false,
+    "limits": "Boot and numeric health checks only; visual/physical acceptance of the final small battery remains pending."
+  },
+  "refinement_history": [
+    {
+      "stage": "four-app-background-limit",
+      "build": {
+        "status": "passed",
+        "sdk": "ESP-IDF 6.0.2",
+        "rust": "nightly-2026-09-27",
+        "bytes": 4382320,
+        "sha256": "ef265020c0ea548b94f1d4c583e92b0646afa6986413ab27696e0c1ae2c379b2",
+        "log": ".cache/folio/build-background-limit.log"
+      },
+      "flash": {
+        "status": "passed",
+        "log": ".cache/folio/flash-background-limit.log",
+        "verification": "esptool Hash of data verified for three images; hard reset",
+        "full_backup_verified": "backups/2026-09-28/p4-before-p4desk.bin",
+        "base_app_backup": ".cache/folio/restore/p4desk.bin"
+      },
+      "device_boot": {
+        "status": "passed",
+        "log": ".cache/folio/monitor-background-limit.log",
+        "observation_seconds": 45,
+        "panel": "1024x600 RGB565; 180-degree rotation and touch correction=0",
+        "touch_initialized": true,
+        "TF_read_write_passed": true,
+        "diagnostics": [
+          {
+            "uptime_s": 30,
+            "mode": "pad",
+            "internal_free": 20167,
+            "internal_largest": 10240,
+            "psram_free": 19146888,
+            "psram_largest": 18350080,
+            "presented": 68,
+            "bad_jpeg": 0,
+            "parser_errors": 0,
+            "control_queue": 0,
+            "jpeg_received": 0,
+            "jpeg_dropped": 0,
+            "frame_ack_dropped": 0
+          }
+        ],
+        "crash_markers": false,
+        "limits": "Boot and numeric health observation only; physical four-app eviction, ordering and touch acceptance pending."
+      }
+    },
+    {
+      "stage": "control-center-pill-press",
+      "build": {
+        "status": "passed",
+        "sdk": "ESP-IDF 6.0.2",
+        "rust": "nightly-2026-09-27",
+        "bytes": 4382336,
+        "sha256": "9cf6c7edeea8376d56b1fde8812932206ddb5fe85e8cf7fdee0465b2edb6f2b5",
+        "log": ".cache/folio/build-controls-pill.log"
+      },
+      "flash": {
+        "status": "passed",
+        "log": ".cache/folio/flash-controls-pill.log",
+        "verification": "esptool Hash of data verified for three images; hard reset",
+        "full_backup_verified": "backups/2026-09-28/p4-before-p4desk.bin",
+        "base_app_backup": ".cache/folio/restore/p4desk.bin"
+      },
+      "device_boot": {
+        "status": "passed",
+        "log": ".cache/folio/monitor-controls-pill.log",
+        "observation_seconds": 20,
+        "panel": "1024x600 RGB565; rotation=180; touch correction=0",
+        "touch_initialized": true,
+        "TF_read_write_passed": true,
+        "crash_markers": false,
+        "limits": "20-second boot observation only; no 30-second heap sample; physical pressed appearance awaiting user confirmation."
+      }
+    },
+    {
+      "stage": "recent-app-dock",
+      "build": {
+        "status": "passed",
+        "sdk": "ESP-IDF 6.0.2",
+        "rust": "nightly-2026-09-27",
+        "bytes": 4383408,
+        "sha256": "1b823983864c7dcd102b8498efa432b83229a684b9879187cf1f5e906c0c8d54",
+        "log": ".cache/folio/build-recent-dock.log"
+      },
+      "flash": {
+        "status": "passed",
+        "log": ".cache/folio/flash-recent-dock.log",
+        "verification": "esptool Hash of data verified for three images; hard reset",
+        "full_backup_verified": "backups/2026-09-28/p4-before-p4desk.bin",
+        "base_app_backup": ".cache/folio/restore/p4desk.bin"
+      },
+      "device_boot": {
+        "status": "passed",
+        "log": ".cache/folio/monitor-recent-dock.log",
+        "observation_seconds": 20,
+        "panel": "1024x600 RGB565; rotation=180; touch correction=0",
+        "touch_initialized": true,
+        "TF_read_write_passed": true,
+        "crash_markers": false,
+        "limits": "20-second boot observation only; no 30-second heap sample; recent-app Dock physical interaction awaiting user confirmation."
+      }
+    }
+  ]
+}

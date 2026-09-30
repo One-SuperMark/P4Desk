@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>P4Desk Folio round clock</title>
+  <desc>Original Folio-style dial. Live hour, minute and second hands are drawn by live_clock_icon.rs. Copyright 2026 P4Desk contributors. MIT License.</desc>
+  <circle cx="64" cy="64" r="56" fill="#d0e2e8" />
+  <circle cx="67.45126" cy="68.34726" r="31.36" fill="#142f40" opacity=".28" />
+  <circle cx="63.86726" cy="63.86726" r="31.36" fill="#d8e9e9" />
+  <circle cx="63.86726" cy="63.86726" r="25.984" fill="#ffffff" />
+  <g fill="#7c9da8">
+    <circle cx="63.86726" cy="41.46726" r="1.6128" />
+    <circle cx="86.26726" cy="63.86726" r="1.6128" />
+    <circle cx="63.86726" cy="86.26726" r="1.6128" />
+    <circle cx="41.46726" cy="63.86726" r="1.6128" />
+  </g>
+</svg>

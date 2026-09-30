@@ -3,4 +3,5 @@
 mod cadence;
 #[cfg(target_os = "espidf")]
 mod ffi;
+mod persistence;
 pub mod runtime;

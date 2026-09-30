@@ -1,0 +1,967 @@
+{
+  "schema": "p4desk.numix-selection.v2",
+  "created": "2026-09-30",
+  "purpose": "P4Desk 当前 Folio 桌面、规划应用与设置入口素材精选",
+  "upstream": {
+    "repository": "https://github.com/numixproject/numix-icon-theme-circle",
+    "commit": "6d4a4aad60994e688ab9dc8f021cb4ec86e9e532",
+    "directory": "Numix-Circle/48/apps/",
+    "license": "GPL-3.0-or-later",
+    "evidence": "SOURCE-README.txt、UPSTREAM-README.md、上层原包 index.csv"
+  },
+  "svg_modified": true,
+  "firmware_integrated": false,
+  "counts": {
+    "desktop": 8,
+    "planned": 3,
+    "settings": 10,
+    "alternatives": 4,
+    "total": 25
+  },
+  "icons": [
+    {
+      "id": "clock",
+      "name": "时钟",
+      "group": "desktop",
+      "file": "svg/desktop/clock.svg",
+      "source_file": "svg/preferences-system-time.svg",
+      "original_filename": "preferences-system-time.svg",
+      "sha256": "b7eb9ed314f591dc1721999016ceff6829ad6953be09c29432e7bd4afcb54842",
+      "bytes": 3044,
+      "viewBox": "0 0 48 48",
+      "usage": "桌面／Dock／时钟卡片",
+      "note": "普通钟面，绿底白盘，小尺寸辨识清楚。原图带固定指针，接入实时钟面时须拆除固定指针并重新标定中心与长度。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/clock.svg",
+          "sha256": "cd007d3df280ab04e0d05f645ab81ae4bf32076c4a77beeebfb2c9f321164b91",
+          "bytes": 3552,
+          "adaptation": {
+            "colors_mapped": 8,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/clock.svg",
+          "sha256": "e1705b6552360bd1de3eeadc4bf7a45973443f5a36cf7baec555b0c427c876fd",
+          "bytes": 3550,
+          "adaptation": {
+            "colors_mapped": 8,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "timer",
+      "name": "番茄钟",
+      "group": "desktop",
+      "file": "svg/desktop/timer.svg",
+      "source_file": "svg/pomidor.svg",
+      "original_filename": "pomidor.svg",
+      "sha256": "9fcbde3651a98672c2754926bb22708063296e99259b7d2a66eab61db273b2c3",
+      "bytes": 2959,
+      "viewBox": "0 0 48 48",
+      "usage": "桌面／Dock／专注卡片",
+      "note": "粉色底与深色计时轮廓，对应番茄钟与倒计时。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/timer.svg",
+          "sha256": "bb366710c1e7d5221607091196ade3ead8d2f0b0585c2ff67c4efb487d738131",
+          "bytes": 3466,
+          "adaptation": {
+            "colors_mapped": 7,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/timer.svg",
+          "sha256": "2a88a4f8ddbc4dc796cfed59f7730ece71fbd3650f0e8677672dce7afb32ce7b",
+          "bytes": 3464,
+          "adaptation": {
+            "colors_mapped": 7,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "notes",
+      "name": "便签",
+      "group": "desktop",
+      "file": "svg/desktop/notes.svg",
+      "source_file": "svg/stickynotes.svg",
+      "original_filename": "stickynotes.svg",
+      "sha256": "921522c8a45aa200caf8c91195a1d3dc48430c4dc5d3cafa8248e986930e391c",
+      "bytes": 1926,
+      "viewBox": "0 0 48 48",
+      "usage": "桌面／Dock／便签空状态",
+      "note": "浅黄圆底与便签条目，符合当前便签查看和删除功能。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/notes.svg",
+          "sha256": "80805c4bd8f1df66619a473e283b9bbe5903451332b2bc2e1a52245b4256c218",
+          "bytes": 2418,
+          "adaptation": {
+            "colors_mapped": 4,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/notes.svg",
+          "sha256": "bfa71b231a16a516a992bb8fb7fd4af4eb02583bee8007e39a06db4833e33982",
+          "bytes": 2416,
+          "adaptation": {
+            "colors_mapped": 4,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "calculator",
+      "name": "计算器",
+      "group": "desktop",
+      "file": "svg/desktop/calculator.svg",
+      "source_file": "svg/calc.svg",
+      "original_filename": "calc.svg",
+      "sha256": "e5932ca34a1837f397f278bf3f0fd80af88b21c9bde7a0214c5a753e5c581142",
+      "bytes": 1857,
+      "viewBox": "0 0 48 48",
+      "usage": "桌面／Dock／计算器入口",
+      "note": "四象限运算符号，桌面和 Dock 均容易识别。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/calculator.svg",
+          "sha256": "59953a8549163a782e667abccb676bd63137fe093ab5d7412f00fb0bb4ca0631",
+          "bytes": 2341,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/calculator.svg",
+          "sha256": "08c3809b3ab0e5d74101fba38a42bac20ce2dfc2d2432801576da54b93d5dd1e",
+          "bytes": 2339,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "mac",
+      "name": "Mac 控制",
+      "group": "desktop",
+      "file": "svg/desktop/mac.svg",
+      "source_file": "svg/preferences-desktop-keyboard.svg",
+      "original_filename": "preferences-desktop-keyboard.svg",
+      "sha256": "2e0bf163132519f4cd5480bacbb7a290ac9bc7b06956939cd93491120ec98bcc",
+      "bytes": 4225,
+      "viewBox": "0 0 48 48",
+      "usage": "桌面／Dock／电脑控制入口",
+      "note": "键盘符号对应快捷键和电脑控制；保留 Mac 控制文字标签。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/mac.svg",
+          "sha256": "bd25ca79ebade82e7e6c981351597fe6e7f77351e430de5ae7c24b793d7e9ed4",
+          "bytes": 4733,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/mac.svg",
+          "sha256": "954eb41a8004b301de3453c00ef9f7c2365c3e825f3348a495c3a0f33cfa48f6",
+          "bytes": 4731,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "settings",
+      "name": "设置",
+      "group": "desktop",
+      "file": "svg/desktop/settings.svg",
+      "source_file": "svg/preferences-system.svg",
+      "original_filename": "preferences-system.svg",
+      "sha256": "9c07d22b9541a8207803930bfeacf1651b3daf2ea1f5c6c59a6cdf25a9a80076",
+      "bytes": 2111,
+      "viewBox": "0 0 48 48",
+      "usage": "桌面／Dock／控制中心入口",
+      "note": "系统开关符号，适合无线、亮度和其他设置；也可复用作控制中心大入口。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/settings.svg",
+          "sha256": "8db53530732711e845f075bf94e0e8c5ef2c075c2f33da92851a1a43237a5b29",
+          "bytes": 2607,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/settings.svg",
+          "sha256": "ae8a1bfadcd10f3e3b982de9ce37835d90958a91cfeffe4245a1bae7de56beb0",
+          "bytes": 2605,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "display",
+      "name": "USB 副屏",
+      "group": "desktop",
+      "file": "svg/desktop/display.svg",
+      "source_file": "svg/remote-desktop.svg",
+      "original_filename": "remote-desktop.svg",
+      "sha256": "1a90966a7e570ddd36fbab628e25a64153c5f1d9d28c66955917439e14d8c0da",
+      "bytes": 2832,
+      "viewBox": "0 0 48 48",
+      "usage": "桌面／Dock／副屏连接页",
+      "note": "前后双显示器，对应电脑扩展显示；保留 USB 副屏标签。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/display.svg",
+          "sha256": "d3d218345c836ebd8cf9f11b1deba12b88263e7309e7036361bb118b014b3433",
+          "bytes": 3330,
+          "adaptation": {
+            "colors_mapped": 4,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/display.svg",
+          "sha256": "4a02b8163929b9a02713e59391087ca852149da97518b6e9dd8a17436584189f",
+          "bytes": 3328,
+          "adaptation": {
+            "colors_mapped": 4,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "screen",
+      "name": "关闭屏幕",
+      "group": "desktop",
+      "file": "svg/desktop/screen.svg",
+      "source_file": "svg/kshutdown.svg",
+      "original_filename": "kshutdown.svg",
+      "sha256": "0cb2cba87fea7228bdb0259509736fd8389c3050689b9d694bdb048763f91d5f",
+      "bytes": 2373,
+      "viewBox": "0 0 48 48",
+      "usage": "桌面／控制中心熄屏操作",
+      "note": "电源符号对应屏幕关闭；行为仍是熄屏，文案使用关闭屏幕。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/desktop/screen.svg",
+          "sha256": "8c428f0c7b025f3f07e1edb06fe15efed84ac971b23304b3725838e431047f58",
+          "bytes": 2864,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/desktop/screen.svg",
+          "sha256": "7af806242d18d64c799039a5349edb1d885cbcc26c30be7523b8136d0abfc2f6",
+          "bytes": 2862,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "file-manager",
+      "name": "文件管理",
+      "group": "planned",
+      "file": "svg/planned/file-manager.svg",
+      "source_file": "svg/file-manager.svg",
+      "original_filename": "file-manager.svg",
+      "sha256": "409c756b00816ad8662c89feed42bba43f540dd654b6350ce75d28672fcd6444",
+      "bytes": 2064,
+      "viewBox": "0 0 48 48",
+      "usage": "规划入口／TF 卡文件浏览与管理",
+      "note": "紫色圆底与黄色文件夹，表示浏览目录和管理文件；与设置中的存储设备图标分工明确。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/planned/file-manager.svg",
+          "sha256": "44d0c6ed2a0bd6987c66ed721c2ef8145cf63754e970e57ad84762da54dab265",
+          "bytes": 2564,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/planned/file-manager.svg",
+          "sha256": "339baea508eba21a5d5dc613171b80969970795ae361ef34302e8f7df7a1dc04",
+          "bytes": 2562,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "office-viewer",
+      "name": "Office 文档",
+      "group": "planned",
+      "file": "svg/planned/office-viewer.svg",
+      "source_file": "svg/accessories-document-viewer.svg",
+      "original_filename": "accessories-document-viewer.svg",
+      "sha256": "2a2adc3ac04319ddc2e7b56a6bedf9e81a3685776e31f0ed432b8f293b443f01",
+      "bytes": 2073,
+      "viewBox": "0 0 48 48",
+      "usage": "规划入口／Office 文档查看",
+      "note": "带书签的通用文档，表示 Word、Excel、PowerPoint 等文档的查看入口；具体格式支持由后续实现决定。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/planned/office-viewer.svg",
+          "sha256": "ac23833b95aae138f87b1d66ff973d8ffb4d9d9435acdb5e3ac4f2dde2dff862",
+          "bytes": 2590,
+          "adaptation": {
+            "colors_mapped": 6,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/planned/office-viewer.svg",
+          "sha256": "64d8b72fe4553c135d73036c60a1cb30de02735b193e6de1967aab31f7d164e4",
+          "bytes": 2588,
+          "adaptation": {
+            "colors_mapped": 6,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "sub2api-monitor",
+      "name": "用量监控",
+      "group": "planned",
+      "file": "svg/planned/sub2api-monitor.svg",
+      "source_file": "svg/utilities-system-monitor.svg",
+      "original_filename": "utilities-system-monitor.svg",
+      "sha256": "95dec70298e03ec91d6b4872a553d654fd1fccd9a96f65af2809e04b7a40ef73",
+      "bytes": 1718,
+      "viewBox": "0 0 48 48",
+      "usage": "规划入口／SUB2API Monitor 移植",
+      "note": "青绿色圆底与监测波形，对应当前 Sub2APIMonitor 的 Token、账号额度、费用及服务状态监控；建议桌面短名称为用量监控。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/planned/sub2api-monitor.svg",
+          "sha256": "687808d65361e1a0a5ba40f0aebb1cf48f15848210c34cc56a8d7d910a46e7d4",
+          "bytes": 2224,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/planned/sub2api-monitor.svg",
+          "sha256": "6951261aefa0d88334fba70679e74537564ce397d75a00a7210431f457fb1a6e",
+          "bytes": 2222,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "wifi",
+      "name": "Wi-Fi",
+      "group": "settings",
+      "file": "svg/settings/wifi.svg",
+      "source_file": "svg/wicd.svg",
+      "original_filename": "wicd.svg",
+      "sha256": "5fb24e76b76c0519bdd5b815b15c27e89fde957704a238e514072cb6beb75d19",
+      "bytes": 3208,
+      "viewBox": "0 0 48 48",
+      "usage": "设置侧栏／无线详情入口",
+      "note": "无线天线，仅用作设置入口；信号强弱及离线状态继续使用现有单色状态图标。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/wifi.svg",
+          "sha256": "757336cc726eb2b150b86e33dfb55b8abd2986847f666a8c4eabf0196522c55e",
+          "bytes": 3689,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/wifi.svg",
+          "sha256": "d9841fb8687c2136d0b03850849cc4f81cdc7b5e779e55ec4f0d576080727214",
+          "bytes": 3687,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "bluetooth",
+      "name": "蓝牙",
+      "group": "settings",
+      "file": "svg/settings/bluetooth.svg",
+      "source_file": "svg/bluetooth.svg",
+      "original_filename": "bluetooth.svg",
+      "sha256": "ceff4dd43579e8f016b0e84db362acab1986c0d59ebf63be74166482953e6baf",
+      "bytes": 1651,
+      "viewBox": "0 0 48 48",
+      "usage": "设置侧栏／蓝牙详情入口",
+      "note": "标准蓝牙形状与蓝色底板；此静态图片不表示连接状态。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/bluetooth.svg",
+          "sha256": "f42310b4a78d3bbf7ca1b643edced6bf9b875ca383b70e15ef08b17e3bc9ae1a",
+          "bytes": 2136,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/bluetooth.svg",
+          "sha256": "0162b8d21ec78c7762551befdf2339938dcf10df7c32517591c102967a10cd52",
+          "bytes": 2134,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "display-settings",
+      "name": "显示器",
+      "group": "settings",
+      "file": "svg/settings/display-settings.svg",
+      "source_file": "svg/preferences-desktop-display.svg",
+      "original_filename": "preferences-desktop-display.svg",
+      "sha256": "ab5b5f076ac95ca3259149de3e3560ecd370b5420e5615af23f1090ddb498099",
+      "bytes": 2448,
+      "viewBox": "0 0 48 48",
+      "usage": "设置侧栏／显示器页面",
+      "note": "单显示器用于显示设置，与桌面的双显示器 USB 副屏入口区分。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/display-settings.svg",
+          "sha256": "d2f52246ab28af86252562ef5e23821f4b28cdda17cc947636bb74367eccac70",
+          "bytes": 2963,
+          "adaptation": {
+            "colors_mapped": 8,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/display-settings.svg",
+          "sha256": "1cc42bf7b33c356da39241b39ed8c66d788560e41211082f6c64ee94ccdd5801",
+          "bytes": 2961,
+          "adaptation": {
+            "colors_mapped": 8,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "date-time",
+      "name": "日期与时间",
+      "group": "settings",
+      "file": "svg/settings/date-time.svg",
+      "source_file": "svg/office-calendar.svg",
+      "original_filename": "office-calendar.svg",
+      "sha256": "1ffe409572ed4bffb4faf836b7a1c3950471f22109db18c04584b11ac0b86992",
+      "bytes": 4943,
+      "viewBox": "0 0 48 48",
+      "usage": "设置侧栏／日期与时间页面",
+      "note": "日历符号代表校时与日期设置；原图 31 为静态装饰，不是当前日期。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/date-time.svg",
+          "sha256": "0c0daf098b45ff284cd2fa2082253ec3bfea1c2299a430f27e778d72276eaada",
+          "bytes": 5457,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 7,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/date-time.svg",
+          "sha256": "ab2faced1e155208d00a311bfd2e8ccabe23d04390604e7b231a672c5a2fd60e",
+          "bytes": 5455,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 7,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "storage",
+      "name": "存储",
+      "group": "settings",
+      "file": "svg/settings/storage.svg",
+      "source_file": "svg/gnome-disks.svg",
+      "original_filename": "gnome-disks.svg",
+      "sha256": "c45d9125c45648e7060ffc59b33a993b4c292481f343569dbcb443d7b6dd9ccd",
+      "bytes": 3074,
+      "viewBox": "0 0 48 48",
+      "usage": "设置侧栏／存储页面",
+      "note": "磁盘与工具形状代表存储管理；不用于 TF 是否挂载的状态。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/storage.svg",
+          "sha256": "d22d868a1454e82f35633bd6e1ab53acb028c3cd5256b3b1f3257995d5fa9c3b",
+          "bytes": 3577,
+          "adaptation": {
+            "colors_mapped": 9,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/storage.svg",
+          "sha256": "c74cbec01b13fe689cbd7f22cccec868045c1e6c8825cbae7ec2fb9e42c6b1c5",
+          "bytes": 3575,
+          "adaptation": {
+            "colors_mapped": 9,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "about",
+      "name": "关于",
+      "group": "settings",
+      "file": "svg/settings/about.svg",
+      "source_file": "svg/userinfo.svg",
+      "original_filename": "userinfo.svg",
+      "sha256": "61f3477325f454f3bb22c75bcf2a5e8a4085486597595284e870a31bc02bed22",
+      "bytes": 2510,
+      "viewBox": "0 0 48 48",
+      "usage": "设置侧栏／关于／设备详情入口",
+      "note": "信息 i 符号，适合设备信息。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/about.svg",
+          "sha256": "f7c5dfb6eb0d078180bb29685c8b0224c323568d70bdaff772740bc01fd9d847",
+          "bytes": 3004,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 7,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/about.svg",
+          "sha256": "e62e1995185eab5793e48a31d36ab84fd447b2907ae79400a326bc7cf0ffae87",
+          "bytes": 3002,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 7,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "usb",
+      "name": "USB",
+      "group": "settings",
+      "file": "svg/settings/usb.svg",
+      "source_file": "svg/usbview.svg",
+      "original_filename": "usbview.svg",
+      "sha256": "8897da24ee705d16fa505533b69f05afd7798363352b8d96bb5f93fbc88768d5",
+      "bytes": 2441,
+      "viewBox": "0 0 48 48",
+      "usage": "控制中心／USB 详情入口",
+      "note": "蓝底 USB 符号，适合设备连接详情；不表示当前连接状态。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/usb.svg",
+          "sha256": "dddef596fbe6bed3bc02d030548d6f17233c449a41a2bd7260acb3e681f19e47",
+          "bytes": 2921,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/usb.svg",
+          "sha256": "9b0fb28b8e1b92fe4bd81338874ce7bf0347df095ce545fcbdd6a5b217b4258f",
+          "bytes": 2919,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "battery",
+      "name": "电池",
+      "group": "settings",
+      "file": "svg/settings/battery.svg",
+      "source_file": "svg/gnome-power-manager.svg",
+      "original_filename": "gnome-power-manager.svg",
+      "sha256": "3a96f880740656762f2491ceb19f619fb93bd07ae6664382c023fcbb568db982",
+      "bytes": 2185,
+      "viewBox": "0 0 48 48",
+      "usage": "控制中心／电池详情入口",
+      "note": "电池外形表示电源详情；填充为静态装饰，不用作实时电量。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/battery.svg",
+          "sha256": "7887617aaf42b5acabd45c9310fc1cd0f79e21f1607f83ba3d4aa8c42ebed179",
+          "bytes": 2682,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/battery.svg",
+          "sha256": "a7c4b7aadc199b166bfaf2a85c1314a7c7c5b47cc7713f7c5a12071fdb1e2337",
+          "bytes": 2680,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "brightness",
+      "name": "亮度",
+      "group": "settings",
+      "file": "svg/settings/brightness.svg",
+      "source_file": "svg/gnome-design-contrast.svg",
+      "original_filename": "gnome-design-contrast.svg",
+      "sha256": "8be26526cc179f080ceef60cecbefed6c7fc3f70e3a580d72bbdfd73f386be80",
+      "bytes": 3100,
+      "viewBox": "0 0 48 48",
+      "usage": "控制中心／亮度入口",
+      "note": "明暗扇区表达亮度；滑杆、百分比仍用原控件。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/brightness.svg",
+          "sha256": "8131e2553e9312eb1171466cb3d56a0573fdc28a7c788e5bb8f1cbb670717d0c",
+          "bytes": 3607,
+          "adaptation": {
+            "colors_mapped": 8,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/brightness.svg",
+          "sha256": "997103dc58519141151388437aee00397ba4283e7b51444f05049e881799ac01",
+          "bytes": 3605,
+          "adaptation": {
+            "colors_mapped": 8,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "audio",
+      "name": "音量与媒体",
+      "group": "settings",
+      "file": "svg/settings/audio.svg",
+      "source_file": "svg/multimedia-volume-control.svg",
+      "original_filename": "multimedia-volume-control.svg",
+      "sha256": "dc36f5fff0f5517117ef270b4c15d1b8cb006f1caf4adc9aa4177f2f7048d7a9",
+      "bytes": 3324,
+      "viewBox": "0 0 48 48",
+      "usage": "Mac 控制／媒体分组入口",
+      "note": "扬声器形状表示音量和媒体控制，不替代播放、暂停或静音状态。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/settings/audio.svg",
+          "sha256": "304f13c235e3d387661916452d3f33d7413f07b998a110b77de197e51b1958c1",
+          "bytes": 3843,
+          "adaptation": {
+            "colors_mapped": 12,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/settings/audio.svg",
+          "sha256": "fd7a4e674791f44fdc6606243e662e847d9f9a8487ff89cace1edaef945cad20",
+          "bytes": 3841,
+          "adaptation": {
+            "colors_mapped": 12,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "clock-alarm",
+      "name": "时钟备选",
+      "group": "alternatives",
+      "file": "svg/alternatives/clock-alarm.svg",
+      "source_file": "svg/gnome-clocks.svg",
+      "original_filename": "gnome-clocks.svg",
+      "sha256": "6f7b564c308ab65749fd2e9e50c7e81d3135a1d22e3d098ab03c63f2a25bb332",
+      "bytes": 5017,
+      "viewBox": "0 0 48 48",
+      "usage": "clock 备选",
+      "note": "闹钟造型细节更多，适合偏活泼风格；当前只需时间显示，首选普通钟面。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/alternatives/clock-alarm.svg",
+          "sha256": "c2cab5a9e88e49e9e27fcbaba7ba09b52bf0af4ba08b114ee9bfaf93698a1548",
+          "bytes": 5527,
+          "adaptation": {
+            "colors_mapped": 11,
+            "shadow_layers_adjusted": 7,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/alternatives/clock-alarm.svg",
+          "sha256": "4a489be43d259df4ef58ccdb1b7d686788cc80afa6c52ff3ea1e58d1ea1e1b3b",
+          "bytes": 5525,
+          "adaptation": {
+            "colors_mapped": 11,
+            "shadow_layers_adjusted": 7,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "timer-green",
+      "name": "计时器备选",
+      "group": "alternatives",
+      "file": "svg/alternatives/timer-green.svg",
+      "source_file": "svg/parnold-x.timer.svg",
+      "original_filename": "parnold-x.timer.svg",
+      "sha256": "0c1858db90bf6a2faae6ab412a5165a8385cd6e1c4ebc810a108426f2a9e00a0",
+      "bytes": 4431,
+      "viewBox": "0 0 48 48",
+      "usage": "timer 备选",
+      "note": "绿色秒表，适合偏亮的配色；首选粉色计时器以减少与时钟撞色。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/alternatives/timer-green.svg",
+          "sha256": "d54a7f87f6294dfba23b1ea343b6515fcce9eb076a394076f1822b44d8408686",
+          "bytes": 4932,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/alternatives/timer-green.svg",
+          "sha256": "d01ba87cb8b6b3e1e421203b969205677efa32fcda17d85b7f17ae96654198e9",
+          "bytes": 4930,
+          "adaptation": {
+            "colors_mapped": 3,
+            "shadow_layers_adjusted": 6,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "notes-paper",
+      "name": "便签备选",
+      "group": "alternatives",
+      "file": "svg/alternatives/notes-paper.svg",
+      "source_file": "svg/basket.svg",
+      "original_filename": "basket.svg",
+      "sha256": "812720c4f1885d2831c054ee965d8235319a083b39218f7221b1774b99040b31",
+      "bytes": 2213,
+      "viewBox": "0 0 48 48",
+      "usage": "notes 备选",
+      "note": "蓝底纸张，长文档意味更强；首选黄色便签更贴近当前功能。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/alternatives/notes-paper.svg",
+          "sha256": "7f6f266619f55dfceeca4e54964594c4aecbc8852b6ff246786043f9197741b5",
+          "bytes": 2703,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/alternatives/notes-paper.svg",
+          "sha256": "8e6101d79f788968cde80eefc97ed6d75f2e2211f85991904ab9834ff43fca03",
+          "bytes": 2701,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    },
+    {
+      "id": "mac-shortcuts",
+      "name": "快捷键备选",
+      "group": "alternatives",
+      "file": "svg/alternatives/mac-shortcuts.svg",
+      "source_file": "svg/preferences-desktop-keyboard-shortcuts.svg",
+      "original_filename": "preferences-desktop-keyboard-shortcuts.svg",
+      "sha256": "873cc71d22c08fea9fa157f2ac06bcb2e0cadc25a97dbe5008484e82616d6188",
+      "bytes": 3665,
+      "viewBox": "0 0 48 48",
+      "usage": "mac 备选",
+      "note": "组合按键符号，更强调快捷键；细节多于首选键盘。",
+      "variants": {
+        "light": {
+          "file": "themes/light/svg/alternatives/mac-shortcuts.svg",
+          "sha256": "8e4c45a1fdc5b8d100c3196d85eb69e46bc5006efdcb796614be8dd7be219078",
+          "bytes": 4196,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        },
+        "dark": {
+          "file": "themes/dark/svg/alternatives/mac-shortcuts.svg",
+          "sha256": "2ee8c20bc5f2160606126e727ef2e551a1dcadbbff4ae9763cc3e1f277a6d437",
+          "bytes": 4194,
+          "adaptation": {
+            "colors_mapped": 5,
+            "shadow_layers_adjusted": 5,
+            "source_geometry_preserved": true,
+            "added_inner_rim": true
+          }
+        }
+      }
+    }
+  ],
+  "originals_preserved": true,
+  "theme_variants_modified": true,
+  "theme_variant_count": 50,
+  "theme_resolution": "icons[].variants[theme].file",
+  "themes": {
+    "light": {
+      "name": "浅色主题",
+      "directory": "themes/light",
+      "manifest": "themes/light/manifest.json",
+      "count": 25
+    },
+    "dark": {
+      "name": "深色主题",
+      "directory": "themes/dark",
+      "manifest": "themes/dark/manifest.json",
+      "count": 25
+    }
+  },
+  "palette_version": "2026-09-30.1"
+}

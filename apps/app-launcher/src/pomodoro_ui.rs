@@ -4,14 +4,12 @@ use crate::launcher_state::LauncherState;
 use crate::timer::{Phase, TimerKind, TimerService};
 use std::sync::{Arc, Mutex};
 use tiny_flutter::prelude::*;
+use tiny_flutter::theme::Folio;
 
-pub const TIMER_BG: Color = Color::from_hex(0x171a1d);
-const INK: Color = Color::from_hex(0xf4f5f6);
-const MUTED: Color = Color::from_hex(0x959ca4);
-const SURFACE: Color = Color::from_hex(0x272c31);
-const TRACK: Color = Color::from_hex(0x343a40);
-const FOCUS: Color = Color::from_hex(0xf18b77);
-const SHORT_BREAK: Color = Color::from_hex(0x8ed4b5);
+pub const TIMER_BG: Color = Folio::BG;
+
+const FOCUS: Color = Color::from_hex(0xd07969);
+
 const LONG_BREAK: Color = Color::from_hex(0x9dbded);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,14 +134,14 @@ pub fn timer_mode_keys(size: Size) -> Vec<TimerKey> {
 pub(crate) fn accent(timer: &TimerService) -> Color {
     match (timer.kind, timer.phase) {
         (TimerKind::Countdown, _) | (_, Phase::Focus) => FOCUS,
-        (_, Phase::Break) => SHORT_BREAK,
+        (_, Phase::Break) => Folio::accent_ink(),
         (_, Phase::LongBreak) => LONG_BREAK,
     }
 }
 fn phase_accent(phase: Phase) -> Color {
     match phase {
         Phase::Focus => FOCUS,
-        Phase::Break => SHORT_BREAK,
+        Phase::Break => Folio::accent_ink(),
         Phase::LongBreak => LONG_BREAK,
     }
 }
@@ -282,7 +280,7 @@ fn key_button(
         ButtonStyle::new()
             .size(key.rect.width, key.rect.height)
             .color(fill)
-            .pressed_color(TRACK)
+            .pressed_color(Folio::pressed(fill))
             .border_radius(key.rect.height * 0.5)
             .antialias(true)
             .padding(EdgeInsets::ZERO),
@@ -292,24 +290,28 @@ fn key_button(
 pub fn build_timer_navigation(state: Arc<Mutex<LauncherState>>, width: f32) -> Stack {
     let timer = state.lock().unwrap().timer.clone();
     let bounds = timer_mode_bounds(width);
-    let mut bar = Stack::new();
+    let mut bar = Stack::new().push(at(
+        Container::new()
+            .width(bounds.width + 8.0)
+            .height(bounds.height + 8.0)
+            .color(Folio::raised())
+            .border_radius((bounds.height + 8.0) * 0.5),
+        Rect::from_ltwh(
+            bounds.x - 4.0,
+            bounds.y - 4.0,
+            bounds.width + 8.0,
+            bounds.height + 8.0,
+        ),
+    ));
     for (control, x) in [
         (ClockControl::Home, 24.0),
         (ClockControl::Close, width - 72.0),
     ] {
         let state = state.clone();
         let icon = ElevatedButton::new(
-            CustomPaint::new(ClockControlPainter::new(control)).size(Size::new(32.0, 32.0)),
+            CustomPaint::new(ClockControlPainter::new(control)).size(Size::new(24.0, 24.0)),
         )
-        .style(
-            ButtonStyle::new()
-                .size(48.0, 48.0)
-                .color(TIMER_BG)
-                .pressed_color(SURFACE)
-                .border_radius(24.0)
-                .antialias(true)
-                .padding(EdgeInsets::all(8.0)),
-        )
+        .style(Folio::navigation_style())
         .on_pressed(move || {
             if let Ok(mut state) = state.lock() {
                 match control {
@@ -336,8 +338,16 @@ pub fn build_timer_navigation(state: Arc<Mutex<LauncherState>>, width: f32) -> S
                 }
                 .into(),
                 18.0,
-                if selected { INK } else { MUTED },
-                if selected { SURFACE } else { TIMER_BG },
+                if selected {
+                    Folio::ink()
+                } else {
+                    Folio::muted()
+                },
+                if selected {
+                    Folio::raised()
+                } else {
+                    Color::TRANSPARENT
+                },
             ),
             key.rect,
         ));
@@ -360,12 +370,12 @@ pub fn build_timer_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Stack {
                 if timer.phase == phase {
                     phase_accent(phase)
                 } else {
-                    MUTED
+                    Folio::muted()
                 },
                 if timer.phase == phase {
-                    SURFACE
+                    Folio::raised()
                 } else {
-                    TIMER_BG
+                    Color::TRANSPARENT
                 },
                 22.0,
             ),
@@ -382,19 +392,24 @@ pub fn build_timer_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Stack {
                     if timer.countdown_ms == duration_ms {
                         FOCUS
                     } else {
-                        MUTED
+                        Folio::muted()
                     },
                     if timer.countdown_ms == duration_ms {
-                        SURFACE
+                        Folio::raised()
                     } else {
-                        TIMER_BG
+                        Color::TRANSPARENT
                     },
                     22.0,
                 )
             }
-            TimerAction::Toggle => (primary_label(&timer).into(), TIMER_BG, accent(&timer), 24.0),
-            TimerAction::Reset => ("重置".into(), MUTED, TIMER_BG, 18.0),
-            TimerAction::Next => ("下一段".into(), MUTED, TIMER_BG, 18.0),
+            TimerAction::Toggle => (
+                primary_label(&timer).into(),
+                Folio::on_fill(accent(&timer)),
+                accent(&timer),
+                24.0,
+            ),
+            TimerAction::Reset => ("重置".into(), Folio::ink(), Folio::raised(), 18.0),
+            TimerAction::Next => ("下一段".into(), Folio::ink(), Folio::raised(), 18.0),
             TimerAction::Kind(_) => unreachable!(),
         };
         page = page.push(at(
@@ -410,7 +425,45 @@ struct TimerFace {
 impl CustomPainter for TimerFace {
     fn paint(&self, canvas: &mut Canvas, size: Size) {
         let layout = timer_layout(&self.timer, size);
-        canvas.draw_rect(Rect::from_ltwh(0.0, 0.0, size.width, size.height), TIMER_BG);
+        canvas.draw_rect(
+            Rect::from_ltwh(0.0, 0.0, size.width, size.height),
+            Folio::bg(),
+        );
+        let mut choices = layout.keys.iter().filter(|key| {
+            matches!(
+                key.action,
+                TimerAction::Phase(_) | TimerAction::Preset(_) | TimerAction::SecondsPreset(_)
+            )
+        });
+        let first = choices.next();
+        let last = choices.last().or(first);
+        if let (Some(first), Some(last)) = (first, last) {
+            let inset = 4.0 * layout.scale;
+            canvas.draw_rrect_aa(
+                RRect::from_rect_circular(
+                    Rect::from_ltwh(
+                        first.rect.x - inset,
+                        first.rect.y - inset,
+                        last.rect.right() - first.rect.x + 2.0 * inset,
+                        first.rect.height + 2.0 * inset,
+                    ),
+                    first.rect.height * 0.5 + inset,
+                ),
+                Folio::raised(),
+            );
+        }
+        canvas.draw_rrect_aa(
+            RRect::from_rect_circular(
+                Rect::from_ltwh(
+                    40.0 * layout.scale,
+                    80.0 * layout.scale,
+                    size.width - 80.0 * layout.scale,
+                    268.0 * layout.scale,
+                ),
+                Folio::CARD_RADIUS,
+            ),
+            Folio::raised(),
+        );
         let font = Font::default_font();
         let px = 180.0 * layout.scale;
         let cell = ('0'..='9')
@@ -441,13 +494,13 @@ impl CustomPainter for TimerFace {
                     x + (advance - glyph.advance) * 0.5,
                     baseline - font.cap_height(px),
                 ),
-                INK,
+                Folio::ink(),
             );
             x += advance;
         }
         canvas.draw_rrect_aa(
             RRect::from_rect_circular(layout.progress, layout.progress.height * 0.5),
-            TRACK,
+            Folio::line(),
         );
         let elapsed = 1.0
             - self.timer.remaining_ms.min(self.timer.duration_ms()) as f32
@@ -474,7 +527,7 @@ impl CustomPainter for TimerFace {
             color: if self.timer.finished {
                 accent(&self.timer)
             } else {
-                MUTED
+                Folio::muted()
             },
         }
         .paint(canvas, Size::new(layout.status.width, layout.status.height));
@@ -501,12 +554,16 @@ impl CustomPainter for TimerFace {
                 let active = i == count && self.timer.phase == Phase::Focus && !self.timer.finished;
                 canvas.draw_rrect_aa(
                     RRect::from_rect_circular(r, r.width * 0.5),
-                    if i < count || active { FOCUS } else { TRACK },
+                    if i < count || active {
+                        FOCUS
+                    } else {
+                        Folio::line()
+                    },
                 );
                 if active {
                     canvas.draw_rrect_aa(
                         RRect::from_rect_circular(r.deflate(2.0 * layout.scale), r.width * 0.5),
-                        TIMER_BG,
+                        Folio::bg(),
                     );
                 }
             }
@@ -518,7 +575,7 @@ impl CustomPainter for TimerFace {
                     x + 122.0 * layout.scale,
                     layout.cycles.y + 2.0 * layout.scale,
                 ),
-                MUTED,
+                Folio::muted(),
             );
         }
     }

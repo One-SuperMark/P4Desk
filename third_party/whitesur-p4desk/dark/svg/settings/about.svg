@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" data-theme="dark">
+ <title>P4Desk WhiteSur · 关于 · 深色主题</title>
+ <desc>WhiteSur derivative, modified 2026-09-30 by P4Desk asset adaptation. dark palette, bitmap shadows/glow and blur filters removed, vector gradients retained, 64x64 normalization, inner rounded boundary. Original: src/apps/scalable/userinfo.svg; commit 73d8040da51a9ed74e47c7366e7e9ff437601a5c; GPL-3.0. Local vector geometry retained. </desc>
+ <g id="p4desk-source-vector" transform="scale(1)">
+  <defs>
+   <linearGradient id="a" x1="7.937" x2="7.937" y1="15.081" y2="1.852" gradientTransform="scale(3.7796)" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#184880" />
+    <stop offset="1" stop-color="#377eb5" />
+   </linearGradient>
+   <linearGradient id="b" x1="32.068" x2="32.068" y1="18.941" y2="46.602" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#f0faff" />
+    <stop offset="1" stop-color="#b4d4f3" />
+   </linearGradient>
+  </defs>
+  <rect width="56.002" height="56.002" x="4" y="3.969" fill="url(#a)" rx="13.002" ry="13.002" />
+  <circle cx="32.02" cy="32.044" r="30.001" fill="none" />
+  <path fill="url(#b)" d="M32.002 16a4 4 0 1 0-.003 7.999A4 4 0 0 0 32.002 16m0 11C29.66 27 28 28.826 28 31.074v13.854c0 2.25 1.66 4.073 4.002 4.073C34.342 49 36 47.178 36 44.928V31.074C36 28.824 34.343 27 32.002 27" />
+ </g>
+ <rect id="p4desk-theme-rim" x="4.2" y="4.2" width="55.6" height="55.6" rx="12.8" fill="none" stroke="#d4e6ff" stroke-opacity="0.16" stroke-width="0.4" />
+</svg>

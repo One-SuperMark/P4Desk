@@ -354,12 +354,12 @@ void p4desk_pad_frame_end(void)
     display_wake();
 }
 
-void host_lcd_draw_bitmap(int32_t x1, int32_t y1, int32_t x2, int32_t y2, const uint16_t *pixels)
+static void pad_blit_rows(int32_t x1, int32_t y1, int32_t x2, int32_t y2,
+                          const uint16_t *pixels, size_t stride)
 {
     if (!pixels || x2 <= x1 || y2 <= y1) return;
     bool own_lock = atomic_load(&s_pad_writer) != xTaskGetCurrentTaskHandle();
     if (own_lock) xSemaphoreTake(s_pad_lock, portMAX_DELAY);
-    const int32_t stride = x2 - x1;
     int32_t left = x1 < 0 ? 0 : x1, top = y1 < 0 ? 0 : y1;
     int32_t right = x2 > P4DESK_WIDTH ? P4DESK_WIDTH : x2;
     int32_t bottom = y2 > P4DESK_HEIGHT ? P4DESK_HEIGHT : y2;
@@ -376,6 +376,26 @@ void host_lcd_draw_bitmap(int32_t x1, int32_t y1, int32_t x2, int32_t y2, const 
         xSemaphoreGive(s_pad_lock);
         display_wake();
     }
+}
+
+void host_lcd_draw_bitmap(int32_t x1, int32_t y1, int32_t x2, int32_t y2, const uint16_t *pixels)
+{
+    if (x2 <= x1) return;
+    pad_blit_rows(x1, y1, x2, y2, pixels, (size_t)(x2 - x1));
+}
+
+bool p4desk_pad_blit_rgb565(int32_t x1, int32_t y1, int32_t x2, int32_t y2,
+                           const uint16_t *pixels, size_t pixel_count, size_t stride)
+{
+    if (!pixels || x1 < 0 || y1 < 0 || x2 > P4DESK_WIDTH || y2 > P4DESK_HEIGHT ||
+        x2 <= x1 || y2 <= y1 || stride < (size_t)(x2 - x1) || stride > P4DESK_WIDTH)
+        return false;
+    size_t required = (size_t)(y2 - y1 - 1) * stride + (size_t)(x2 - x1);
+    if (pixel_count < required) return false;
+    // Borrowed Rust storage is copied synchronously under the same Pad lock;
+    // only display_owner may rotate and submit the resulting frame.
+    pad_blit_rows(x1, y1, x2, y2, pixels, stride);
+    return true;
 }
 
 bool host_touch_get_point(int32_t *x, int32_t *y)
@@ -431,18 +451,22 @@ void p4desk_delay_ms(uint32_t milliseconds) { vTaskDelay(pdMS_TO_TICKS(milliseco
 bool p4desk_sd_ready(void) { return s_board->sd_ready; }
 uint64_t p4desk_sd_free_bytes(void) { return s_board->sd_ready ? board_p4_sd_free_bytes() : 0; }
 
-void p4desk_time_set(int64_t unix_ms)
+bool p4desk_time_set_checked(int64_t unix_ms)
 {
     // UTC 2000-01-01 through 2100-01-01, inclusive; shared with Rust validation.
-    if (unix_ms < 946684800000LL || unix_ms > 4102444800000LL) return;
+    if (unix_ms < 946684800000LL || unix_ms > 4102444800000LL) return false;
     struct timeval value = {.tv_sec = unix_ms / 1000, .tv_usec = (unix_ms % 1000) * 1000};
     if (settimeofday(&value, NULL) == 0) {
         portENTER_CRITICAL(&s_state_lock);
         s_time_valid = true;
         s_invalidated = true;
         portEXIT_CRITICAL(&s_state_lock);
+        return true;
     }
+    return false;
 }
+
+void p4desk_time_set(int64_t unix_ms) { (void)p4desk_time_set_checked(unix_ms); }
 
 int64_t p4desk_unix_ms(void)
 {

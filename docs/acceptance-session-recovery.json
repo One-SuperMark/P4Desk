@@ -1,0 +1,72 @@
+{
+  "schema": "p4desk.acceptance.session-recovery.v1",
+  "branch": "codex/folio-ui",
+  "date": "2026-09-30",
+  "policy": {
+    "timer_on_reboot": "restore_saved_remaining_paused",
+    "clock_without_rtc": "restore_checkpoint_as_estimate_until_live_sync",
+    "interaction_debounce_ms": 1000,
+    "sample_ms": 500,
+    "continuous_interaction_max_ms": 5000,
+    "running_timer_checkpoint_ms": 10000,
+    "clock_checkpoint_ms": 60000,
+    "io_and_animation_may_defer": true
+  },
+  "build": {
+    "status": "passed",
+    "esp_idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "bytes": 4543392,
+    "sha256": "4f0616f4118e4619c3389de754944e65362c615db1d45378e344f5fe8c78d119",
+    "log": ".cache/folio/build-session-worker-fix.log"
+  },
+  "tests": {
+    "rust_workspace_passed": 247,
+    "log": ".cache/folio/tests-session-final.log",
+    "glyph_reproduction": "passed",
+    "ui_previews": "synthetic, checked for layout and glyphs"
+  },
+  "flash": {
+    "status": "passed",
+    "hash_verifications": 3,
+    "log": ".cache/folio/flash-session-worker-fix.log",
+    "existing_full_backup_verified": true
+  },
+  "device": {
+    "log": ".cache/folio/monitor-session-fixed.log",
+    "observation_seconds": 45,
+    "session_restore": "ok",
+    "restored_app_count": 0,
+    "clock_record_recovered": true,
+    "writer": "ready",
+    "writes_ok": 2,
+    "write_elapsed_ms": [
+      99,
+      82
+    ],
+    "writer_stack_min_free_bytes": 3976,
+    "ntp_synced": true,
+    "uptime_30s": {
+      "internal_free": 24163,
+      "internal_largest": 19456,
+      "psram_free": 19098948,
+      "psram_largest": 18350080,
+      "presented": 68,
+      "bad_jpeg": 0,
+      "parser_errors": 0,
+      "control_queue": 0
+    },
+    "panic_or_watchdog_observed": false
+  },
+  "resolved_iteration": {
+    "first_firmware_user_report": "自动保存失败，请检查存储",
+    "root_cause": "esp_pthread_get_cfg clears output on not found; invalid zero stack config prevented worker startup",
+    "fix": "reapply default config on missing previous config; keep low priority and internal stack",
+    "fixed_device_evidence": "writer=ready and save=ok"
+  },
+  "user_acceptance": {
+    "actual_calculator_and_timer_reboot": "pending",
+    "cold_power_cycle_without_rtc": "pending",
+    "touch_and_smoothness": "pending"
+  }
+}

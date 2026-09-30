@@ -4,26 +4,19 @@
 //! Chinese text and touch Back/Kill controls extend the original shell. Each page
 //! contains four columns and two rows; system shortcuts share the original slots.
 
-use crate::app_icons::{get_app_icon_asset, DESKTOP_ICON_SIDE};
+use crate::app_icons::get_app_icon_asset;
 use crate::app_launch::AppLaunchOverlay;
 use crate::flip_clock::{
     ClockControl, ClockControlPainter, FlipClockPainter, CLOCK_CONTENT_ORIGIN,
 };
 use crate::launcher_state::{ActiveApp, LauncherState, UiCommand};
-use crate::pomodoro_ui::{build_timer_navigation, build_timer_ui, TIMER_BG};
-use crate::status_bar::{build_status_bar, STATUS_BAR_HEIGHT};
+use crate::pomodoro_ui::{build_timer_navigation, build_timer_ui};
+use crate::status_bar::STATUS_BAR_HEIGHT;
 use crate::timer_completion::TimerCompletionOverlay;
-use crate::widgets::{build_app_icon, make_dot, WallpaperPainter};
 use std::sync::{Arc, Mutex};
+use tiny_flutter::graphics::svg_icons_generated::*;
 use tiny_flutter::prelude::*;
-
-const BG: Color = Color::from_hex(0x11161e);
-const CARD: Color = Color::from_hex(0x202a37);
-const LINE: Color = Color::from_hex(0x344252);
-const INK: Color = Color::from_hex(0xe8edf2);
-const MUTED: Color = Color::from_hex(0x94a4b6);
-const MINT: Color = Color::from_hex(0x8edbc5);
-const WARM: Color = Color::from_hex(0xffbe82);
+use tiny_flutter::theme::Folio;
 
 const GRID_COLUMNS: usize = 4;
 const GRID_ROWS: usize = 2;
@@ -37,6 +30,9 @@ pub const DESKTOP_ENTRIES: &[(&str, &str)] = &[
     ("settings", "设置"),
     ("display", "USB 副屏"),
     ("screen", "关闭屏幕"),
+    ("file-manager", "文件管理"),
+    ("office-viewer", "Office"),
+    ("sub2api-monitor", "用量监控"),
 ];
 
 fn at(child: impl Widget + 'static, x: f32, y: f32) -> Positioned {
@@ -49,8 +45,8 @@ fn panel(w: f32, h: f32) -> Container {
     Container::new()
         .width(w)
         .height(h)
-        .color(CARD)
-        .border_radius(18.0)
+        .color(Folio::surface())
+        .border_radius(Folio::GROUP_RADIUS)
 }
 fn button(
     label: impl Into<String>,
@@ -59,14 +55,18 @@ fn button(
     accent: bool,
     f: impl Fn() + Send + Sync + 'static,
 ) -> ElevatedButton {
-    ElevatedButton::new(text(label, 22.0, if accent { BG } else { INK }).wrap())
+    ElevatedButton::new(text(label, 22.0, Folio::ink()).wrap())
         .style(
-            ButtonStyle::new()
-                .size(w, h)
-                .color(if accent { MINT } else { CARD })
-                .pressed_color(LINE)
-                .border_radius(12.0)
-                .padding(EdgeInsets::all(8.0)),
+            Folio::control_style(
+                w,
+                h,
+                if accent {
+                    Folio::accent()
+                } else {
+                    Folio::raised()
+                },
+            )
+            .padding(EdgeInsets::all(8.0)),
         )
         .on_pressed(f)
 }
@@ -81,16 +81,9 @@ fn clock_icon_button(
     f: impl Fn() + Send + Sync + 'static,
 ) -> ElevatedButton {
     ElevatedButton::new(
-        CustomPaint::new(ClockControlPainter::new(control)).size(Size::new(32.0, 32.0)),
+        CustomPaint::new(ClockControlPainter::new(control)).size(Size::new(24.0, 24.0)),
     )
-    .style(
-        ButtonStyle::new()
-            .size(48.0, 48.0)
-            .color(Color::BLACK)
-            .pressed_color(Color::from_hex(0x222222))
-            .border_radius(12.0)
-            .padding(EdgeInsets::all(8.0)),
-    )
+    .style(Folio::navigation_style())
     .on_pressed(f)
 }
 fn clock_navigation(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
@@ -100,7 +93,7 @@ fn clock_navigation(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
             Container::new()
                 .width(w)
                 .height(STATUS_BAR_HEIGHT)
-                .color(Color::BLACK),
+                .color(Folio::bg()),
         )
         .push(at(
             clock_icon_button(ClockControl::Home, move || {
@@ -120,7 +113,7 @@ fn clock_navigation(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
 pub fn calculator_mode_selector_bounds(w: f32) -> Rect {
     let right = w - 96.0;
     let width = (right - 96.0).clamp(1.0, 340.0);
-    Rect::from_ltwh(right - width, 13.0, width, 34.0)
+    Rect::from_ltwh(right - width, 9.0, width, 42.0)
 }
 fn calculator_navigation(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
     let home = state.clone();
@@ -131,16 +124,9 @@ fn calculator_navigation(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
     let selector = calculator_mode_selector_bounds(w);
     let icon = |control, action: Box<dyn Fn() + Send + Sync>| {
         ElevatedButton::new(
-            CustomPaint::new(ClockControlPainter::new(control)).size(Size::new(32.0, 32.0)),
+            CustomPaint::new(ClockControlPainter::new(control)).size(Size::new(24.0, 24.0)),
         )
-        .style(
-            ButtonStyle::new()
-                .size(48.0, 48.0)
-                .color(calculator::CALCULATOR_BG)
-                .pressed_color(Color::from_hex(0x5b5958))
-                .border_radius(24.0)
-                .padding(EdgeInsets::all(8.0)),
-        )
+        .style(Folio::navigation_style())
         .on_pressed(action)
     };
     Stack::new()
@@ -148,7 +134,7 @@ fn calculator_navigation(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
             Container::new()
                 .width(w)
                 .height(STATUS_BAR_HEIGHT)
-                .color(calculator::CALCULATOR_BG),
+                .color(Folio::bg()),
         )
         .push(at(
             icon(
@@ -173,13 +159,17 @@ fn calculator_navigation(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
         ))
 }
 pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dyn Widget> {
-    let (active, date, notice, manual_time_open) = {
+    let (active, date, notice) = {
         let s = state.lock().unwrap();
+        crate::appearance::configure(&s.settings);
         (
             s.active_app.clone(),
-            s.date.clone(),
+            if s.time_estimated {
+                format!("{} · 待校准", s.date)
+            } else {
+                s.date.clone()
+            },
             s.notice.clone(),
-            s.manual_time_open,
         )
     };
     let w = size.width.max(1.0);
@@ -199,6 +189,7 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             ActiveApp::Calculator(_) => "计算器",
             ActiveApp::MacControls => "Mac 控制",
             ActiveApp::Settings => "设置",
+            ActiveApp::Planned(app) => app.title(),
             ActiveApp::DisplaySetup => "USB 副屏",
             ActiveApp::Launcher => unreachable!(),
         };
@@ -221,65 +212,31 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             )),
             ActiveApp::MacControls => Box::new(mac_page(state.clone(), content_w)),
             ActiveApp::Settings => unreachable!(),
+            ActiveApp::Planned(app) => Box::new(crate::planned_apps::build(
+                app,
+                Size::new(content_w, content_h),
+            )),
             ActiveApp::DisplaySetup => Box::new(display_setup_page(
                 state.clone(),
                 Size::new(content_w, content_h),
             )),
             ActiveApp::Launcher => unreachable!(),
         };
-        let back = state.clone();
-        let kill = state.clone();
-        let bar = if matches!(active, ActiveApp::Clock | ActiveApp::DisplaySetup) {
-            clock_navigation(state.clone(), w)
-        } else if matches!(active, ActiveApp::Calculator(_)) {
+        let bar = if matches!(active, ActiveApp::Calculator(_)) {
             calculator_navigation(state.clone(), w)
         } else if matches!(active, ActiveApp::Timer) {
             build_timer_navigation(state.clone(), w)
         } else {
-            Stack::new()
-                .push(
-                    Container::new()
-                        .width(w)
-                        .height(STATUS_BAR_HEIGHT)
-                        .color(CARD),
-                )
-                .push(at(text(title, 28.0, INK), 24.0, 10.0))
-                .push(at(
-                    button(
-                        if matches!(active, ActiveApp::Settings) && manual_time_open {
-                            "返回设置"
-                        } else {
-                            "回桌面"
-                        },
-                        152.0,
-                        44.0,
-                        false,
-                        move || edit(&back, |s| s.back_active_app()),
-                    ),
-                    w - 304.0,
-                    6.0,
-                ))
-                .push(at(
-                    button("结束应用", 108.0, 44.0, false, move || {
-                        edit(&kill, |s| s.kill_active_app())
-                    }),
-                    w - 132.0,
-                    6.0,
-                ))
+            let nav = clock_navigation(state.clone(), w);
+            if matches!(active, ActiveApp::Clock | ActiveApp::DisplaySetup) {
+                nav
+            } else {
+                nav.push(at(text(title, 28.0, Folio::ink()), 88.0, 15.0))
+            }
         };
         Box::new(
             Stack::new()
-                .push(Container::new().width(w).height(h).color(
-                    if matches!(active, ActiveApp::Clock | ActiveApp::DisplaySetup) {
-                        Color::BLACK
-                    } else if matches!(active, ActiveApp::Calculator(_)) {
-                        calculator::CALCULATOR_BG
-                    } else if matches!(active, ActiveApp::Timer) {
-                        TIMER_BG
-                    } else {
-                        BG
-                    },
-                ))
+                .push(Container::new().width(w).height(h).color(Folio::bg()))
                 .push(at(bar, 0.0, 0.0))
                 .push(at(
                     Container::new()
@@ -292,6 +249,8 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
         )
     };
     if !notice.is_empty()
+        && !(matches!(active, ActiveApp::Launcher)
+            && notice == "Mac 未连接，请连接 USB 和 Mac 应用")
         && !matches!(
             active,
             ActiveApp::Clock
@@ -300,11 +259,15 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
                 | ActiveApp::DisplaySetup
         )
     {
-        // Desktop notices occupy the left of the footer, leaving page dots visible.
+        // The slim gap between cards and the grid keeps notices clear of app icons.
         let on_desktop = matches!(active, ActiveApp::Launcher);
-        let notice_width = if on_desktop { w * 0.38 } else { w - 48.0 };
+        let notice_width = if on_desktop {
+            crate::folio_desktop::workspace_width(Size::new(w, h))
+        } else {
+            w - 48.0
+        };
         let notice_chars = if on_desktop {
-            ((notice_width - 12.0) / 18.0).floor().max(4.0) as usize
+            ((notice_width - 12.0) / 14.0).floor().max(4.0) as usize
         } else {
             42
         };
@@ -312,15 +275,34 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             Stack::new().push(root).push(at(
                 Container::new()
                     .width(notice_width)
-                    .height(38.0)
-                    .color(LINE)
+                    .height(if on_desktop { 24.0 } else { 38.0 })
+                    .color(Folio::line())
                     .border_radius(8.0)
-                    .padding(EdgeInsets::all(6.0))
-                    .child(text(short(&notice, notice_chars), 18.0, WARM)),
+                    .padding(EdgeInsets::all(if on_desktop { 4.0 } else { 6.0 }))
+                    .child(text(
+                        short(&notice, notice_chars),
+                        if on_desktop { 14.0 } else { 18.0 },
+                        Folio::orange(),
+                    )),
                 24.0,
-                h - 43.0,
+                if on_desktop { 182.0 } else { h - 43.0 },
             )),
         );
+    }
+    let keep_control_backdrop = {
+        let s = state.lock().unwrap();
+        matches!(active, ActiveApp::Launcher)
+            && s.status_panel_open
+            && s.status_panel_kind == crate::status_bar::StatusPanelKind::Control
+    };
+    if !keep_control_backdrop {
+        state
+            .lock()
+            .unwrap()
+            .control_center_backdrop
+            .lock()
+            .unwrap()
+            .take();
     }
     if matches!(active, ActiveApp::Launcher) && state.lock().unwrap().status_panel_open {
         root = crate::status_bar::with_status_panel(state.clone(), root, Size::new(w, h));
@@ -350,122 +332,10 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
     )
 }
 
-/// Upstream icon-slot structure, expanded to 4 × 2 with stable empty slots.
-fn build_app_grid_page(mut icons: Vec<Box<dyn Widget>>, icon_size: f32) -> impl Widget {
-    let mut slots: Vec<Box<dyn Widget>> = Vec::with_capacity(DESKTOP_PAGE_CAPACITY);
-    for _ in 0..DESKTOP_PAGE_CAPACITY {
-        slots.push(if icons.is_empty() {
-            Box::new(SizedBox::from_size(Size::new(
-                (icon_size + 32.0).max(160.0),
-                icon_size + 44.0,
-            )))
-        } else {
-            icons.remove(0)
-        });
-    }
-    let mut slots = slots.into_iter();
-    let mut grid = Column::new()
-        .main_axis_alignment(MainAxisAlignment::SpaceEvenly)
-        .cross_axis_alignment(CrossAxisAlignment::Center);
-    for _ in 0..GRID_ROWS {
-        let mut row = Row::new()
-            .main_axis_alignment(MainAxisAlignment::SpaceEvenly)
-            .cross_axis_alignment(CrossAxisAlignment::Center);
-        for _ in 0..GRID_COLUMNS {
-            row = row.push(slots.next().unwrap());
-        }
-        grid = grid.push(row);
-    }
-    grid
+pub(crate) fn build_desktop(state: Arc<Mutex<LauncherState>>, size: Size) -> impl Widget {
+    crate::folio_desktop::build(state, size)
 }
 
-pub(crate) fn build_desktop(state: Arc<Mutex<LauncherState>>, size: Size) -> impl Widget {
-    let (controller, current_page, total_pages) = {
-        let mut s = state.lock().unwrap();
-        s.total_pages = DESKTOP_ENTRIES.len().div_ceil(DESKTOP_PAGE_CAPACITY).max(1);
-        let saved_page = s.page_controller.page();
-        s.current_page = saved_page.min(s.total_pages - 1);
-        if s.current_page != saved_page {
-            s.page_controller.set_page(s.current_page);
-        }
-        (s.page_controller.clone(), s.current_page, s.total_pages)
-    };
-    let page_y = STATUS_BAR_HEIGHT + 12.0;
-    let page_h = (size.height - page_y - 44.0).max(1.0);
-    let icon_size = (page_h * 0.30).clamp(96.0, DESKTOP_ICON_SIDE as f32);
-    let entry = |id: &'static str, label: &'static str| -> Box<dyn Widget> {
-        let launch = state.clone();
-        Box::new(build_app_icon(
-            label,
-            get_app_icon_asset(id).expect("missing built-in app icon"),
-            icon_size,
-            move |source| {
-                edit(&launch, |s| match id {
-                    "screen" => s.queue(UiCommand::Screen(false)),
-                    _ => s.launch_app(id, source),
-                })
-            },
-        ))
-    };
-    let grid_pages: Vec<_> = DESKTOP_ENTRIES
-        .chunks(DESKTOP_PAGE_CAPACITY)
-        .map(|entries| {
-            build_app_grid_page(
-                entries
-                    .iter()
-                    .map(|&(id, label)| entry(id, label))
-                    .collect(),
-                icon_size,
-            )
-        })
-        .collect();
-    let changed = state.clone();
-    let pages = PageView::new(grid_pages)
-        .controller(controller)
-        .transition(PageTransition::None)
-        .on_page_changed(move |page| edit(&changed, |s| s.current_page = page));
-    let mut dots = Row::new()
-        .main_axis_alignment(MainAxisAlignment::Center)
-        .cross_axis_alignment(CrossAxisAlignment::Center);
-    let indicator_count = if total_pages > 1 { total_pages } else { 0 };
-    for page in 0..indicator_count {
-        let select = state.clone();
-        dots = dots.push(
-            GestureDetector::new(
-                Container::new()
-                    .width(44.0)
-                    .height(28.0)
-                    .child(Center::new(make_dot(current_page == page))),
-            )
-            .on_tap(move || {
-                edit(&select, |s| {
-                    s.page_controller.set_page(page);
-                    s.current_page = page;
-                })
-            }),
-        );
-    }
-    CustomPaint::new(WallpaperPainter).size(size).child(
-        Stack::new()
-            .push(at(build_status_bar(state, size.width), 0.0, 0.0))
-            .push(at(
-                Container::new()
-                    .width(size.width)
-                    .height(page_h)
-                    .child(pages),
-                0.0,
-                page_y,
-            ))
-            .push(at(
-                Container::new()
-                    .width(size.width)
-                    .height(44.0)
-                    .child(Center::new(dots)),
-                0.0,
-                size.height - 44.0,
-            )),
-    )
-}
 fn short(s: &str, max: usize) -> String {
     if s.chars().count() > max {
         format!(
@@ -477,16 +347,34 @@ fn short(s: &str, max: usize) -> String {
     }
 }
 
+fn content_excerpt(value: &str, px: f32, width: f32, lines: usize) -> String {
+    let font = Font::content_font();
+    let layout = font.layout_text(value, px, width, true);
+    if layout.lines.len() <= lines {
+        return layout.lines.join("\n");
+    }
+    let mut shown: Vec<_> = layout.lines.into_iter().take(lines).collect();
+    if let Some(last) = shown.last_mut() {
+        while !last.is_empty() && font.measure_text(&format!("{last}..."), px).width > width {
+            last.pop();
+        }
+        last.push_str("...");
+    }
+    shown.join("\n")
+}
+
 fn clock_page(state: Arc<Mutex<LauncherState>>, size: Size, date: String) -> Stack {
     let w = size.width;
     Stack::new()
         .push(CustomPaint::new(FlipClockPainter::new(state)).size(size))
         .push(at(
             Container::new()
-                .width(w)
-                .height(34.0)
-                .child(Center::new(text(date, 22.0, MUTED))),
-            0.0,
+                .width(560.0_f32.min(w))
+                .height(42.0)
+                .color(Folio::surface())
+                .border_radius(21.0)
+                .child(Center::new(text(date, 22.0, Folio::muted()))),
+            (w - 560.0_f32.min(w)) * 0.5,
             size.height - 106.0,
         ))
 }
@@ -504,68 +392,117 @@ fn notes_page(
     drop(v);
     let mut p = Stack::new().push(panel(w, 382.0));
     if let Some(n) = notes.get(selected) {
+        let title = content_excerpt(&n.title, 28.0, w - 108.0, 2);
+        let title_top = if title.contains('\n') { 10.0 } else { 28.0 };
         p = p
+            .push(at(crate::widgets::app_badge("notes", 52.0), 16.0, 17.0))
             .push(at(
-                Container::new().width(w - 48.0).height(79.0).child(
-                    text(&n.title, 28.0, MINT)
+                Container::new().width(w - 108.0).height(76.0).child(
+                    text(title, 28.0, Folio::ink())
                         .font(Font::content_font().clone())
                         .wrap(),
                 ),
-                24.0,
-                17.0,
+                84.0,
+                title_top,
             ))
             .push(at(
-                Container::new().width(w - 48.0).height(271.0).child(
+                Container::new()
+                    .width(w - 48.0)
+                    .height(1.0)
+                    .color(Folio::separator()),
+                24.0,
+                94.0,
+            ))
+            .push(at(
+                Container::new().width(w - 48.0).height(252.0).child(
                     SingleChildScrollView::new(
-                        text(&n.body, 22.0, INK)
+                        text(&n.body, 22.0, Folio::ink())
                             .font(Font::content_font().clone())
                             .wrap(),
                     )
                     .controller(scroll),
                 ),
                 24.0,
-                96.0,
+                112.0,
             ));
         let s = state.clone();
         let note_id = n.id.clone();
         let vc = view.clone();
         p = p.push(at(
-            button(
+            ElevatedButton::new(text(
                 if confirm {
                     "确认删除"
                 } else {
                     "删除便签"
                 },
+                22.0,
+                if confirm {
+                    Folio::ink()
+                } else {
+                    Folio::destructive()
+                },
+            ))
+            .style(Folio::control_style(
                 166.0,
                 54.0,
-                confirm,
-                move || {
-                    if let Ok(mut v) = vc.lock() {
-                        if v.confirm_delete {
-                            v.confirm_delete = false;
-                            edit(&s, |s| s.queue(UiCommand::DeleteNote(note_id.clone())));
-                        } else {
-                            v.confirm_delete = true;
-                        }
-                    }
+                if confirm {
+                    Folio::destructive_fill()
+                } else {
+                    Folio::raised()
                 },
-            ),
+            ))
+            .on_pressed(move || {
+                if let Ok(mut v) = vc.lock() {
+                    if v.confirm_delete {
+                        v.confirm_delete = false;
+                        edit(&s, |s| s.queue(UiCommand::DeleteNote(note_id.clone())));
+                    } else {
+                        v.confirm_delete = true;
+                    }
+                }
+            }),
             w - 166.0,
             402.0,
         ));
         p = p.push(at(
-            text(format!("{} / {}", selected + 1, notes.len()), 22.0, MUTED),
+            text(
+                format!("{} / {}", selected + 1, notes.len()),
+                22.0,
+                Folio::muted(),
+            ),
             319.0,
             416.0,
         ));
     } else {
         p = p
-            .push(at(text("还没有便签", 36.0, INK), 26.0, 110.0))
             .push(at(
-                text("在 Mac 上编辑并同步到这里", 22.0, MUTED),
-                26.0,
-                175.0,
+                crate::widgets::app_badge("notes", 88.0),
+                (w - 88.0) * 0.5,
+                60.0,
+            ))
+            .push(at(
+                Container::new()
+                    .width(w)
+                    .height(42.0)
+                    .child(Center::new(text("还没有便签", 28.0, Folio::ink()))),
+                0.0,
+                174.0,
+            ))
+            .push(at(
+                Container::new()
+                    .width(w)
+                    .height(36.0)
+                    .child(Center::new(text(
+                        "在 Mac 上编辑并同步到这里",
+                        22.0,
+                        Folio::muted(),
+                    ))),
+                0.0,
+                230.0,
             ));
+    }
+    if notes.is_empty() {
+        return p;
     }
     for (i, (label, delta)) in [("上一条", -1isize), ("下一条", 1isize)]
         .into_iter()
@@ -595,36 +532,75 @@ fn mac_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
         let s = state.lock().unwrap();
         (s.snapshot.buttons.clone(), s.mac_page, s.connected)
     };
-    let mut p = Stack::new().push(at(
-        text(
-            if connected {
-                "轻触执行 Mac 动作"
-            } else {
-                "连接 Mac 后可执行快捷键与启动应用"
-            },
-            22.0,
-            MUTED,
-        ),
-        0.0,
-        0.0,
-    ));
+    let mut p = Stack::new()
+        .push(at(
+            crate::widgets::glyph(
+                &UI_USB,
+                22.0,
+                if connected {
+                    Folio::green()
+                } else {
+                    Folio::muted()
+                },
+            ),
+            0.0,
+            2.0,
+        ))
+        .push(at(
+            text(
+                if connected {
+                    "轻触执行 Mac 动作"
+                } else {
+                    "连接 Mac 后可执行快捷键与启动应用"
+                },
+                22.0,
+                Folio::muted(),
+            ),
+            32.0,
+            0.0,
+        ));
     let cw = (w - 32.0) / 3.0;
     for (i, b) in buttons.iter().skip(page * 12).take(12).enumerate() {
         let s = state.clone();
         let id = b.id.clone();
+        let action_icon = match &b.action {
+            p4desk_protocol::Action::Shortcut { .. } => &UI_SYSTEM,
+            p4desk_protocol::Action::Application { .. } => &UI_TERMINAL,
+            p4desk_protocol::Action::Media { .. } => &UI_PLAY_CIRCLE,
+        };
         p = p.push(at(
             ElevatedButton::new(
-                text(short(&b.label, 26), 18.0, INK)
-                    .font(Font::content_font().clone())
-                    .wrap(),
+                Stack::new()
+                    .push(at(
+                        crate::widgets::glyph(action_icon, 26.0, Folio::accent_ink()),
+                        16.0,
+                        20.0,
+                    ))
+                    .push(at(
+                        Container::new()
+                            .width(cw - 76.0)
+                            .height(52.0)
+                            .child(Center::new(
+                                text(
+                                    content_excerpt(&b.label, 18.0, cw - 76.0, 2),
+                                    18.0,
+                                    Folio::ink(),
+                                )
+                                .font(Font::content_font().clone())
+                                .wrap(),
+                            )),
+                        56.0,
+                        7.0,
+                    )),
             )
             .style(
                 ButtonStyle::new()
+                    .antialias(true)
                     .size(cw, 66.0)
-                    .color(CARD)
-                    .pressed_color(LINE)
-                    .border_radius(12.0)
-                    .padding(EdgeInsets::all(8.0)),
+                    .color(Folio::surface())
+                    .pressed_color(Folio::pressed(Folio::surface()))
+                    .border_radius(Folio::GROUP_RADIUS)
+                    .padding(EdgeInsets::ZERO),
             )
             .on_pressed(move || edit(&s, |s| s.queue(UiCommand::Action(id.clone())))),
             (i % 3) as f32 * (cw + 16.0),
@@ -633,30 +609,61 @@ fn mac_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
     }
     if buttons.is_empty() {
         p = p.push(at(
-            panel(w, 250.0).padding(EdgeInsets::all(24.0)).child(
-                text(
-                    "在 Mac 应用中添加快捷键或应用启动按钮，再同步到设备。",
-                    28.0,
-                    INK,
-                )
-                .wrap(),
+            panel(w, 292.0).child(
+                Stack::new()
+                    .push(at(
+                        crate::widgets::app_badge("mac", 88.0),
+                        (w - 88.0) * 0.5,
+                        28.0,
+                    ))
+                    .push(at(
+                        Container::new()
+                            .width(w - 96.0)
+                            .height(124.0)
+                            .child(Center::new(
+                                text(
+                                    "在 Mac 应用中添加快捷键或应用启动按钮，再同步到设备。",
+                                    22.0,
+                                    Folio::muted(),
+                                )
+                                .wrap(),
+                            )),
+                        48.0,
+                        142.0,
+                    )),
             ),
             0.0,
             44.0,
         ));
     }
     let pages = buttons.len().div_ceil(12).max(1);
-    let s = state.clone();
+    if pages > 1 {
+        let s = state.clone();
+        p = p.push(at(
+            button(
+                format!("动作 {} / {}  下一页", page + 1, pages),
+                276.0,
+                46.0,
+                false,
+                move || edit(&s, |s| s.mac_page = (s.mac_page + 1) % pages),
+            ),
+            0.0,
+            363.0,
+        ));
+    } else if !buttons.is_empty() {
+        p = p.push(at(
+            text(format!("{} / {}", page + 1, pages), 18.0, Folio::muted()),
+            16.0,
+            376.0,
+        ));
+    }
     p = p.push(at(
-        button(
-            format!("动作 {} / {}  下一页", page + 1, pages),
-            276.0,
-            46.0,
-            false,
-            move || edit(&s, |s| s.mac_page = (s.mac_page + 1) % pages),
-        ),
+        Container::new()
+            .width(w)
+            .height(1.0)
+            .color(Folio::separator()),
         0.0,
-        363.0,
+        416.0,
     ));
     for (i, (label, usage)) in [
         ("上一首", 0xb6u16),
@@ -685,18 +692,20 @@ pub(crate) fn manual_time_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stac
         (s.manual_clock.values(), s.settings.timezone_minutes)
     };
     let mut p = Stack::new().push(panel(w, 334.0)).push(at(
-        text("手动设置日期与时间", 28.0, MINT),
+        text("手动设置日期与时间", 28.0, Folio::accent_ink()),
         24.0,
         20.0,
     ));
     let cw = (w - 64.0) / 5.0;
     for (i, label) in ["年", "月", "日", "时", "分"].into_iter().enumerate() {
         let x = 24.0 + i as f32 * (cw + 4.0);
-        p = p.push(at(text(label, 22.0, MUTED), x, 72.0)).push(at(
-            text(format!("{:02}", values[i]), 36.0, INK),
-            x,
-            117.0,
-        ));
+        p = p
+            .push(at(text(label, 22.0, Folio::muted()), x, 72.0))
+            .push(at(
+                text(format!("{:02}", values[i]), 36.0, Folio::ink()),
+                x,
+                117.0,
+            ));
         let s = state.clone();
         p = p.push(at(
             button("+", cw - 12.0, 52.0, false, move || {
@@ -746,7 +755,7 @@ pub(crate) fn manual_time_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stac
         text(
             format!("时区偏移：{} 分钟，重新上电后需再次校时", timezone),
             18.0,
-            MUTED,
+            Folio::muted(),
         ),
         0.0,
         438.0,
@@ -770,11 +779,21 @@ fn display_setup_page(state: Arc<Mutex<LauncherState>>, size: Size) -> Stack {
         notice
     };
     Stack::new()
+        .push(at(panel(size.width - 120.0, 384.0), 60.0, cy - 192.0))
+        .push(at(
+            Container::new()
+                .width(size.width - 168.0)
+                .height(1.0)
+                .color(Folio::separator()),
+            84.0,
+            cy + 70.0,
+        ))
         .push(at(
             CustomPaint::new(crate::widgets::AppIconPainter {
                 asset: get_app_icon_asset("display").unwrap(),
                 target_size: 112.0,
                 pressed: None,
+                clock: None,
             })
             .size(Size::new(112.0, 112.0)),
             cx - 56.0,
@@ -784,17 +803,28 @@ fn display_setup_page(state: Arc<Mutex<LauncherState>>, size: Size) -> Stack {
             Container::new()
                 .width(size.width)
                 .height(40.0)
-                .child(Center::new(text("USB 副屏", 28.0, INK))),
+                .child(Center::new(text("USB 副屏", 28.0, Folio::ink()))),
             0.0,
             cy - 24.0,
         ))
         .push(at(
             Container::new()
-                .width(size.width)
-                .height(40.0)
-                .child(Center::new(text(status, 22.0, MUTED))),
-            0.0,
-            cy + 26.0,
+                .width(size.width - 184.0)
+                .height(70.0)
+                .child(Center::new(
+                    text(
+                        status,
+                        18.0,
+                        if connected {
+                            Folio::accent_ink()
+                        } else {
+                            Folio::muted()
+                        },
+                    )
+                    .wrap(),
+                )),
+            92.0,
+            cy + 6.0,
         ))
         .push(at(
             button("进入副屏", 180.0, 48.0, true, move || {

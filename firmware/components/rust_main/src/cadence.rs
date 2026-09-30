@@ -25,3 +25,49 @@ mod tests {
         }
     }
 }
+
+/// Consume movement through the newest sample before painting, retaining frame
+/// boundaries after Down and terminal events for feedback and app transitions.
+#[derive(Default)]
+pub(crate) struct TouchBatch {
+    count: u8,
+    boundary: bool,
+}
+impl TouchBatch {
+    pub fn ready(&self) -> bool {
+        !self.boundary && self.count < 8
+    }
+    pub fn consumed(&mut self, kind: u32) {
+        self.count += 1;
+        self.boundary = kind != 2;
+    }
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
+}
+#[cfg(test)]
+mod touch_tests {
+    use super::TouchBatch;
+    #[test]
+    fn moves_share_a_frame_but_down_and_release_keep_their_boundaries() {
+        let mut b = TouchBatch::default();
+        assert!(b.ready());
+        b.consumed(1);
+        assert!(!b.ready());
+        b.reset();
+        for kind in [2, 2, 3] {
+            assert!(b.ready());
+            b.consumed(kind);
+        }
+        assert!(!b.ready());
+        b.reset();
+        for _ in 0..8 {
+            assert!(b.ready());
+            b.consumed(2);
+        }
+        assert!(!b.ready());
+        b.reset();
+        b.consumed(4);
+        assert!(!b.ready());
+    }
+}
