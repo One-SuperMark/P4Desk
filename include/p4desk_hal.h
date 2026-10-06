@@ -43,6 +43,8 @@ _Static_assert(offsetof(p4desk_touch_frame_t, points) == 16, "touch frame layout
 extern "C" {
 #endif
 void rust_main_entry(void);
+// Best-effort diagnostic text only; bounded to 512 bytes, never UI/user contents.
+void p4desk_log_diagnostic(const uint8_t *data, size_t length);
 void host_lcd_draw_bitmap(int32_t x1, int32_t y1, int32_t x2, int32_t y2, const uint16_t *pixels);
 bool host_touch_get_point(int32_t *x, int32_t *y);
 bool p4desk_poll_pad_touch(p4desk_pad_touch_event_t *event);

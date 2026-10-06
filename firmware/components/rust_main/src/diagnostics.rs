@@ -32,25 +32,24 @@ pub(crate) fn log(args: fmt::Arguments<'_>) {
     let _ = line.write_fmt(args);
     #[cfg(target_os = "espidf")]
     unsafe {
-        // IDF 6 uses Picolibc: C stdout's VFS descriptor need not be POSIX fd 1.
-        // Rust println! writes to fd 1, which can be the optional USB-JTAG port
-        // and fail before enumeration or when unplugged. ESP-IDF's logger uses
-        // the configured C console and does not panic on an output error.
-        esp_idf_sys::esp_log_write(
-            esp_idf_sys::esp_log_level_t_ESP_LOG_INFO,
-            c"p4desk_rust".as_ptr(),
-            c"%.*s\n".as_ptr(),
-            line.len as i32,
-            line.bytes.as_ptr().cast::<std::ffi::c_char>(),
-        );
+        extern "C" {
+            fn p4desk_log_diagnostic(data: *const u8, length: usize);
+        }
+        // Route through the C console: Rust fd 1 can refer to a disconnected
+        // secondary USB descriptor on Picolibc. Formatting is bounded above.
+        p4desk_log_diagnostic(line.bytes.as_ptr(), line.len);
     }
     #[cfg(not(target_os = "espidf"))]
     {
-        use std::io::Write as _;
         let mut output = std::io::stdout().lock();
-        let _ = output.write_all(&line.bytes[..line.len]);
-        let _ = output.write_all(b"\n");
+        write_buffer(&mut output, &line);
     }
+}
+
+#[cfg(not(target_os = "espidf"))]
+fn write_buffer(output: &mut impl std::io::Write, line: &Line) {
+    let _ = output.write_all(&line.bytes[..line.len]);
+    let _ = output.write_all(b"\n");
 }
 
 macro_rules! diagnostic {
@@ -87,5 +86,33 @@ mod tests {
             }
         }
         log(format_args!("diagnostic test {}", Failed));
+    }
+
+    #[test]
+    fn disconnected_console_errors_are_best_effort() {
+        struct FailedConsole(i32);
+        impl std::io::Write for FailedConsole {
+            fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+                Err(std::io::Error::from_raw_os_error(self.0))
+            }
+            fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        }
+        let mut line = Line { bytes: [0; 512], len: 0, truncated: false };
+        write!(&mut line, "p4desk_session: save=ok apps=2").unwrap();
+        for error in [2, 5, 9] { write_buffer(&mut FailedConsole(error), &line); }
+        let mut output = Vec::new();
+        write_buffer(&mut output, &line);
+        assert_eq!(output, b"p4desk_session: save=ok apps=2\n");
+    }
+
+    #[test]
+    fn exact_capacity_keeps_the_complete_prefix() {
+        let mut line = Line { bytes: [0; 512], len: 0, truncated: false };
+        write!(&mut line, "{}", "x".repeat(512)).unwrap();
+        assert_eq!(line.len, 512);
+        assert!(!line.truncated);
+        write!(&mut line, "extra").unwrap();
+        assert_eq!(line.len, 512);
+        assert!(line.truncated);
     }
 }
