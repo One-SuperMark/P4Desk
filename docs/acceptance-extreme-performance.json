@@ -1,0 +1,254 @@
+{
+  "date": "2026-10-06",
+  "scope": "公共 renderer、可见状态更新、监控 live card、C LCD 分带同步与渲染包编译配置",
+  "prior_commit": "06c33bb",
+  "baseline_display_acceptance": "acceptance-system-display-memory.json",
+  "intermediate_build": {
+    "status": "passed",
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "artifact": {
+      "bytes": 6476160,
+      "sha256": "f1ff44e5357abc3be8aeebb0a5f6e2f72606f9e32c9802ced99afa707d6abe69"
+    },
+    "evidence": ".cache/extreme-performance/intermediate/build.log"
+  },
+  "intermediate_flash": {
+    "status": "passed",
+    "hashes_verified": 3,
+    "nvs_tf_preserved": true,
+    "evidence": ".cache/extreme-performance/intermediate/flash.log"
+  },
+  "host_tests": {
+    "workspace_passed": 404,
+    "workspace_suites_including_doc_tests": 50,
+    "c_regressions": [
+      "pad-damage",
+      "pipeline",
+      "cache-sync",
+      "display-pixels",
+      "monitor-http"
+    ],
+    "oracle_stroke_scenes": 1440,
+    "oracle_compound_fill_scenes": 32,
+    "cache_plot_scenes": 324,
+    "synthetic_switches": 48,
+    "synthetic_strided_frames": 2161,
+    "final_sweeps_live_bytes": [
+      18184373,
+      18184373
+    ],
+    "peak_requested_bytes": 19681087,
+    "vector_retained_bytes": 5568280,
+    "evidence_dir": ".cache/system-display-audit/",
+    "workspace_evidence": ".cache/extreme-performance/rust-workspace.log",
+    "source_scope_note": "404 项 workspace 测试在最终可见状态过滤和新增趋势单独更新回归前运行；最终变更分别通过 Runtime 28 项、release renderer 91 项和 usage_headline_render 6 项。",
+    "final_focused_tests": {
+      "runtime": 28,
+      "renderer_release": 91,
+      "usage_headline_render_release": 6
+    },
+    "final_focused_evidence": [
+      ".cache/extreme-performance/runtime-visibility-tests.log",
+      ".cache/extreme-performance/renderer-release.log",
+      ".cache/extreme-performance/live-render-release.log"
+    ],
+    "release_synthetic_live_probe": {
+      "samples": 10,
+      "explicit_mounts": 10,
+      "live_mounts": 0,
+      "explicit_allocations": 9621,
+      "live_allocations": 2404,
+      "explicit_peak_extra_bytes": 37825,
+      "live_peak_extra_bytes": 6677,
+      "pixel_mismatches": 0,
+      "evidence": ".cache/extreme-performance/live-performance-final.log",
+      "limit": "同一主机当前 renderer 的合成序列，对照显式整页 rebuild 和局部更新；不是 P4 FPS。"
+    },
+    "renderer_package_opt_comparison": {
+      "scope": "全局 s + LTO，两个 renderer 包 s→3",
+      "scene_pairs": 170,
+      "phase_hashes": 290,
+      "stroke_hashes": 45,
+      "pixel_mismatches": 0,
+      "cold_desktop_median_improvement_range_percent": [
+        12,
+        19
+      ],
+      "appearance_median_improvement_range_percent": [
+        8,
+        21
+      ],
+      "theme_median_improvement_range_percent": [
+        13,
+        25
+      ],
+      "evidence": ".cache/system-display-audit/cold-profile-summary.md",
+      "limit": "主机合成测量；短路径及部分热缓存路径存在微秒波动，不代表每条路径都更快。"
+    }
+  },
+  "intermediate_user_visual_check": {
+    "interaction": "操作顺畅，画面和点击正常",
+    "monitor": "更新正常，画面稳定",
+    "scope": "first optimization build; subsequent runtime gating and timing-only refinement to be captured separately"
+  },
+  "final_build": {
+    "status": "passed",
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "artifact": {
+      "bytes": 6504176,
+      "sha256": "fa3ed3ab36f9945f0374c4664dcb99d94aed9bfb7ffa94915a1f1e46691a388c"
+    },
+    "app_partition_bytes": 8388608,
+    "renderer_opt_level": 3,
+    "other_rust_opt_level": "s",
+    "source_hashes_verified_files": 274,
+    "config_verified": [
+      "#define CONFIG_HEAP_POISONING_LIGHT 1",
+      "#define CONFIG_LCD_DSI_ISR_CACHE_SAFE 1",
+      "#define CONFIG_ESP_MM_CACHE_MSYNC_C2M_CHUNKED_OPS_MAX_LEN 0x8000"
+    ],
+    "iram_routing_verified": true,
+    "evidence": [
+      ".cache/extreme-performance/build-final.log",
+      ".cache/extreme-performance/build-artifacts.json",
+      ".cache/extreme-performance/source-hashes.json",
+      ".cache/extreme-performance/elf-symbols.log",
+      ".cache/extreme-performance/link-routing.log"
+    ]
+  },
+  "final_flash": {
+    "status": "passed",
+    "hashes_verified": 3,
+    "regions": [
+      "bootloader",
+      "partition-table",
+      "application"
+    ],
+    "nvs_tf_preserved": true,
+    "evidence": ".cache/extreme-performance/flash-final.log"
+  },
+  "final_device": {
+    "status": "capture_complete",
+    "capture": {
+      "planned_seconds": 660,
+      "elapsed_seconds": 660.43,
+      "exit": 0
+    },
+    "diagnostic_samples": 21,
+    "last_diagnostic_uptime_s": 631,
+    "boots": 1,
+    "alloc_failures": 0,
+    "panic_assert_messages": 0,
+    "heap_min_bytes": {
+      "internal_min": 65939,
+      "psram_min": 17865712
+    },
+    "final_heap_bytes": {
+      "internal_free": 72287,
+      "psram_free": 18187828
+    },
+    "display": {
+      "bridge_underrun_max": 0,
+      "cache_errors": 0,
+      "ppa_errors": 0,
+      "ppa_timeouts": 0,
+      "m2c_errors": 0,
+      "boundary_delayed_over_25ms": 0,
+      "dsi_host": {
+        "log_ms": 633363,
+        "query": 0,
+        "polls": 9562,
+        "error_polls": 1,
+        "status0_or": 1048576,
+        "status1_or": 0,
+        "dpi_overflow_polls": 0,
+        "dpi_underflow_polls": 0,
+        "first_us": 470843,
+        "last_us": 470843
+      },
+      "host_status_note": "status0=0x100000 的一次启动期记录单列保留；不能声称所有 DSI host 标志均为零。"
+    },
+    "requests": {
+      "completed": 131,
+      "success": 130,
+      "failed": 1,
+      "failure_note": "开机网络尚未连接时一次 Offline；后续成功。",
+      "start_intervals_ms": {
+        "n": 129,
+        "min": 4981,
+        "median": 5001,
+        "max": 5021
+      },
+      "http_codes": {
+        "200": 423
+      },
+      "cadence_limit": "begin trace is throttled after24 starts to once per12; all request ends are counted, unlogged starts inferred from end minus duration; kinds for those requests remain not_logged"
+    },
+    "checkpoints": {
+      "ok": 12,
+      "failed": 0
+    },
+    "foreground_proxy": {
+      "filter": "window end>=60s, no nearby recorded drag/scroll, >=4 requests in preceding30s and median request start gap4.5-5.5s; foreground-like proxy, taps and other activity not excluded",
+      "windows": 20,
+      "frames": 511,
+      "weighted_draw_avg_us_approx": 6074.20156555773,
+      "weighted_output_avg_us_approx": 2381.3248532289626,
+      "draw_max_us_windows": {
+        "n": 20,
+        "min": 44154,
+        "median": 46201.0,
+        "max": 75857
+      },
+      "mounts_per_window": {
+        "n": 20,
+        "min": 1,
+        "median": 1.5,
+        "max": 2
+      },
+      "advance_layouts": 506,
+      "advance_layout_us_total": 352558,
+      "advance_layout_us_per_call_approx": 696.7549407114625
+    },
+    "relative_uptime_gate_comparison": {
+      "matching_windows": 18,
+      "final_mounts": 27,
+      "intermediate_mounts": 101,
+      "final_requests": 108,
+      "systematic_one_mount_per_request_absent_in_final_matched_sample": true
+    },
+    "copy": {
+      "sampled_actual_bytes": 12910878,
+      "sampled_regions": 1674,
+      "same_present_count_full_frame_reference_bytes": 663552000,
+      "avoided_fraction_against_full_frame_reference": 0.9805427788628472,
+      "limit": "与相同已呈现次数全部复制整帧的理论参考相比；不是和旧固件同场景的实测下降率。"
+    },
+    "timing_limit": "draw/total only render_dirty; advance layout, builder, mount separate; per-window aggregate not frame P95; C copy bytes actual regions, Rust damage bounds; cache hits/misses cumulative; max_chunk_us elapsed includes scheduling",
+    "evidence": [
+      ".cache/extreme-performance/monitor-final.log",
+      ".cache/extreme-performance/capture-final.json",
+      ".cache/extreme-performance/stability-final-summary.json",
+      ".cache/extreme-performance/performance-final-summary.json"
+    ]
+  },
+  "git": {
+    "prior_changes_pushed": true,
+    "prior_head": "06c33bb5e713477924f2bde31776f9dac7889f8b",
+    "branch": "codex/folio-ui",
+    "optimization_commit": "本记录包含在性能优化提交中，实际提交号与推送核验由交付说明记录。"
+  },
+  "final_user_visual_check": {
+    "status": "awaiting_optional_response",
+    "scope": "最终版首次返回桌面／换主题的冷绘制观察尚未收到答复。中间版桌面交互与监控稳定已获用户确认，不能代替最终版首次主题生成验收。"
+  },
+  "limits": [
+    "两轮实机窗口不是相同数据／交互的严格 A/B，对照只支持每个 headline 必定整树挂载的系统性路径已消除。",
+    "draw 不含 mount、builder、预推进 layout；聚合平均与窗口峰值不是完整事件循环、输入到显示延迟、FPS 或帧级 P95。",
+    "中间版冷绘制曾有 4,170,790 us 峰值；最终版采样未覆盖桌面首次主题缓存生成，不能宣称该峰值完全消除。",
+    "本轮未重新验收 USB 实际 JPEG 副屏帧率或 BLE 业务连接。"
+  ]
+}

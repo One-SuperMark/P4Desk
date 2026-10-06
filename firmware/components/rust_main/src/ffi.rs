@@ -378,9 +378,14 @@ pub extern "C" fn rust_main_entry() {
                 crate::diagnostics::diagnostic!("p4desk_ui_perf: frames={} draw_avg_us={} output_avg_us={} draw_max_us={} total_max_us={} render_cache_entries={} render_cache_bytes={} cache_hits={} cache_misses={}",
                     m.frames, m.draw_us / m.frames, m.output_us / m.frames,
                     m.max_draw_us, m.max_total_us, entries, bytes, hits, misses);
+                crate::diagnostics::diagnostic!("p4desk_ui_stages: frames={} layout_avg_us={} paint_avg_us={} full={} opaque={} damage_pixels={} mounts={} mount_avg_us={} mount_max_us={} builder_us={} advance_layouts={} advance_layout_us={}",
+                    m.frames, m.layout_us / m.frames, m.paint_us / m.frames,
+                    m.full_region_frames, m.opaque_frames, m.damage_pixels,
+                    m.mounts, m.mount_us / m.mounts.max(1), m.mount_max_us, m.builder_us,
+                    m.advance_layouts, m.advance_layout_us);
                 if m.drag_frames > 0 {
                     crate::diagnostics::diagnostic!("p4desk_drag_perf: frames={} draw_avg_us={} output_avg_us={} total_max_us={} opaque_frames={}",
-                        m.drag_frames, m.drag_draw_us / m.drag_frames, m.drag_output_us / m.drag_frames, m.drag_max_us, m.opaque_frames);
+                        m.drag_frames, m.drag_draw_us / m.drag_frames, m.drag_output_us / m.drag_frames, m.drag_max_us, m.drag_opaque_frames);
                 }
                 let s = tiny_flutter::widgets::take_scroll_metrics();
                 if s.paints > 0 {

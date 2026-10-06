@@ -16,6 +16,7 @@ use std::sync::{
 struct Watch {
     paths: Mutex<Vec<String>>,
     tokens: AtomicU64,
+    cost_bits: AtomicU64,
     block: AtomicBool,
     started: AtomicBool,
     auth: AtomicBool,
@@ -34,8 +35,9 @@ impl Transport for Fake {
             return Err(Error::Authentication);
         }
         let n = self.0.tokens.load(Ordering::Acquire);
+        let cost = f64::from_bits(self.0.cost_bits.load(Ordering::Acquire));
         let data = if path == "/admin/dashboard/stats" {
-            json!({"today_tokens":n,"total_tokens":900,"today_actual_cost":1,"total_actual_cost":9,"today_requests":2,"total_requests":20})
+            json!({"today_tokens":n,"total_tokens":900,"today_actual_cost":cost,"total_actual_cost":9,"today_requests":2,"total_requests":20})
         } else if path.starts_with("/admin/accounts?") {
             json!({"items":[],"total":0})
         } else if path.starts_with("/admin/dashboard/trend?") {
@@ -56,6 +58,7 @@ fn fixture(name: &str) -> (Service, LauncherState, Arc<Watch>, std::path::PathBu
         app_launcher::GenerationStore::new(root.join("sd"), root.join("flash")).monitor_store();
     let w = Arc::new(Watch::default());
     w.tokens.store(10, Ordering::Release);
+    w.cost_bits.store(1.25f64.to_bits(), Ordering::Release);
     let service = Service::new(Box::new(Fake(w.clone())), store).unwrap();
     let mut s = LauncherState::new();
     s.open_app("sub2api-monitor");
@@ -119,6 +122,8 @@ fn fast_deadline_uses_request_start_not_completion_and_never_writes_tf() {
     let stamp = 1_791_261_000_000;
     complete(&mut service, &mut s, stamp);
     let files = journals(&root);
+    let revision = s.revision;
+    let previous_status = s.usage.status.clone();
     assert!(!files.is_empty());
     let count = w.paths.lock().unwrap().len();
     advance(&mut s, 5099);
@@ -126,6 +131,7 @@ fn fast_deadline_uses_request_start_not_completion_and_never_writes_tf() {
     assert_eq!(w.paths.lock().unwrap().len(), count);
     advance(&mut s, 5100);
     w.tokens.store(20, Ordering::Release);
+    w.cost_bits.store(2.5f64.to_bits(), Ordering::Release);
     service.poll(&mut s);
     assert!(
         !s.usage.busy,
@@ -147,6 +153,18 @@ fn fast_deadline_uses_request_start_not_completion_and_never_writes_tf() {
     );
     assert_eq!(w.paths.lock().unwrap().len(), count + 2);
     assert_eq!(
+        s.revision, revision,
+        "a same-scope sample must use live widget damage"
+    );
+    assert_ne!(
+        s.usage.status, previous_status,
+        "the five-second timestamp must still advance"
+    );
+    assert_eq!(
+        s.usage.data.as_ref().unwrap().totals.as_ref().unwrap().cost,
+        2.5
+    );
+    assert_eq!(
         journals(&root),
         files,
         "five-second RAM update must not journal TF"
@@ -164,6 +182,10 @@ fn fast_deadline_uses_request_start_not_completion_and_never_writes_tf() {
     let stamp = s.unix_ms;
     complete(&mut service, &mut s, stamp);
     assert_ne!(journals(&root), files, "full dashboard still persists");
+    assert!(
+        s.revision > revision,
+        "full snapshots retain rebuild semantics"
+    );
     drop(service);
     let _ = std::fs::remove_dir_all(root);
 }
@@ -268,6 +290,7 @@ fn fast_auth_failure_keeps_old_snapshot_and_backoff() {
     let stamp = s.unix_ms;
     complete(&mut service, &mut s, stamp);
     let original = s.usage.data.clone().unwrap();
+    let revision = s.revision;
     w.auth.store(true, Ordering::Release);
     advance(&mut s, 5100);
     service.poll(&mut s);
@@ -280,6 +303,10 @@ fn fast_auth_failure_keeps_old_snapshot_and_backoff() {
     }
     assert_eq!(s.usage.status, Error::Authentication.message());
     assert!(s.usage.stale);
+    assert_eq!(
+        s.revision, revision,
+        "fast errors update the live status strip"
+    );
     assert!(Arc::ptr_eq(&original, s.usage.data.as_ref().unwrap()));
     let count = w.paths.lock().unwrap().len();
     advance(&mut s, 10100);

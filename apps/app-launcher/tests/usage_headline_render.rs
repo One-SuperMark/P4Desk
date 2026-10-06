@@ -210,3 +210,135 @@ fn verify_transition_with_backend(
         &differences[..differences.len().min(12)]
     );
 }
+
+#[test]
+fn live_samples_update_tokens_cost_timestamp_and_error_without_replacing_the_tree() {
+    let state = fixture(270_879_573);
+    let size = Size::new(1024., 600.);
+    let mut backend = Recorded::new_strided();
+    let mut app = App::new(build_launcher_ui(state.clone(), size), size);
+    app.step_with_builder(&mut backend, |size| build_launcher_ui(state.clone(), size));
+    backend.flushes.clear();
+    let revision = state.lock().unwrap().revision;
+    {
+        let mut s = state.lock().unwrap();
+        let mut data = (**s.usage.data.as_ref().unwrap()).clone();
+        data.totals.as_mut().unwrap().tokens = 270_880_573;
+        data.totals.as_mut().unwrap().cost = 146.42;
+        s.usage.data = Some(Arc::new(data));
+        s.usage.status = "更新于 14:30:05 · 实时采样 5 秒 / 看板 60 秒".into();
+        s.tick(10_100, NOW + 100);
+    }
+    // A fast network completion neither increments global revision nor asks
+    // App to rebuild. The existing render objects must detect all live fields.
+    assert_eq!(state.lock().unwrap().revision, revision);
+    for elapsed in (0..1_089).step_by(33) {
+        state
+            .lock()
+            .unwrap()
+            .tick(10_100 + elapsed, NOW + 100 + elapsed as i64);
+        app.step_with_builder(&mut backend, |size| build_launcher_ui(state.clone(), size));
+    }
+    assert!(!backend.flushes.is_empty());
+    assert!(
+        backend
+            .flushes
+            .iter()
+            .all(|r| r.width * r.height < 450_000.),
+        "fast sample produced whole-page damage: {:?}",
+        backend.flushes
+    );
+    assert_matches_settled(&state, &backend.inner.pixels, size);
+    for (status, partial) in [("网络连接失败", false), ("趋势未更新", true)] {
+        backend.flushes.clear();
+        {
+            let mut s = state.lock().unwrap();
+            s.usage.stale = true;
+            s.usage.status = status.into();
+            let mut data = (**s.usage.data.as_ref().unwrap()).clone();
+            data.warning = partial.then(|| status.to_owned());
+            s.usage.data = Some(Arc::new(data));
+        }
+        app.step_with_builder(&mut backend, |size| build_launcher_ui(state.clone(), size));
+        assert_eq!(backend.flushes.len(), 1);
+        assert!(
+            backend.flushes[0].height <= 24.,
+            "error update redrew unrelated cards"
+        );
+        assert_matches_settled(&state, &backend.inner.pixels, size);
+    }
+    // Navigation deliberately retains the normal new-tree path; no previous
+    // scope's live render object may leak DAY content into MONTH.
+    {
+        let mut s = state.lock().unwrap();
+        s.usage.navigate(Page::Overview, Period::Month, None);
+        s.changed();
+    }
+    app.request_rebuild();
+    app.step_with_builder(&mut backend, |size| build_launcher_ui(state.clone(), size));
+    assert_matches_settled(&state, &backend.inner.pixels, size);
+}
+fn assert_matches_settled(state: &Arc<Mutex<LauncherState>>, pixels: &[u16], size: Size) {
+    let mut fresh = HeadlessBackend::new(1024, 600);
+    let mut settled = App::new(build_launcher_ui(state.clone(), size), size);
+    settled.step_with_builder(&mut fresh, |size| build_launcher_ui(state.clone(), size));
+    let mismatches = pixels
+        .iter()
+        .zip(&fresh.pixels)
+        .filter(|(a, b)| a != b)
+        .count();
+    assert_eq!(mismatches, 0, "live metadata left stale pixels");
+}
+
+#[test]
+fn trend_only_live_samples_keep_damage_in_the_chart_card_and_match_a_fresh_tree() {
+    let state = fixture(270_879_573);
+    {
+        let mut s = state.lock().unwrap();
+        let mut data = (**s.usage.data.as_ref().unwrap()).clone();
+        data.trend = (0..3)
+            .map(|i| app_launcher::usage::Point {
+                date: format!("2026-10-06 {i:02}:00"),
+                totals: Totals {
+                    tokens: 1_000 + i * 300,
+                    cost: 1.2,
+                    requests: Some(10),
+                },
+            })
+            .collect();
+        data.yesterday_trend = data.trend.clone();
+        s.usage.data = Some(Arc::new(data));
+    }
+    let size = Size::new(1024., 600.);
+    let mut backend = Recorded::new_strided();
+    let mut app = App::new(build_launcher_ui(state.clone(), size), size);
+    app.step_with_builder(&mut backend, |size| build_launcher_ui(state.clone(), size));
+    for change in 0..7 {
+        backend.flushes.clear();
+        {
+            let mut s = state.lock().unwrap();
+            let mut data = (**s.usage.data.as_ref().unwrap()).clone();
+            match change {
+                0 => data.trend.last_mut().unwrap().totals.tokens += 500,
+                1 => data.trend.last_mut().unwrap().date = "2026-10-06 03:00".into(),
+                2 => data.trend.last_mut().unwrap().totals.cost += 0.25,
+                3 => data.yesterday_trend[0].totals.tokens += 2_500,
+                4 => s.usage.chart_selected = Some(0),
+                5 => data.trend.clear(),
+                _ => data.trend = data.yesterday_trend.clone(),
+            }
+            s.usage.data = Some(Arc::new(data));
+        }
+        let mut builders = 0;
+        app.step_with_builder(&mut backend, |size| {
+            builders += 1;
+            build_launcher_ui(state.clone(), size)
+        });
+        assert_eq!(builders, 0, "trend-only update replaced the dashboard tree");
+        assert_eq!(
+            backend.flushes,
+            vec![Rect::from_ltwh(24., 358., 576., 184.)]
+        );
+        assert_matches_settled(&state, &backend.inner.pixels, size);
+    }
+}

@@ -21,6 +21,17 @@ pub struct FrameMetrics {
     pub drag_output_us: u64,
     pub drag_max_us: u64,
     pub opaque_frames: u64,
+    pub drag_opaque_frames: u64,
+    pub layout_us: u64,
+    pub advance_layout_us: u64,
+    pub advance_layouts: u64,
+    pub paint_us: u64,
+    pub damage_pixels: u64,
+    pub full_region_frames: u64,
+    pub mounts: u64,
+    pub mount_us: u64,
+    pub mount_max_us: u64,
+    pub builder_us: u64,
 }
 
 /// Main application runner and state orchestrator for tiny-flutter.
@@ -107,6 +118,7 @@ impl App {
 
     /// Re-mount or update the root widget hierarchy.
     pub fn set_root(&mut self, root_widget: impl Widget) {
+        let started = std::time::Instant::now();
         let mut root = root_widget.create_render_object();
         root.layout(&BoxConstraints::tight(self.size));
         if let Some(p) = self.touch_down {
@@ -114,6 +126,10 @@ impl App {
         }
         self.root = root;
         self.dirty.mark_all_dirty(self.size);
+        let elapsed = started.elapsed().as_micros() as u64;
+        self.frame_metrics.mounts += 1;
+        self.frame_metrics.mount_us += elapsed;
+        self.frame_metrics.mount_max_us = self.frame_metrics.mount_max_us.max(elapsed);
     }
 
     /// Resize the app rendering surface and box constraints.
@@ -333,7 +349,10 @@ impl App {
         // refresh page indicators / launch backdrop even if a new tap follows.
         if let Some(rect) = self.root.animation_dirty() {
             self.dirty.mark_dirty(rect);
+            let started = std::time::Instant::now();
             self.root.layout(&BoxConstraints::tight(self.size));
+            self.frame_metrics.advance_layout_us += started.elapsed().as_micros() as u64;
+            self.frame_metrics.advance_layouts += 1;
         }
         let animation_dirty = self.root.animation_dirty();
         if let Some(rect) = animation_dirty {
@@ -346,7 +365,10 @@ impl App {
             // Retain the drag tree through settling. Deferred clock/status/page
             // revisions are applied once the local animation has reached rest.
             if self.touch_down.is_none() && animation_dirty.is_none() {
-                self.set_root(builder.build(self.size));
+                let started = std::time::Instant::now();
+                let widget = builder.build(self.size);
+                self.frame_metrics.builder_us += started.elapsed().as_micros() as u64;
+                self.set_root(widget);
                 self.dirty.mark_all_dirty(self.size);
             } else {
                 self.rebuild_requested = true;
@@ -421,7 +443,10 @@ impl App {
 
         if self.screen_on {
             if self.touch_down.is_none() {
-                self.set_root(builder.build(self.size));
+                let started = std::time::Instant::now();
+                let widget = builder.build(self.size);
+                self.frame_metrics.builder_us += started.elapsed().as_micros() as u64;
+                self.set_root(widget);
             }
             self.dirty.mark_all_dirty(self.size);
             self.render_dirty(backend);
@@ -448,6 +473,8 @@ impl App {
 
             let constraints = BoxConstraints::tight(self.size);
             self.root.layout(&constraints);
+            let measured_layout_us = measured_start.elapsed().as_micros() as u64;
+            let paint_started = std::time::Instant::now();
 
             #[cfg(feature = "profile")]
             let t_layout = std::time::Instant::now();
@@ -466,6 +493,7 @@ impl App {
                 canvas.restore();
                 replaced
             };
+            let measured_paint_us = paint_started.elapsed().as_micros() as u64;
 
             #[cfg(feature = "profile")]
             let t_paint = std::time::Instant::now();
@@ -521,8 +549,13 @@ impl App {
             m.max_draw_us = m.max_draw_us.max(measured_draw_us);
             m.max_total_us = m.max_total_us.max(measured_total_us);
             m.opaque_frames += u64::from(opaque_repainted);
+            m.layout_us += measured_layout_us;
+            m.paint_us += measured_paint_us;
+            m.damage_pixels += count as u64;
+            m.full_region_frames += u64::from(count == self.pixmap.data().len());
             if self.drag_frame {
                 m.drag_frames += 1;
+                m.drag_opaque_frames += u64::from(opaque_repainted);
                 m.drag_draw_us += measured_draw_us;
                 m.drag_output_us += measured_total_us.saturating_sub(measured_draw_us);
                 m.drag_max_us = m.drag_max_us.max(measured_total_us);

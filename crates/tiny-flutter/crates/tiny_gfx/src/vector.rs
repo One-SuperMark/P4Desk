@@ -5,12 +5,69 @@ use crate::geometry::{Point, RRect, Radius, Rect};
 use crate::paint::{FillRule, LineCap, LineJoin, Paint, Shader, Stroke};
 use crate::pixmap::Pixmap565Mut;
 
+// Fill paths borrow their flattened polygons. Stroke segments and joins have
+// at most four vertices, so they never need an individual heap allocation.
 #[derive(Clone)]
-enum Shape {
-    Polygon(Vec<Point>),
+enum Shape<'a> {
+    Polygon {
+        points: &'a [Point],
+        min_y: f32,
+        max_y: f32,
+    },
+    InlinePolygon {
+        points: [Point; 4],
+        len: u8,
+        min_y: f32,
+        max_y: f32,
+    },
     Circle(Point, f32),
     Ring(Point, f32, f32),
     RoundedRect(RRect, Option<RRect>),
+}
+impl<'a> Shape<'a> {
+    fn polygon(points: &'a [Point]) -> Self {
+        let (min_y, max_y) = vertical_bounds(points);
+        Self::Polygon {
+            points,
+            min_y,
+            max_y,
+        }
+    }
+    fn quad(points: [Point; 4]) -> Self {
+        Self::small_polygon(points, 4)
+    }
+    fn small_polygon(points: [Point; 4], len: u8) -> Self {
+        let (min_y, max_y) = vertical_bounds(&points[..len as usize]);
+        Self::InlinePolygon {
+            points,
+            len,
+            min_y,
+            max_y,
+        }
+    }
+    fn polygon_points(&self) -> Option<(&[Point], f32, f32)> {
+        match self {
+            Self::Polygon {
+                points,
+                min_y,
+                max_y,
+            } => Some((points, *min_y, *max_y)),
+            Self::InlinePolygon {
+                points,
+                len,
+                min_y,
+                max_y,
+            } => Some((&points[..*len as usize], *min_y, *max_y)),
+            _ => None,
+        }
+    }
+}
+fn vertical_bounds(points: &[Point]) -> (f32, f32) {
+    points
+        .iter()
+        .fold((f32::INFINITY, f32::NEG_INFINITY), |(min, max), p| {
+            (min.min(p.y), max.max(p.y))
+        })
 }
 
 pub(crate) fn circle(
@@ -33,7 +90,7 @@ pub(crate) fn circle(
     } else {
         Shape::Circle(center, radius)
     };
-    rasterize(pixmap, clip, &[shape], paint, None);
+    rasterize::<true>(pixmap, clip, &[shape], paint, None);
 }
 pub(crate) fn rounded_rect(
     pixmap: &mut Pixmap565Mut<'_>,
@@ -77,7 +134,7 @@ pub(crate) fn rounded_rect(
     } else {
         (rect, None)
     };
-    rasterize(
+    rasterize::<true>(
         pixmap,
         clip,
         &[Shape::RoundedRect(outer, inner)],
@@ -114,13 +171,12 @@ pub(crate) fn fill(
     paint: &Paint,
     rule: FillRule,
 ) {
-    rasterize(
+    rasterize::<true>(
         pixmap,
         clip,
         &polygons
             .iter()
-            .cloned()
-            .map(Shape::Polygon)
+            .map(|points| Shape::polygon(points))
             .collect::<Vec<_>>(),
         paint,
         Some(rule),
@@ -144,7 +200,7 @@ pub(crate) fn stroke(
             continue;
         }
         let closed = points.first() == points.last();
-        let mut normals = Vec::new();
+        let mut normals = Vec::with_capacity(points.len() - 1);
         for pair in points.windows(2) {
             let a = pair[0];
             let b = pair[1];
@@ -157,7 +213,7 @@ pub(crate) fn stroke(
             }
             let n = Point::new(-dy * half / length, dx * half / length);
             normals.push(n);
-            shapes.push(Shape::Polygon(vec![
+            shapes.push(Shape::quad([
                 Point::new(a.x + n.x, a.y + n.y),
                 Point::new(a.x - n.x, a.y - n.y),
                 Point::new(b.x - n.x, b.y - n.y),
@@ -183,7 +239,7 @@ pub(crate) fn stroke(
                         };
                         let direction = if i == 0 { -1.0 } else { 1.0 };
                         let t = Point::new(n.y * direction, -n.x * direction);
-                        shapes.push(Shape::Polygon(vec![
+                        shapes.push(Shape::quad([
                             Point::new(p.x + n.x, p.y + n.y),
                             Point::new(p.x - n.x, p.y - n.y),
                             Point::new(p.x - n.x + t.x, p.y - n.y + t.y),
@@ -200,7 +256,8 @@ pub(crate) fn stroke(
                 for side in [-1.0, 1.0] {
                     let a = Point::new(p.x + before.x * side, p.y + before.y * side);
                     let b = Point::new(p.x + after.x * side, p.y + after.y * side);
-                    let mut join = vec![p, a];
+                    let mut join = [p, a, b, Point::ZERO];
+                    let mut len = 3;
                     if stroke.line_join == LineJoin::Miter {
                         let sum =
                             Point::new((before.x + after.x) * side, (before.y + after.y) * side);
@@ -210,17 +267,18 @@ pub(crate) fn stroke(
                             let mx = sum.x * factor;
                             let my = sum.y * factor;
                             if mx * mx + my * my <= (half * stroke.miter_limit).powi(2) {
-                                join.push(Point::new(p.x + mx, p.y + my));
+                                join[2] = Point::new(p.x + mx, p.y + my);
+                                join[3] = b;
+                                len = 4;
                             }
                         }
                     }
-                    join.push(b);
-                    shapes.push(Shape::Polygon(join));
+                    shapes.push(Shape::small_polygon(join, len));
                 }
             }
         }
     }
-    rasterize(pixmap, clip, &shapes, paint, None);
+    rasterize::<true>(pixmap, clip, &shapes, paint, None);
 }
 
 fn crossings(points: &[Point], y: f32, output: &mut Vec<(f32, i32)>) {
@@ -262,10 +320,10 @@ fn spans_from_crossings(
         }
     }
 }
-fn rasterize(
+fn rasterize<const CULL_POLYGONS: bool>(
     pixmap: &mut Pixmap565Mut<'_>,
     clip: Option<Rect>,
-    shapes: &[Shape],
+    shapes: &[Shape<'_>],
     paint: &Paint,
     fill_rule: Option<FillRule>,
 ) {
@@ -273,7 +331,8 @@ fn rasterize(
     let mut max = Point::new(f32::NEG_INFINITY, f32::NEG_INFINITY);
     for shape in shapes {
         match shape {
-            Shape::Polygon(points) => {
+            Shape::Polygon { .. } | Shape::InlinePolygon { .. } => {
+                let (points, _, _) = shape.polygon_points().unwrap();
                 for p in points {
                     min.x = min.x.min(p.x);
                     min.y = min.y.min(p.y);
@@ -328,7 +387,14 @@ fn rasterize(
             intersections.clear();
             for shape in shapes {
                 match shape {
-                    Shape::Polygon(points) => {
+                    Shape::Polygon { .. } | Shape::InlinePolygon { .. } => {
+                        let (points, min_y, max_y) = shape.polygon_points().unwrap();
+                        // The crossing rule already excludes a polygon outside
+                        // this half-open range. Skip its edges without changing
+                        // the order of the surviving segment/cap/join spans.
+                        if CULL_POLYGONS && (sy < min_y || sy >= max_y) {
+                            continue;
+                        }
                         if fill_rule.is_none() {
                             intersections.clear();
                         }
@@ -495,6 +561,251 @@ mod coverage_compatibility {
                     super::accumulate(&mut new, 0, a, b, samples);
                 }
                 assert_eq!(old, new);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod allocation_and_culling_compatibility {
+    use super::*;
+    use crate::{Color, GradientStop, LinearGradient, Pixmap565, SpreadMode, Transform};
+
+    // Keep the original allocation-heavy mesh builder as an independent oracle
+    // for segment coordinates, vertex order and cap/join construction. The
+    // unculled rasterizer also checks the new per-polygon row rejection.
+    enum LegacyShape {
+        Polygon(Vec<Point>),
+        Circle(Point, f32),
+    }
+    fn legacy_stroke(
+        pixmap: &mut Pixmap565Mut<'_>,
+        clip: Option<Rect>,
+        polylines: &[Vec<Point>],
+        paint: &Paint,
+        stroke: &Stroke,
+    ) {
+        let half = stroke.width * 0.5;
+        if half <= 0.0 || !half.is_finite() {
+            return;
+        }
+        let mut shapes = Vec::new();
+        for points in polylines {
+            if points.len() < 2 {
+                continue;
+            }
+            let closed = points.first() == points.last();
+            let mut normals = Vec::new();
+            for pair in points.windows(2) {
+                let a = pair[0];
+                let b = pair[1];
+                let dx = b.x - a.x;
+                let dy = b.y - a.y;
+                let length = (dx * dx + dy * dy).sqrt();
+                if length < 0.00001 {
+                    normals.push(Point::ZERO);
+                    continue;
+                }
+                let n = Point::new(-dy * half / length, dx * half / length);
+                normals.push(n);
+                shapes.push(LegacyShape::Polygon(vec![
+                    Point::new(a.x + n.x, a.y + n.y),
+                    Point::new(a.x - n.x, a.y - n.y),
+                    Point::new(b.x - n.x, b.y - n.y),
+                    Point::new(b.x + n.x, b.y + n.y),
+                ]));
+            }
+            let count = if closed {
+                points.len() - 1
+            } else {
+                points.len()
+            };
+            for i in 0..count {
+                let p = points[i];
+                let endpoint = !closed && (i == 0 || i == count - 1);
+                if endpoint {
+                    match stroke.line_cap {
+                        LineCap::Round => shapes.push(LegacyShape::Circle(p, half)),
+                        LineCap::Square => {
+                            let n = if i == 0 {
+                                normals[0]
+                            } else {
+                                *normals.last().unwrap()
+                            };
+                            let direction = if i == 0 { -1.0 } else { 1.0 };
+                            let t = Point::new(n.y * direction, -n.x * direction);
+                            shapes.push(LegacyShape::Polygon(vec![
+                                Point::new(p.x + n.x, p.y + n.y),
+                                Point::new(p.x - n.x, p.y - n.y),
+                                Point::new(p.x - n.x + t.x, p.y - n.y + t.y),
+                                Point::new(p.x + n.x + t.x, p.y + n.y + t.y),
+                            ]));
+                        }
+                        LineCap::Butt => (),
+                    }
+                } else if stroke.line_join == LineJoin::Round {
+                    shapes.push(LegacyShape::Circle(p, half));
+                } else {
+                    let before = normals[(i + normals.len() - 1) % normals.len()];
+                    let after = normals[i % normals.len()];
+                    for side in [-1.0, 1.0] {
+                        let a = Point::new(p.x + before.x * side, p.y + before.y * side);
+                        let b = Point::new(p.x + after.x * side, p.y + after.y * side);
+                        let mut join = vec![p, a];
+                        if stroke.line_join == LineJoin::Miter {
+                            let sum = Point::new(
+                                (before.x + after.x) * side,
+                                (before.y + after.y) * side,
+                            );
+                            let dot = sum.x * after.x * side + sum.y * after.y * side;
+                            if dot.abs() > 0.00001 {
+                                let factor = half * half / dot;
+                                let mx = sum.x * factor;
+                                let my = sum.y * factor;
+                                if mx * mx + my * my <= (half * stroke.miter_limit).powi(2) {
+                                    join.push(Point::new(p.x + mx, p.y + my));
+                                }
+                            }
+                        }
+                        join.push(b);
+                        shapes.push(LegacyShape::Polygon(join));
+                    }
+                }
+            }
+        }
+        let borrowed: Vec<_> = shapes
+            .iter()
+            .map(|shape| match shape {
+                LegacyShape::Polygon(points) => Shape::polygon(points),
+                LegacyShape::Circle(center, radius) => Shape::Circle(*center, *radius),
+            })
+            .collect();
+        rasterize::<false>(pixmap, clip, &borrowed, paint, None);
+    }
+
+    fn paints() -> Vec<Paint<'static>> {
+        let mut gradient = Paint::new(Color::RED);
+        gradient.shader = LinearGradient::new(
+            Point::new(1.0, 7.0),
+            Point::new(72.0, 61.0),
+            vec![
+                GradientStop::new(0.0, Color::from_rgba(20, 150, 244, 173)),
+                GradientStop::new(1.0, Color::from_rgba(230, 84, 42, 219)),
+            ],
+            SpreadMode::Pad,
+            Transform::identity(),
+        )
+        .unwrap();
+        vec![Paint::new(Color::from_rgba(231, 245, 249, 137)), gradient]
+    }
+    fn transformed_polylines(transform: Transform) -> Vec<Vec<Point>> {
+        let lines = [
+            vec![
+                Point::new(-4.3, 9.6),
+                Point::new(19.7, 51.4),
+                Point::new(19.7, 51.4),
+                Point::new(50.6, 8.2),
+                Point::new(56.2, 41.6),
+                Point::new(85.3, 55.1),
+            ],
+            vec![
+                Point::new(11.5, 17.8),
+                Point::new(57.1, 18.1),
+                Point::new(56.6, 48.8),
+                Point::new(11.5, 17.8),
+            ],
+            vec![
+                Point::new(22.1, 44.3),
+                Point::new(34.8, 11.8),
+                Point::new(22.1, 44.3),
+            ],
+        ];
+        lines
+            .into_iter()
+            .map(|line| line.into_iter().map(|p| transform.map_point(p)).collect())
+            .collect()
+    }
+    #[test]
+    fn inline_mesh_and_row_culling_match_original_stroke_pixels_exactly() {
+        let transforms = [
+            Transform::identity(),
+            Transform::from_translate(3.25, -4.6),
+            Transform::from_scale(1.125, 0.875),
+            Transform::from_row(-1.0, 0.0, 0.0, -1.0, 85.4, 65.8),
+            Transform::from_row(1.1, 0.15, -0.35, 0.85, 8.3, -4.25),
+        ];
+        let clips = [
+            None,
+            Some(Rect::from_ltwh(12.25, 13.5, 49.75, 42.25)),
+            Some(Rect::from_ltwh(-12.5, -8.75, 37.3, 29.6)),
+            Some(Rect::from_ltwh(90.0, 71.0, 20.0, 15.0)),
+        ];
+        for transform in transforms {
+            let lines = transformed_polylines(transform);
+            for mut paint in paints() {
+                for aa in [false, true] {
+                    paint.anti_alias = aa;
+                    for cap in [LineCap::Butt, LineCap::Round, LineCap::Square] {
+                        for join in [LineJoin::Round, LineJoin::Miter, LineJoin::Bevel] {
+                            for (width, miter_limit) in [(1.3, 1.1), (9.6, 4.0)] {
+                                let style = Stroke {
+                                    width,
+                                    line_cap: cap,
+                                    line_join: join,
+                                    miter_limit,
+                                };
+                                for clip in clips {
+                                    let mut actual = Pixmap565::new(96, 72).unwrap();
+                                    actual.fill(0x3186);
+                                    let mut expected = actual.clone();
+                                    stroke(&mut actual.as_mut(), clip, &lines, &paint, &style);
+                                    legacy_stroke(
+                                        &mut expected.as_mut(),
+                                        clip,
+                                        &lines,
+                                        &paint,
+                                        &style,
+                                    );
+                                    assert_eq!(actual, expected, "cap={cap:?} join={join:?} aa={aa} width={width} clip={clip:?}");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    fn borrowed_compound_fills_match_unculled_winding_and_even_odd_pixels() {
+        for transform in [
+            Transform::identity(),
+            Transform::from_translate(-5.25, 8.75),
+        ] {
+            let polygons = transformed_polylines(transform);
+            let shapes: Vec<_> = polygons
+                .iter()
+                .map(|points| Shape::polygon(points))
+                .collect();
+            for rule in [FillRule::Winding, FillRule::EvenOdd] {
+                for mut paint in paints() {
+                    for aa in [false, true] {
+                        paint.anti_alias = aa;
+                        for clip in [None, Some(Rect::from_ltwh(9.25, 5.5, 56.1, 48.3))] {
+                            let mut actual = Pixmap565::new(96, 72).unwrap();
+                            actual.fill(0x3186);
+                            let mut expected = actual.clone();
+                            fill(&mut actual.as_mut(), clip, &polygons, &paint, rule);
+                            rasterize::<false>(
+                                &mut expected.as_mut(),
+                                clip,
+                                &shapes,
+                                &paint,
+                                Some(rule),
+                            );
+                            assert_eq!(actual, expected);
+                        }
+                    }
+                }
             }
         }
     }

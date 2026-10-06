@@ -17,3 +17,11 @@ opt-level = "s"
 lto = true
 codegen-units = 1
 panic = "abort"
+
+# The UI's pixel and coverage loops are latency-sensitive. Keep the rest of
+# the firmware compact while optimizing the shared renderer for speed.
+[profile.release.package.tiny_gfx]
+opt-level = 3
+
+[profile.release.package.tiny-flutter]
+opt-level = 3

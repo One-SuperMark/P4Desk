@@ -97,6 +97,7 @@ static atomic_uint s_lcd_boundary_gap_max_us, s_lcd_delayed_boundaries, s_lcd_bo
 static atomic_uint s_alloc_failures, s_last_alloc_bytes, s_last_alloc_caps;
 static atomic_uint s_pad_partial_copies, s_pad_full_copies, s_pad_skipped_copies;
 static atomic_uint s_pad_copy_bytes_window;
+static atomic_uint s_pad_copy_regions_window;
 static portMUX_TYPE s_state_lock = portMUX_INITIALIZER_UNLOCKED;
 static uint32_t s_mode = MODE_PAD, s_epoch = 1, s_session, s_jpeg_rotation_degrees;
 static bool s_connected, s_invalidated = true, s_time_valid;
@@ -808,28 +809,32 @@ static bool prepare_buffer(display_pipeline_t *pipeline)
             xSemaphoreTake(s_pad_lock, portMAX_DELAY);
             if (atomic_exchange(&s_pad_reinitialize, false))
                 p4pad_damage_invalidate_all(&s_pad_damage);
-            p4pad_rect_t damage, output;
-            if (!p4pad_damage_take(&s_pad_damage, (unsigned)index, &damage)) {
+            p4pad_damage_batch_t batch;
+            p4pad_rect_t output;
+            if (!p4pad_damage_take_batch(&s_pad_damage, (unsigned)index, &batch)) {
                 xSemaphoreGive(s_pad_lock);
                 atomic_fetch_add(&s_pad_skipped_copies, 1);
                 goto prepared_done;
             }
-            const uint32_t pixels = (uint32_t)(damage.x2 - damage.x1) *
-                                    (uint32_t)(damage.y2 - damage.y1);
+            const uint32_t pixels = (uint32_t)batch.pixels;
             const bool rotate = P4DESK_DISPLAY_ROTATION_DEGREES == 180;
             const int64_t copy_started_us = esp_timer_get_time();
             esp_err_t copied;
             if (pixels < P4DESK_WIDTH * P4DESK_HEIGHT * 3U / 4U) {
-                copied = p4pad_damage_copy_rgb565(&s_pad_damage,
-                    s_board->framebuffers[index], s_lcd_capacity[index] / sizeof(uint16_t), P4DESK_WIDTH,
-                    s_pad_pixels, P4DESK_WIDTH * P4DESK_HEIGHT, P4DESK_WIDTH, &damage, rotate)
-                    ? ESP_OK : ESP_ERR_INVALID_ARG;
+                copied = ESP_OK;
+                for (size_t region = 0; region < batch.count; ++region) {
+                    if (!p4pad_damage_copy_rgb565(&s_pad_damage,
+                        s_board->framebuffers[index], s_lcd_capacity[index] / sizeof(uint16_t), P4DESK_WIDTH,
+                        s_pad_pixels, P4DESK_WIDTH * P4DESK_HEIGHT, P4DESK_WIDTH,
+                        &batch.regions[region], rotate)) abort();
+                }
                 if (copied != ESP_OK) abort();
-                if (!p4pad_damage_map_rect(&s_pad_damage, &damage, rotate, &output)) abort();
+                if (!p4pad_damage_map_rect(&s_pad_damage, &batch.bounds, rotate, &output)) abort();
                 job->sync_y1 = (uint16_t)output.y1;
                 job->sync_y2 = (uint16_t)output.y2;
                 atomic_fetch_add(&s_pad_partial_copies, 1);
                 atomic_fetch_add(&s_pad_copy_bytes_window, pixels * sizeof(uint16_t));
+                atomic_fetch_add(&s_pad_copy_regions_window, (unsigned)batch.count);
             } else {
                 // Large transitions keep hardware rotation. A small update
                 // uses neither full-frame PPA nor its whole-output M2C call.
@@ -839,6 +844,7 @@ static bool prepare_buffer(display_pipeline_t *pipeline)
                     rotate, 1000) : ESP_ERR_NOT_SUPPORTED;
                 atomic_fetch_add(&s_pad_full_copies, 1);
                 atomic_fetch_add(&s_pad_copy_bytes_window, P4DESK_FB_BYTES);
+                atomic_fetch_add(&s_pad_copy_regions_window, 1);
             }
             if (copied == ESP_ERR_TIMEOUT || copied == ESP_ERR_INVALID_STATE) {
                 ESP_LOGE(TAG, "Pad PPA completion deadline missed; buffers remain owned");
@@ -1115,9 +1121,10 @@ static void log_diagnostics(int64_t now_us)
     ESP_LOGI("p4desk_m2c", "calls=%" PRIu32 " chunks=%" PRIu32 " errors=%" PRIu32 " max_chunk_us=%" PRIu32,
         m2c.whole_calls, m2c.chunks, m2c.errors, m2c.max_chunk_us);
     ESP_LOGI("p4desk_pad_copy", "partial=%" PRIu32 " full=%" PRIu32 " unchanged=%" PRIu32
-        " copied_bytes_window=%" PRIu32,
+        " copied_bytes_window=%" PRIu32 " regions_window=%" PRIu32,
         atomic_load(&s_pad_partial_copies), atomic_load(&s_pad_full_copies),
-        atomic_load(&s_pad_skipped_copies), atomic_exchange(&s_pad_copy_bytes_window, 0));
+        atomic_load(&s_pad_skipped_copies), atomic_exchange(&s_pad_copy_bytes_window, 0),
+        atomic_exchange(&s_pad_copy_regions_window, 0));
     p4desk_lcd_host_error_stats_t host;
     const esp_err_t host_query = p4desk_lcd_host_error_stats(s_board->panel, &host);
     ESP_LOGI("p4desk_dsi_host",

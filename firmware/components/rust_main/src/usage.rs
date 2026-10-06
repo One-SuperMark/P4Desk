@@ -83,6 +83,82 @@ struct Done {
     result: Result<Option<Data>, Error>,
     cached: Option<Data>,
 }
+
+fn same_totals(a: &usage::Totals, b: &usage::Totals) -> bool {
+    a.tokens == b.tokens && a.cost.to_bits() == b.cost.to_bits() && a.requests == b.requests
+}
+fn same_window(a: &Option<usage::Window>, b: &Option<usage::Window>) -> bool {
+    match (a, b) {
+        (Some(a), Some(b)) => {
+            a.used.to_bits() == b.used.to_bits()
+                && a.reset_ms == b.reset_ms
+                && a.window_minutes == b.window_minutes
+        }
+        (None, None) => true,
+        _ => false,
+    }
+}
+/// The live widgets cover totals, chart and status. Any change outside those
+/// regions must retain a regular rebuild, even if a future fast API starts
+/// returning refreshed quota/ranking data. Comparisons borrow the bounded
+/// snapshots and allocate nothing.
+fn same_static_cards(a: &Data, b: &Data) -> bool {
+    let yesterday = match (&a.yesterday, &b.yesterday) {
+        (Some(a), Some(b)) => same_totals(a, b),
+        (None, None) => true,
+        _ => false,
+    };
+    yesterday
+        && a.accounts.len() == b.accounts.len()
+        && a.accounts.iter().zip(&b.accounts).all(|(a, b)| {
+            a.id == b.id
+                && a.label == b.label
+                && a.platform == b.platform
+                && a.kind == b.kind
+                && a.plan_label == b.plan_label
+                && a.usage_updated_ms == b.usage_updated_ms
+                && same_window(&a.five, &b.five)
+                && same_window(&a.seven, &b.seven)
+        })
+        && a.models.len() == b.models.len()
+        && a.models.iter().zip(&b.models).all(|(a, b)| {
+            a.name == b.name
+                && same_totals(&a.totals, &b.totals)
+                && a.input == b.input
+                && a.output == b.output
+                && a.cache == b.cache
+        })
+        && a.users.len() == b.users.len()
+        && a.users
+            .iter()
+            .zip(&b.users)
+            .all(|(a, b)| a.id == b.id && a.label == b.label && same_totals(&a.totals, &b.totals))
+}
+fn live_completion(state: &LauncherState, done: &Done) -> bool {
+    let Work::Fetch(_, scope, _, _, FetchKind::Headline(base)) = &done.work else {
+        return false;
+    };
+    if (scope.page, scope.period, scope.detail) != (Page::Overview, Period::Day, None)
+        || (state.usage.page, state.usage.period, state.usage.detail)
+            != (Page::Overview, Period::Day, None)
+        || state.usage.scope.as_ref() != Some(scope)
+        || !state
+            .usage
+            .data
+            .as_ref()
+            .is_some_and(|data| Arc::ptr_eq(data, base))
+    {
+        return false;
+    }
+    match &done.result {
+        Ok(Some(next)) => same_static_cards(base, next),
+        // A failed sample retains the same card tree; LiveStatus immediately
+        // presents its error and stale state while HeadlineView keeps the
+        // existing value. A loaded fallback snapshot would need a rebuild.
+        Err(_) => done.cached.is_none(),
+        _ => false,
+    }
+}
 #[derive(Default)]
 struct Mailbox {
     pending: Option<Job>,
@@ -101,7 +177,9 @@ impl<T: Transport> Transport for Guarded<T> {
         }
         self.inner.request(c, path, body)
     }
-    fn finish_batch(&mut self) { self.inner.finish_batch() }
+    fn finish_batch(&mut self) {
+        self.inner.finish_batch()
+    }
 }
 impl Service {
     pub fn new(
@@ -254,6 +332,7 @@ impl Service {
                 }
             }
             let fast_sample = matches!(&done.work, Work::Fetch(.., FetchKind::Headline(_)));
+            let live_update = live_completion(state, &done);
             let open_after = matches!(done.work, Work::Save(..)) && done.result.is_ok();
             let u = &mut state.usage;
             u.busy = false;
@@ -346,7 +425,7 @@ impl Service {
             if open_after {
                 state.open_app("sub2api-monitor");
             }
-            if !fast_sample || matches!(state.active_app, ActiveApp::Usage) {
+            if !fast_sample || (matches!(state.active_app, ActiveApp::Usage) && !live_update) {
                 state.changed();
             }
         }
@@ -464,7 +543,9 @@ pub struct EspTransport;
 #[cfg(target_os = "espidf")]
 impl Transport for EspTransport {
     fn finish_batch(&mut self) {
-        extern "C" { fn p4desk_monitor_http_reset(); }
+        extern "C" {
+            fn p4desk_monitor_http_reset();
+        }
         unsafe { p4desk_monitor_http_reset() }
     }
     fn request(&mut self, c: &Config, path: &str, body: Option<&str>) -> Result<Vec<u8>, Error> {
@@ -575,6 +656,70 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(2));
         }
         panic!("background worker did not finish");
+    }
+    #[test]
+    fn live_completion_requires_exact_baseline_and_preserves_static_card_updates() {
+        let mut state = LauncherState::new();
+        state.open_app("sub2api-monitor");
+        state.tick(10_000, 1_791_287_400_000);
+        let scope = api::scope(Period::Day, Page::Overview, None, state.unix_ms, 480).unwrap();
+        let config = Config::new("test.example", "synthetic-key").unwrap();
+        let base = Arc::new(Data::default());
+        state.usage.scope = Some(scope.clone());
+        state.usage.data = Some(base.clone());
+        let mut done = Done {
+            id: 1,
+            work: Work::Fetch(
+                config,
+                scope,
+                state.unix_ms,
+                None,
+                FetchKind::Headline(base.clone()),
+            ),
+            result: Ok(Some(Data {
+                totals: Some(usage::Totals {
+                    tokens: 123,
+                    cost: 2.5,
+                    requests: None,
+                }),
+                warning: Some("趋势未更新".into()),
+                ..Data::default()
+            })),
+            cached: None,
+        };
+        assert!(live_completion(&state, &done));
+        if let Ok(Some(next)) = &mut done.result {
+            next.models.push(usage::Model {
+                name: "synthetic".into(),
+                totals: Default::default(),
+                input: 0,
+                output: 0,
+                cache: 0,
+            });
+        }
+        assert!(
+            !live_completion(&state, &done),
+            "new ranking content must rebuild"
+        );
+        done.result = Err(Error::Transport);
+        assert!(live_completion(&state, &done));
+        done.cached = Some(Data::default());
+        assert!(
+            !live_completion(&state, &done),
+            "new fallback structure must rebuild"
+        );
+        done.cached = None;
+        state.usage.data = Some(Arc::new(Data::default()));
+        assert!(
+            !live_completion(&state, &done),
+            "equal values are not the same request baseline"
+        );
+        state.usage.data = Some(base);
+        state.usage.navigate(Page::Overview, Period::Month, None);
+        assert!(
+            !live_completion(&state, &done),
+            "old DAY completion must not mutate the MONTH tree"
+        );
     }
     #[test]
     fn validates_before_saving_and_keeps_previous_connection_on_failure() {
@@ -806,7 +951,9 @@ mod tests {
                 }
                 self.fake.request(c, path, body)
             }
-            fn finish_batch(&mut self) { self.finished.fetch_add(1, Ordering::AcqRel); }
+            fn finish_batch(&mut self) {
+                self.finished.fetch_add(1, Ordering::AcqRel);
+            }
         }
         let root =
             std::env::temp_dir().join(format!("p4-usage-cache-cancel-{}", std::process::id()));
@@ -850,7 +997,11 @@ mod tests {
             s.usage.data.is_some() && !s.usage.busy
         });
         assert_eq!(state.usage.cached_page_count(), 1);
-        assert_eq!(finished.load(Ordering::Acquire), 2, "cancelled and replacement batches must both release their session");
+        assert_eq!(
+            finished.load(Ordering::Acquire),
+            2,
+            "cancelled and replacement batches must both release their session"
+        );
         assert_eq!(state.usage.scope.as_ref().unwrap().page, Page::Models);
         state.usage.navigate(Page::Overview, Period::Day, None);
         assert!(state.usage.data.is_none());

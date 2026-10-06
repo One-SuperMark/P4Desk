@@ -229,6 +229,22 @@ impl<'a> Canvas<'a> {
             draw,
         );
     }
+
+    /// Reuse the exact RGB565 pixels of one named, local opaque surface.
+    /// `signature` must contain every procedural input and paint color. The
+    /// callback must replace every pixel in `rect`; the shared cache includes
+    /// geometry, translation and clipping and falls back for other transforms.
+    /// Only the current version of a namespace is retained, under the existing
+    /// 6 MiB budget. A key is at most 512 u64 values and copied only on a miss.
+    pub fn cache_opaque_region(
+        &mut self,
+        rect: Rect,
+        namespace: usize,
+        signature: &[u64],
+        draw: impl FnOnce(&mut Canvas),
+    ) {
+        super::vector_cache::opaque_region(self, rect, namespace, signature, draw);
+    }
     pub fn new(pixmap: Pixmap565Mut<'a>) -> Self {
         Self {
             inner: tiny_gfx::Canvas::new(pixmap),

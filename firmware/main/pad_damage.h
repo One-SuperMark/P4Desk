@@ -8,6 +8,7 @@
 // The caller owns synchronization: mark and take must run under the same source
 // mutex as the pixel writes/copy. No heap allocation or framebuffer is stored.
 #define P4PAD_DAMAGE_BUFFER_COUNT 3
+#define P4PAD_DAMAGE_BANDS 32
 
 typedef struct {
     int32_t x1, y1, x2, y2;
@@ -15,8 +16,16 @@ typedef struct {
 
 typedef struct {
     int32_t width, height;
+    int32_t band_height;
     p4pad_rect_t pending[P4PAD_DAMAGE_BUFFER_COUNT];
+    p4pad_rect_t bands[P4PAD_DAMAGE_BUFFER_COUNT][P4PAD_DAMAGE_BANDS];
 } p4pad_damage_t;
+
+typedef struct {
+    p4pad_rect_t bounds;
+    p4pad_rect_t regions[P4PAD_DAMAGE_BANDS];
+    size_t count, pixels;
+} p4pad_damage_batch_t;
 
 // Each framebuffer starts with a full debt; invalid initialization clears state.
 bool p4pad_damage_init(p4pad_damage_t *damage, uint32_t width, uint32_t height);
@@ -28,6 +37,10 @@ bool p4pad_damage_mark(p4pad_damage_t *damage,
                       int32_t x1, int32_t y1, int32_t x2, int32_t y2);
 bool p4pad_damage_peek(const p4pad_damage_t *damage, unsigned index, p4pad_rect_t *rect);
 bool p4pad_damage_take(p4pad_damage_t *damage, unsigned index, p4pad_rect_t *rect);
+// Non-overlapping horizontal bands retain distant damage without copying the
+// unchanged space between it. Adjacent equal-width regions coalesce. No heap.
+bool p4pad_damage_take_batch(p4pad_damage_t *damage, unsigned index,
+                           p4pad_damage_batch_t *batch);
 
 // Map canonical damage to its destination rectangle. Rotation is 0 or 180 only.
 bool p4pad_damage_map_rect(const p4pad_damage_t *damage, const p4pad_rect_t *source,

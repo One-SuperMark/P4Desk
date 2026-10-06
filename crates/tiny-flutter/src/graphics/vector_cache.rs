@@ -7,6 +7,8 @@ use std::cell::RefCell;
 
 const PIXEL_BUDGET: usize = 6 * 1024 * 1024;
 const ENTRY_LIMIT: usize = 128;
+const OPAQUE_REGION_TAG: usize = usize::MAX - 3;
+const OPAQUE_KEY_WORD_LIMIT: usize = 512;
 
 #[derive(Clone, PartialEq)]
 struct Key {
@@ -15,6 +17,9 @@ struct Key {
     geometry: [u32; 16],
     tint: Color,
     opaque: bool,
+    // Exact procedural inputs, allocated only on a miss. Never use a lossy
+    // content hash to decide whether a chart's pixels may be reused.
+    content: Vec<u64>,
 }
 #[derive(Clone, Copy, PartialEq, Debug)]
 struct Region {
@@ -47,6 +52,7 @@ struct Entry {
 impl Entry {
     fn bytes(&self) -> usize {
         (self.before.capacity() + self.after.capacity()) * 2
+            + self.key.content.capacity() * std::mem::size_of::<u64>()
     }
 }
 #[derive(Default)]
@@ -69,12 +75,19 @@ impl CaptureReservation {
     fn new(key: &Key, bytes: usize) -> Option<Self> {
         CACHE.with(|cache| {
             let mut cache = cache.borrow_mut();
-            if bytes > PIXEL_BUDGET.checked_sub(cache.building_bytes)? {
-                return None;
-            }
-            if let Some(index) = cache.entries.iter().position(|e| &e.key == key) {
+            // A named opaque region has only one current version. Drop the
+            // previous chart before allocating its replacement or fallback.
+            while let Some(index) = cache.entries.iter().position(|e| {
+                &e.key == key
+                    || (key.count == OPAQUE_REGION_TAG
+                        && e.key.count == key.count
+                        && e.key.layers == key.layers)
+            }) {
                 let old = cache.entries.swap_remove(index);
                 cache.bytes -= old.bytes();
+            }
+            if bytes > PIXEL_BUDGET.checked_sub(cache.building_bytes)? {
+                return None;
             }
             while cache.bytes + cache.building_bytes + bytes > PIXEL_BUDGET
                 || cache.entries.len() >= ENTRY_LIMIT
@@ -101,7 +114,12 @@ impl CaptureReservation {
             if bytes > self.bytes {
                 return;
             }
-            if let Some(index) = cache.entries.iter().position(|e| e.key == entry.key) {
+            while let Some(index) = cache.entries.iter().position(|e| {
+                e.key == entry.key
+                    || (entry.key.count == OPAQUE_REGION_TAG
+                        && e.key.count == entry.key.count
+                        && e.key.layers == entry.key.layers)
+            }) {
                 let old = cache.entries.swap_remove(index);
                 cache.bytes -= old.bytes();
             }
@@ -135,8 +153,8 @@ impl Drop for CaptureReservation {
 }
 
 /// Entries, retained pixel bytes, cache hits and misses on the current UI thread.
-/// No user content is exposed; retained and in-progress pixel captures share a
-/// 6 MiB budget across icons and static surfaces. Metadata is not pixel storage.
+/// No user content is exposed; retained and in-progress pixel captures and
+/// exact procedural keys share a 6 MiB budget across icons and static surfaces.
 pub fn vector_cache_stats() -> (usize, usize, u64, u64) {
     CACHE.with(|c| {
         let c = c.borrow();
@@ -323,6 +341,118 @@ mod tests {
         CACHE.with(|c| assert_eq!(c.borrow().building_bytes, 0));
         assert_eq!(vector_cache_stats().1, 0);
     }
+
+    #[test]
+    fn local_opaque_replay_is_exact_for_clips_backgrounds_and_changed_inputs() {
+        CACHE.with(|c| *c.borrow_mut() = Cache::default());
+        let area = Rect::from_ltwh(7., 9., 43., 27.);
+        let mut calls = 0;
+        for (value, clip, background) in [
+            (1, None, Color::BLACK),
+            (1, None, Color::WHITE),
+            (1, Some(Rect::from_ltwh(12., 14., 20., 9.)), Color::RED),
+            (2, None, Color::GREEN),
+            (2, None, Color::BLUE),
+        ] {
+            let mut cached = Pixmap565::new(80, 60).unwrap();
+            let mut direct = cached.clone();
+            let draw = |c: &mut Canvas| {
+                c.draw_rect(area, Color::from_hex(0x19232b));
+                c.draw_rect(
+                    Rect::from_ltwh(10., 12., value as f32 * 8., 16.),
+                    Color::from_hex(0x80b8ec).with_opacity(0.7),
+                );
+            };
+            for (pixels, replay) in [(&mut cached, true), (&mut direct, false)] {
+                let mut c = Canvas::new(pixels.as_mut());
+                c.clear(background);
+                if let Some(clip) = clip {
+                    c.clip_rect(clip);
+                }
+                if replay {
+                    c.cache_opaque_region(area, 71, &[value], |c| {
+                        calls += 1;
+                        draw(c);
+                    });
+                } else {
+                    draw(&mut c);
+                }
+            }
+            assert_eq!(cached, direct);
+        }
+        assert_eq!(calls, 2);
+        assert_eq!(vector_cache_stats().0, 1);
+        assert_eq!(vector_cache_stats().1, 43 * 27 * 2 + 8);
+        assert_capture_budget();
+    }
+
+    #[test]
+    fn local_opaque_transform_and_partial_warmup_do_not_replay_wrong_pixels() {
+        CACHE.with(|c| *c.borrow_mut() = Cache::default());
+        let area = Rect::from_ltwh(0., 0., 41., 28.);
+        let mut calls = 0;
+        for (x, y, scale, clip) in [
+            (5., 6., 1., Some(Rect::from_ltwh(10., 8., 10., 10.))),
+            (5., 6., 1., None),
+            (5., 6., 1., None),
+            (6., 6., 1., None),
+            (6.25, 6., 1., None),
+            (6.25, 6., 1., None),
+            (5., 6., 0.8, None),
+            (5., 6., 0.8, None),
+        ] {
+            let mut cached = Pixmap565::new(80, 60).unwrap();
+            let mut direct = cached.clone();
+            for (pixels, replay) in [(&mut cached, true), (&mut direct, false)] {
+                let mut c = Canvas::new(pixels.as_mut());
+                c.clear(Color::GREEN);
+                if let Some(clip) = clip {
+                    c.clip_rect(clip);
+                }
+                c.translate(x, y);
+                c.scale(scale, scale);
+                let draw = |c: &mut Canvas| {
+                    c.draw_rect(area, Color::BLACK);
+                    c.draw_rect(Rect::from_ltwh(2., 2., 17., 10.), Color::BLUE);
+                };
+                if replay {
+                    c.cache_opaque_region(area, 71, &[1, 2], |c| {
+                        calls += 1;
+                        draw(c);
+                    });
+                } else {
+                    draw(&mut c);
+                }
+            }
+            assert_eq!(cached, direct);
+            assert_capture_budget();
+        }
+        assert_eq!(calls, 7);
+        assert_eq!(vector_cache_stats().0, 1);
+    }
+
+    #[test]
+    fn local_opaque_budget_releases_old_version_before_oversized_fallback() {
+        CACHE.with(|c| *c.borrow_mut() = Cache::default());
+        let mut pixels = Pixmap565::new(2000, 2000).unwrap();
+        for side in [100., 2000.] {
+            let mut c = Canvas::new(pixels.as_mut());
+            let area = Rect::from_ltwh(0., 0., side, side);
+            c.cache_opaque_region(area, 71, &[3], |c| c.draw_rect(area, Color::BLUE));
+            assert_capture_budget();
+        }
+        assert!(pixels.data().iter().all(|p| *p == Color::BLUE.to_rgb565()));
+        assert_eq!(vector_cache_stats().1, 0);
+        CACHE.with(|c| assert_eq!(c.borrow().building_bytes, 0));
+        let mut c = Canvas::new(pixels.as_mut());
+        c.cache_opaque_region(
+            Rect::from_ltwh(0., 0., 100., 100.),
+            71,
+            &[1; OPAQUE_KEY_WORD_LIMIT + 1],
+            |c| c.draw_rect(Rect::from_ltwh(0., 0., 100., 100.), Color::RED),
+        );
+        assert_eq!(vector_cache_stats().1, 0);
+    }
 }
 
 pub(super) fn paint(
@@ -348,6 +478,7 @@ pub(super) fn paint(
         count: icon.layers.len(),
         tint,
         opaque: false,
+        content: Vec::new(),
         geometry: [
             bounds.x.to_bits(),
             bounds.y.to_bits(),
@@ -367,7 +498,7 @@ pub(super) fn paint(
             0,
         ],
     };
-    replay(canvas, area, key, draw);
+    replay(canvas, area, key, &[], draw);
 }
 
 /// The supplied signature must include every source revision and paint parameter.
@@ -397,12 +528,68 @@ pub(super) fn surface(
             geometry,
             tint: Color::TRANSPARENT,
             opaque,
+            content: Vec::new(),
         },
+        &[],
         draw,
     );
 }
 
-fn replay(canvas: &mut Canvas, area: Rect, key: Key, draw: impl FnOnce(&mut Canvas)) {
+/// Only fully opaque, pixel-aligned procedural regions may omit the original
+/// background capture. Scaling, fractional bounds and oversized keys fallback.
+pub(super) fn opaque_region(
+    canvas: &mut Canvas,
+    area: Rect,
+    namespace: usize,
+    content: &[u64],
+    draw: impl FnOnce(&mut Canvas),
+) {
+    let Some((tx, ty)) = canvas.translation_only() else {
+        draw(canvas);
+        return;
+    };
+    if content.len() > OPAQUE_KEY_WORD_LIMIT
+        || [area.x + tx, area.y + ty, area.width, area.height]
+            .iter()
+            .any(|v| !v.is_finite() || v.fract() != 0.)
+    {
+        draw(canvas);
+        return;
+    }
+    let mut geometry = [0; 16];
+    geometry[..8].copy_from_slice(&[
+        area.x.to_bits(),
+        area.y.to_bits(),
+        area.width.to_bits(),
+        area.height.to_bits(),
+        tx.to_bits(),
+        ty.to_bits(),
+        canvas.width(),
+        canvas.height(),
+    ]);
+    replay(
+        canvas,
+        area,
+        Key {
+            layers: namespace,
+            count: OPAQUE_REGION_TAG,
+            geometry,
+            tint: Color::TRANSPARENT,
+            opaque: true,
+            content: Vec::new(),
+        },
+        content,
+        draw,
+    );
+}
+
+fn replay(
+    canvas: &mut Canvas,
+    area: Rect,
+    mut key: Key,
+    content: &[u64],
+    draw: impl FnOnce(&mut Canvas),
+) {
     let Some((tx, ty)) = canvas.translation_only() else {
         draw(canvas);
         return;
@@ -446,11 +633,15 @@ fn replay(canvas: &mut Canvas, area: Rect, key: Key, draw: impl FnOnce(&mut Canv
         cache.stamp = cache.stamp.wrapping_add(1);
         let stamp = cache.stamp;
         let stride = canvas.pixel_stride();
-        if let Some(entry) = cache
-            .entries
-            .iter_mut()
-            .find(|e| e.key == key && e.region.intersect(visible) == Some(visible))
-        {
+        if let Some(entry) = cache.entries.iter_mut().find(|e| {
+            e.key.layers == key.layers
+                && e.key.count == key.count
+                && e.key.geometry == key.geometry
+                && e.key.tint == key.tint
+                && e.key.opaque == key.opaque
+                && e.key.content == content
+                && e.region.intersect(visible) == Some(visible)
+        }) {
             let region = entry.region;
             let same = key.opaque
                 || (visible.y..visible.y + visible.h).all(|y| {
@@ -484,6 +675,7 @@ fn replay(canvas: &mut Canvas, area: Rect, key: Key, draw: impl FnOnce(&mut Canv
         .w
         .checked_mul(region.h)
         .and_then(|n| n.checked_mul(if key.opaque { 2 } else { 4 }))
+        .and_then(|n| content.len().checked_mul(8).and_then(|k| n.checked_add(k)))
     else {
         draw(canvas);
         return;
@@ -492,6 +684,11 @@ fn replay(canvas: &mut Canvas, area: Rect, key: Key, draw: impl FnOnce(&mut Canv
         draw(canvas);
         return;
     };
+    if key.content.try_reserve_exact(content.len()).is_err() {
+        draw(canvas);
+        return;
+    }
+    key.content.extend_from_slice(content);
     let before = if key.opaque {
         Some(Vec::new())
     } else {

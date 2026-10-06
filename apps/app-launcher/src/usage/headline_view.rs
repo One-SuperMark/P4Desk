@@ -1,5 +1,5 @@
 //! An in-place headline counter. Only its opaque number strip is damaged.
-use super::{grouped, Shared};
+use super::Shared;
 use crate::usage::headline::{HeadlineSample, FRAME_INTERVAL_MS};
 use std::sync::OnceLock;
 use tiny_flutter::graphics::font::Glyph;
@@ -7,6 +7,48 @@ use tiny_flutter::prelude::*;
 use tiny_flutter::theme::Folio;
 
 pub(super) const NUMBER_HEIGHT: f32 = 90.;
+
+/// A grouped u64 fits in twenty digits and six separators. Keep animation
+/// labels on the stack rather than allocating several temporary Strings for
+/// each dirty/layout pass.
+struct GroupedNumber {
+    bytes: [u8; 26],
+    start: usize,
+    missing: bool,
+}
+impl GroupedNumber {
+    fn new(value: Option<u64>) -> Self {
+        let mut label = Self {
+            bytes: [0; 26],
+            start: 26,
+            missing: value.is_none(),
+        };
+        if let Some(mut value) = value {
+            let mut digits = 0;
+            loop {
+                label.start -= 1;
+                label.bytes[label.start] = b'0' + (value % 10) as u8;
+                value /= 10;
+                digits += 1;
+                if value == 0 {
+                    break;
+                }
+                if digits % 3 == 0 {
+                    label.start -= 1;
+                    label.bytes[label.start] = b',';
+                }
+            }
+        }
+        label
+    }
+    fn as_str(&self) -> &str {
+        if self.missing {
+            "—"
+        } else {
+            std::str::from_utf8(&self.bytes[self.start..]).expect("ASCII grouped digits")
+        }
+    }
+}
 
 fn numeric_font() -> &'static Font {
     static FONT: OnceLock<Font> = OnceLock::new();
@@ -140,8 +182,10 @@ impl NumberLayout {
         if !self.matches(next, self.width) || previous.value.is_none() || next.value.is_none() {
             return Some(Rect::from_ltwh(0., 0., self.width, height));
         }
-        let before = grouped(previous.value.unwrap());
-        let after = grouped(next.value.unwrap());
+        let before_label = GroupedNumber::new(previous.value);
+        let after_label = GroupedNumber::new(next.value);
+        let before = before_label.as_str();
+        let after = after_label.as_str();
         if before.len() != after.len() {
             return Some(Rect::from_ltwh(0., 0., self.width, height));
         }
@@ -193,7 +237,7 @@ impl Widget for HeadlineView {
             scope_revision: revision,
             last_layout_ms: 0,
             number: None,
-            label: String::new(),
+            label: GroupedNumber::new(None),
         })
     }
 }
@@ -205,7 +249,7 @@ struct HeadlineBox {
     scope_revision: u64,
     last_layout_ms: u64,
     number: Option<NumberLayout>,
-    label: String,
+    label: GroupedNumber,
 }
 impl RenderBox for HeadlineBox {
     fn size(&self) -> Size {
@@ -224,7 +268,7 @@ impl RenderBox for HeadlineBox {
         self.last_layout_ms = state.monotonic_ms;
         self.sample = state.usage.headline.sample(state.monotonic_ms);
         drop(state);
-        self.label = self.sample.value.map(grouped).unwrap_or_else(|| "—".into());
+        self.label = GroupedNumber::new(self.sample.value);
         if !self
             .number
             .as_ref()
@@ -262,7 +306,7 @@ impl RenderBox for HeadlineBox {
             return;
         };
         let small_size = 14.0;
-        number.paint_number(canvas, &self.label, offset);
+        number.paint_number(canvas, self.label.as_str(), offset);
         canvas.draw_text(
             &number.abbreviation,
             Font::default_font(),
@@ -293,6 +337,19 @@ impl RenderBox for HeadlineBox {
 mod tests {
     use super::*;
     use crate::usage::headline::HeadlineState;
+    #[test]
+    fn stack_label_groups_zero_boundaries_and_the_largest_u64() {
+        for (value, expected) in [
+            (0, "0"),
+            (999, "999"),
+            (1000, "1,000"),
+            (270_879_573, "270,879,573"),
+            (u64::MAX, "18,446,744,073,709,551,615"),
+        ] {
+            assert_eq!(GroupedNumber::new(Some(value)).as_str(), expected);
+        }
+        assert_eq!(GroupedNumber::new(None).as_str(), "—");
+    }
     #[test]
     fn approximation_matches_desktop_one_decimal_and_preserves_small_values() {
         assert_eq!(approximate(270_879_573), "≈ 270.9M");

@@ -2,6 +2,7 @@ use crate::graphics::fontpack::{FontPack, PackGlyphRef};
 use crate::graphics::geometry::Size;
 use fontdue::{Font as InnerFont, FontSettings, Metrics};
 use std::collections::{HashMap, VecDeque};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 
 static DEFAULT_FONT_BYTES: &[u8] =
@@ -11,12 +12,20 @@ static DEFAULT_FONT: OnceLock<Font> = OnceLock::new();
 static CONTENT_FONT: OnceLock<Font> = OnceLock::new();
 static UI_PACK: OnceLock<Option<Arc<FontPack>>> = OnceLock::new();
 static ACTIVE_PACK: RwLock<Option<Arc<FontPack>>> = RwLock::new(None);
+static ACTIVE_PACK_VERSION: AtomicUsize = AtomicUsize::new(0);
+#[cfg(test)]
+pub(crate) static FONT_PACK_TEST_LOCK: Mutex<()> = Mutex::new(());
 const CACHE_BYTES: usize = 512 * 1024;
 const CACHE_GLYPHS: usize = 512;
 
 /// Atomically replace the owned, file-backed font provider. Existing glyph references remain valid.
 pub fn install_fontpack(pack: Option<Arc<FontPack>>) {
-    *ACTIVE_PACK.write().unwrap_or_else(|p| p.into_inner()) = pack;
+    let mut active = ACTIVE_PACK.write().unwrap_or_else(|p| p.into_inner());
+    *active = pack;
+    // Publish the revision while the provider write lock is still held. Text
+    // layouts can reuse immutable metrics, but synced content must remeasure
+    // after its atlas changes, even if the text and width stayed the same.
+    ACTIVE_PACK_VERSION.fetch_add(1, Ordering::Release);
 }
 
 fn ui_pack() -> Option<&'static Arc<FontPack>> {
@@ -112,6 +121,18 @@ pub struct TextLayout {
 }
 
 impl Font {
+    pub(crate) fn same_layout_source(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
+            && self.is_default == other.is_default
+            && self.use_active_pack == other.use_active_pack
+    }
+    pub(crate) fn layout_revision(&self) -> usize {
+        if self.is_default && self.use_active_pack {
+            ACTIVE_PACK_VERSION.load(Ordering::Acquire)
+        } else {
+            0
+        }
+    }
     /// TTF parsing is intended for the small bundled Latin font or host tools, never full CJK on P4.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
         let inner =
@@ -333,6 +354,7 @@ mod tests {
 
     #[test]
     fn old_synced_atlas_cannot_override_ui_but_custom_content_font_still_works() {
+        let _provider_guard = FONT_PACK_TEST_LOCK.lock().unwrap();
         let system = Font::default_font();
         let baseline = system.glyph('钟', 22.0);
         let baseline_pixels = baseline.bitmap().to_vec();

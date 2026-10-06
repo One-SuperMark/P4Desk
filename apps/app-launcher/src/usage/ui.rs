@@ -7,6 +7,10 @@ use tiny_flutter::theme::Folio;
 type Shared = Arc<Mutex<LauncherState>>;
 #[path = "headline_view.rs"]
 mod headline_view;
+#[path = "live_metrics.rs"]
+mod live_metrics;
+#[path = "trend_view.rs"]
+mod trend_view;
 fn at(w: impl Widget + 'static, x: f32, y: f32) -> Positioned {
     Positioned::new(w).left(x).top(y)
 }
@@ -438,23 +442,31 @@ pub fn build(state: Shared, size: Size) -> Stack {
     } else {
         short(&status, 49)
     };
-    root.push(at(
-        text(
-            caption,
-            14.,
-            if stale {
-                Folio::orange()
-            } else {
-                Folio::muted()
-            },
-        ),
-        4.,
-        size.height - 27.,
-    ))
+    if page == Page::Overview && period == Period::Day && detail.is_none() {
+        root.push(at(
+            live_metrics::LiveText::status(state, size.width - 8.),
+            4.,
+            size.height - 27.,
+        ))
+    } else {
+        root.push(at(
+            text(
+                caption,
+                14.,
+                if stale {
+                    Folio::orange()
+                } else {
+                    Folio::muted()
+                },
+            ),
+            4.,
+            size.height - 27.,
+        ))
+    }
 }
 fn overview(
     state: Shared,
-    d: &Data,
+    d: &Arc<Data>,
     w: f32,
     h: f32,
     period: Period,
@@ -476,7 +488,6 @@ fn overview(
     } else {
         "TOTAL TOKENS".into()
     };
-    let total = d.totals.as_ref();
     let hero = Stack::new()
         .push(at(text(title, 14., Folio::muted()), 22., 22.))
         .push(at(
@@ -489,13 +500,7 @@ fn overview(
             59.,
         ))
         .push(at(
-            text(
-                total
-                    .map(|t| format!("${:.2}", t.cost))
-                    .unwrap_or("—".into()),
-                16.,
-                Folio::muted(),
-            ),
+            live_metrics::LiveText::cost(state.clone(), lw - 44.),
             22.,
             172.,
         ));
@@ -699,7 +704,10 @@ fn model_ranking(state: Shared, d: &Data, w: f32, h: f32, detail: bool) -> Conta
     }
     panel(w, h).child(p)
 }
-fn chart(state: Shared, d: &Data, w: f32, h: f32) -> Container {
+fn chart(state: Shared, d: &Arc<Data>, w: f32, h: f32) -> trend_view::LiveTrendCard {
+    trend_view::LiveTrendCard::new(state, d.clone(), Size::new(w, h))
+}
+fn chart_snapshot(state: Shared, d: &Data, w: f32, h: f32) -> Container {
     let selected = state.lock().unwrap().usage.chart_selected;
     let index = selected
         .unwrap_or(d.trend.len().saturating_sub(1))
@@ -756,7 +764,7 @@ fn chart(state: Shared, d: &Data, w: f32, h: f32) -> Container {
         42.,
     ));
     p = p.push(at(
-        InteractiveTrend {
+        trend_view::InteractiveTrend {
             state: state.clone(),
             points: Arc::new(d.trend.clone()),
             previous: Arc::new(comparison),
@@ -817,187 +825,6 @@ fn axis_label(date: &str) -> String {
         date.get(5..10).unwrap_or(date).replace('-', "/")
     } else {
         date.into()
-    }
-}
-struct InteractiveTrend {
-    state: Shared,
-    points: Arc<Vec<super::Point>>,
-    previous: Arc<Vec<super::Point>>,
-    selected: usize,
-    size: Size,
-}
-impl Widget for InteractiveTrend {
-    fn create_render_object(&self) -> Box<dyn RenderBox> {
-        Box::new(TrendBox {
-            state: self.state.clone(),
-            points: self.points.clone(),
-            previous: self.previous.clone(),
-            selected: self.selected,
-            size: self.size,
-            offset: Offset::ZERO,
-            origin: None,
-        })
-    }
-}
-struct TrendBox {
-    state: Shared,
-    points: Arc<Vec<super::Point>>,
-    previous: Arc<Vec<super::Point>>,
-    selected: usize,
-    size: Size,
-    offset: Offset,
-    origin: Option<tiny_flutter::Point>,
-}
-impl RenderBox for TrendBox {
-    fn size(&self) -> Size {
-        self.size
-    }
-    fn offset(&self) -> Offset {
-        self.offset
-    }
-    fn set_offset(&mut self, o: Offset) {
-        self.offset = o;
-    }
-    fn layout(&mut self, c: &BoxConstraints) -> Size {
-        self.size = c.constrain(self.size);
-        self.size
-    }
-    fn paint(&self, c: &mut Canvas, o: Offset) {
-        if !c.is_rect_visible(Rect::from_ltwh(
-            o.dx,
-            o.dy,
-            self.size.width,
-            self.size.height,
-        )) {
-            return;
-        }
-        c.save();
-        c.translate(o.dx, o.dy);
-        c.clip_rect(Rect::from_ltwh(0., 0., self.size.width, self.size.height));
-        let w = self.size.width;
-        let h = self.size.height;
-        for i in 0..3 {
-            c.draw_rect(
-                Rect::from_ltwh(0., 2. + i as f32 * (h - 4.) / 2., w, 1.),
-                Folio::line().with_opacity(0.35),
-            );
-        }
-        let max = self
-            .points
-            .iter()
-            .chain(self.previous.iter())
-            .map(|v| v.totals.tokens)
-            .max()
-            .unwrap_or(0)
-            .max(1) as f64;
-        let n = self.points.len();
-        let x = |i: usize| {
-            if n <= 1 {
-                w * 0.5
-            } else {
-                2. + i as f32 / (n - 1) as f32 * (w - 4.)
-            }
-        };
-        let y = |v: u64| 2. + (1. - v as f64 / max) as f32 * (h - 4.);
-        if n > 1 {
-            let coords = self
-                .points
-                .iter()
-                .enumerate()
-                .map(|(i, v)| (x(i), y(v.totals.tokens)))
-                .collect::<Vec<_>>();
-            let mut area = trend_path(&coords);
-            area.line_to(x(n - 1), h);
-            area.line_to(x(0), h);
-            area.close();
-            if let Some(p) = area.finish() {
-                c.fill_path(
-                    &p,
-                    &tiny_gfx::Paint::new(Folio::blue().with_opacity(0.07).to_gfx()),
-                    tiny_gfx::FillRule::Winding,
-                );
-            }
-        }
-        for (points, color, width) in [
-            (&*self.previous, Folio::muted().with_opacity(0.65), 1.3),
-            (&*self.points, Folio::blue(), 2.0),
-        ] {
-            let coords = points
-                .iter()
-                .enumerate()
-                .take(n)
-                .map(|(i, v)| (x(i), y(v.totals.tokens)))
-                .collect::<Vec<_>>();
-            if let Some(path) = trend_path(&coords).finish() {
-                c.stroke_path(
-                    &path,
-                    &tiny_gfx::Paint::new(color.to_gfx()),
-                    &tiny_gfx::Stroke {
-                        width,
-                        line_cap: tiny_gfx::LineCap::Round,
-                        line_join: tiny_gfx::LineJoin::Round,
-                        ..Default::default()
-                    },
-                );
-            }
-        }
-        if let Some(p) = self.points.get(self.selected) {
-            let px = x(self.selected);
-            let py = y(p.totals.tokens);
-            c.draw_rect(
-                Rect::from_ltwh(px, 0., 1., h),
-                Folio::blue().with_opacity(0.22),
-            );
-            c.paint_circle(
-                tiny_flutter::Point::new(px, py),
-                4.2,
-                &tiny_gfx::Paint::new(Folio::surface().to_gfx()),
-                None,
-            );
-            c.paint_circle(
-                tiny_flutter::Point::new(px, py),
-                2.6,
-                &tiny_gfx::Paint::new(Folio::blue().to_gfx()),
-                None,
-            );
-        }
-        c.restore();
-    }
-    fn hit_rect(&self, p: tiny_flutter::Point) -> Option<Rect> {
-        self.hit_test(p)
-            .then(|| Rect::from_ltwh(0., 0., self.size.width, self.size.height))
-    }
-    fn dispatch_touch(&mut self, e: &TouchEvent) -> bool {
-        match e {
-            TouchEvent::Down(p) if self.hit_test(*p) => {
-                self.origin = Some(*p);
-                true
-            }
-            TouchEvent::Move(p) => {
-                if self
-                    .origin
-                    .is_some_and(|o| (p.x - o.x).abs() > 12. || (p.y - o.y).abs() > 12.)
-                {
-                    self.origin = None;
-                }
-                false
-            }
-            TouchEvent::Up(p) => {
-                if self.origin.take().is_some() && self.hit_test(*p) && !self.points.is_empty() {
-                    let index = (((p.x - 2.) / (self.size.width - 4.).max(1.)).clamp(0., 1.)
-                        * (self.points.len() - 1) as f32)
-                        .round() as usize;
-                    edit(&self.state, |u| u.chart_selected = Some(index));
-                    return true;
-                }
-                false
-            }
-            TouchEvent::Cancel => {
-                self.origin = None;
-                false
-            }
-            _ => false,
-        }
     }
 }
 fn quota_window(window: &Option<Window>, label: &str, w: f32, now: i64, minutes: u32) -> Stack {

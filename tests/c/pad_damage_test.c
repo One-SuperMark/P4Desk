@@ -103,6 +103,40 @@ static void rotation_and_row_spans_are_exact(void)
     assert(!p4pad_damage_map_rect(&damage, &rect, true, &mapped));
 }
 
+static void distant_changes_do_not_copy_the_space_between_them(void)
+{
+    p4pad_damage_t damage;
+    p4pad_damage_batch_t batch;
+    p4pad_rect_t rect;
+    assert(p4pad_damage_init(&damage, 1024, 600));
+    for (unsigned i = 0; i < P4PAD_DAMAGE_BUFFER_COUNT; ++i) {
+        assert(p4pad_damage_take_batch(&damage, i, &batch));
+        assert(batch.count == 1 && batch.pixels == 1024U * 600U);
+        expect_rect(batch.regions[0], 0, 0, 1024, 600);
+    }
+    assert(p4pad_damage_mark(&damage, 16, 24, 64, 40));
+    assert(p4pad_damage_mark(&damage, 760, 556, 832, 572));
+    assert(!p4pad_damage_take_batch(&damage, 0, NULL));
+    assert(p4pad_damage_take_batch(&damage, 0, &batch));
+    assert(batch.count == 2 && batch.pixels == 1920);
+    expect_rect(batch.bounds, 16, 24, 832, 572);
+    expect_rect(batch.regions[0], 16, 24, 64, 40);
+    expect_rect(batch.regions[1], 760, 556, 832, 572);
+    assert(p4pad_damage_mark(&damage, 128, 200, 148, 220));
+    assert(p4pad_damage_take_batch(&damage, 0, &batch));
+    assert(batch.count == 1 && batch.pixels == 400);
+    assert(p4pad_damage_take_batch(&damage, 2, &batch));
+    assert(batch.count == 3 && batch.pixels == 2320);
+    // Legacy bounding take and batch take share one history, never two debts.
+    assert(p4pad_damage_take(&damage, 1, &rect));
+    assert(!p4pad_damage_take_batch(&damage, 1, &batch));
+    assert(batch.count == 0 && batch.pixels == 0);
+    assert(!p4pad_damage_take_batch(&damage, P4PAD_DAMAGE_BUFFER_COUNT, &batch));
+    damage.band_height = 1;
+    assert(!p4pad_damage_mark(&damage, 0, 0, 1, 600));
+    assert(!p4pad_damage_take_batch(&damage, 0, &batch));
+}
+
 static void small_copy_preserves_every_untouched_pixel(bool rotate)
 {
     enum { WIDTH = 17, HEIGHT = 11, SS = 22, DS = 24 };
@@ -145,9 +179,18 @@ static void prepare_and_compare(p4pad_damage_t *damage, unsigned index, uint16_t
                                 bool rotate)
 {
     p4pad_rect_t rect;
-    assert(p4pad_damage_take(damage, index, &rect));
-    assert(p4pad_damage_copy_rgb565(damage, destination, destination_count, destination_stride,
-                                  source, source_count, source_stride, &rect, rotate));
+    p4pad_damage_batch_t batch;
+    assert(p4pad_damage_take_batch(damage, index, &batch));
+    assert(batch.count > 0 && batch.count <= P4PAD_DAMAGE_BANDS);
+    size_t pixels = 0;
+    for (size_t i = 0; i < batch.count; ++i) {
+        pixels += (size_t)(batch.regions[i].x2 - batch.regions[i].x1) *
+                  (size_t)(batch.regions[i].y2 - batch.regions[i].y1);
+        if (i) assert(batch.regions[i - 1].y2 <= batch.regions[i].y1);
+        assert(p4pad_damage_copy_rgb565(damage, destination, destination_count, destination_stride,
+                                      source, source_count, source_stride, &batch.regions[i], rotate));
+    }
+    assert(pixels == batch.pixels && pixels <= (size_t)damage->width * damage->height);
     independent_full_compare(destination, destination_stride, source, source_stride,
                              (unsigned)damage->width, (unsigned)damage->height, rotate);
     assert(!p4pad_damage_peek(damage, index, &rect));
@@ -290,6 +333,7 @@ int main(void)
 {
     debt_is_independent_clipped_and_unioned();
     rotation_and_row_spans_are_exact();
+    distant_changes_do_not_copy_the_space_between_them();
     for (unsigned rotate = 0; rotate < 2; ++rotate) {
         small_copy_preserves_every_untouched_pixel(rotate != 0);
         three_buffers_catch_up_to_all_source_updates(17, 11, rotate != 0);

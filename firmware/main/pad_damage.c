@@ -5,7 +5,8 @@
 
 static bool valid_dimensions(const p4pad_damage_t *damage)
 {
-    return damage && damage->width > 0 && damage->height > 0 &&
+    return damage && damage->width > 0 && damage->height > 0 && damage->band_height > 0 &&
+        damage->band_height == (int32_t)(((uint32_t)damage->height + P4PAD_DAMAGE_BANDS - 1) / P4PAD_DAMAGE_BANDS) &&
         (size_t)damage->width <= SIZE_MAX / sizeof(uint16_t) / (size_t)damage->height;
 }
 
@@ -24,6 +25,7 @@ bool p4pad_damage_init(p4pad_damage_t *damage, uint32_t width, uint32_t height)
         (size_t)width > SIZE_MAX / sizeof(uint16_t) / (size_t)height) return false;
     damage->width = (int32_t)width;
     damage->height = (int32_t)height;
+    damage->band_height = (int32_t)(((uint32_t)height + P4PAD_DAMAGE_BANDS - 1) / P4PAD_DAMAGE_BANDS);
     p4pad_damage_invalidate_all(damage);
     return true;
 }
@@ -32,7 +34,27 @@ void p4pad_damage_invalidate_all(p4pad_damage_t *damage)
 {
     if (!valid_dimensions(damage)) return;
     const p4pad_rect_t full = {0, 0, damage->width, damage->height};
-    for (unsigned i = 0; i < P4PAD_DAMAGE_BUFFER_COUNT; ++i) damage->pending[i] = full;
+    for (unsigned i = 0; i < P4PAD_DAMAGE_BUFFER_COUNT; ++i) {
+        damage->pending[i] = full;
+        memset(damage->bands[i], 0, sizeof(damage->bands[i]));
+        for (unsigned band = 0; band < P4PAD_DAMAGE_BANDS; ++band) {
+            const int64_t y1 = (int64_t)band * damage->band_height;
+            if (y1 >= damage->height) break;
+            const int64_t y2 = y1 + damage->band_height;
+            damage->bands[i][band] = (p4pad_rect_t){0, (int32_t)y1, damage->width,
+                (int32_t)(y2 < damage->height ? y2 : damage->height)};
+        }
+    }
+}
+
+static void union_rect(const p4pad_damage_t *damage, p4pad_rect_t *pending,
+                       const p4pad_rect_t *rect)
+{
+    if (!valid_rect(damage, pending)) { *pending = *rect; return; }
+    if (rect->x1 < pending->x1) pending->x1 = rect->x1;
+    if (rect->y1 < pending->y1) pending->y1 = rect->y1;
+    if (rect->x2 > pending->x2) pending->x2 = rect->x2;
+    if (rect->y2 > pending->y2) pending->y2 = rect->y2;
 }
 
 bool p4pad_damage_mark(p4pad_damage_t *damage,
@@ -46,14 +68,15 @@ bool p4pad_damage_mark(p4pad_damage_t *damage,
     const p4pad_rect_t rect = {x1, y1, x2, y2};
     if (!valid_rect(damage, &rect)) return false;
     for (unsigned i = 0; i < P4PAD_DAMAGE_BUFFER_COUNT; ++i) {
-        p4pad_rect_t *pending = &damage->pending[i];
-        if (!valid_rect(damage, pending)) {
-            *pending = rect;
-        } else {
-            if (x1 < pending->x1) pending->x1 = x1;
-            if (y1 < pending->y1) pending->y1 = y1;
-            if (x2 > pending->x2) pending->x2 = x2;
-            if (y2 > pending->y2) pending->y2 = y2;
+        union_rect(damage, &damage->pending[i], &rect);
+        const unsigned first = (unsigned)(y1 / damage->band_height);
+        const unsigned last = (unsigned)((y2 - 1) / damage->band_height);
+        for (unsigned band = first; band <= last; ++band) {
+            const int64_t top = (int64_t)band * damage->band_height;
+            const int64_t bottom = top + damage->band_height;
+            const p4pad_rect_t part = {x1, top > y1 ? (int32_t)top : y1, x2,
+                bottom < y2 ? (int32_t)bottom : y2};
+            union_rect(damage, &damage->bands[i][band], &part);
         }
     }
     return true;
@@ -73,6 +96,32 @@ bool p4pad_damage_take(p4pad_damage_t *damage, unsigned index, p4pad_rect_t *rec
 {
     if (!p4pad_damage_peek(damage, index, rect)) return false;
     damage->pending[index] = (p4pad_rect_t){0};
+    memset(damage->bands[index], 0, sizeof(damage->bands[index]));
+    return true;
+}
+
+bool p4pad_damage_take_batch(p4pad_damage_t *damage, unsigned index,
+                           p4pad_damage_batch_t *batch)
+{
+    if (!batch) return false;
+    *batch = (p4pad_damage_batch_t){0};
+    if (!p4pad_damage_peek(damage, index, &batch->bounds)) return false;
+    for (unsigned band = 0; band < P4PAD_DAMAGE_BANDS; ++band) {
+        const p4pad_rect_t rect = damage->bands[index][band];
+        if (!valid_rect(damage, &rect)) continue;
+        batch->pixels += (size_t)(rect.x2 - rect.x1) * (size_t)(rect.y2 - rect.y1);
+        p4pad_rect_t *last = batch->count ? &batch->regions[batch->count - 1] : NULL;
+        if (last && last->x1 == rect.x1 && last->x2 == rect.x2 && last->y2 == rect.y1) {
+            last->y2 = rect.y2;
+        } else {
+            batch->regions[batch->count++] = rect;
+        }
+    }
+    // State is produced exclusively by init/mark; never discard valid debt if
+    // that invariant is violated. The caller treats this as no prepared frame.
+    if (!batch->count) return false;
+    damage->pending[index] = (p4pad_rect_t){0};
+    memset(damage->bands[index], 0, sizeof(damage->bands[index]));
     return true;
 }
 

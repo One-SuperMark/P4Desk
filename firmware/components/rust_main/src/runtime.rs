@@ -74,6 +74,56 @@ pub struct DeviceRuntime<H: Hal> {
     recovered_clock: Option<(i64, u64)>,
     usage: Option<crate::usage::Service>,
 }
+
+fn battery_ui_changed(
+    state: &LauncherState,
+    before: (Option<u8>, app_launcher::battery::ChargeState, Option<u16>),
+) -> bool {
+    use app_launcher::{status_bar::StatusPanelKind, ActiveApp};
+    if state.mode != Mode::Pad || !state.settings.screen_on {
+        return false;
+    }
+    let launching = state.app_launch.frame(state.monotonic_ms).is_some();
+    if !matches!(state.active_app, ActiveApp::Launcher) && !launching {
+        return false;
+    }
+    // The passive rail paints percentage only. Voltage continues to be
+    // sampled in every application, but its ADC/filter noise must not rebuild
+    // pages that have no battery UI. During a desktop launch retain a
+    // conservative refresh for the visible cached backdrop.
+    let percent_changed = before.0 != state.battery.percent;
+    if launching {
+        return percent_changed || before.1 != state.battery.charge;
+    }
+    if !state.status_panel_open {
+        return percent_changed;
+    }
+    match state.status_panel_kind {
+        StatusPanelKind::Device => {
+            percent_changed
+                || before.1 != state.battery.charge
+                || before.2.map(|mv| mv / 10) != state.battery.voltage_mv.map(|mv| mv / 10)
+        }
+        StatusPanelKind::Control => percent_changed || before.1 != state.battery.charge,
+        StatusPanelKind::Wifi => percent_changed,
+    }
+}
+fn publish_persistence_status(
+    state: &mut LauncherState,
+    next: app_launcher::session::PersistenceStatus,
+) {
+    let changed = state.persistence_status != next;
+    state.persistence_status = next;
+    if changed
+        && state.mode == Mode::Pad
+        && state.settings.screen_on
+        && matches!(state.active_app, app_launcher::ActiveApp::Settings)
+        && state.settings_view.section == app_launcher::radio::SettingsSection::Storage
+    {
+        state.changed();
+    }
+}
+
 impl<H: Hal> DeviceRuntime<H> {
     pub fn new(mut hal: H, root: impl Into<PathBuf>, local_root: impl Into<PathBuf>) -> Self {
         let mut store = GenerationStore::new(root, local_root);
@@ -434,7 +484,9 @@ impl<H: Hal> DeviceRuntime<H> {
             .is_none_or(|last| now.saturating_sub(last) >= 2000)
         {
             self.last_battery_poll_ms = Some(now);
-            if state.battery.update(self.hal.battery_reading()) {
+            let battery_before = (state.battery.percent, state.battery.charge, state.battery.voltage_mv);
+            state.battery.update(self.hal.battery_reading());
+            if battery_ui_changed(&state, battery_before) {
                 state.changed();
             }
         }
@@ -485,12 +537,12 @@ impl<H: Hal> DeviceRuntime<H> {
                 let animating = state.app_launch.frame(now).is_some()
                     || state.timer_completion.progress(now).is_some();
                 if let Some(ok) = writer.sample(now, snapshot, animating) {
-                    state.persistence_status = if ok {
+                    let status = if ok {
                         app_launcher::session::PersistenceStatus::Saved
                     } else {
                         app_launcher::session::PersistenceStatus::Failed
                     };
-                    state.changed();
+                    publish_persistence_status(&mut state, status);
                 }
             }
         }
@@ -956,6 +1008,213 @@ mod tests {
         r.hal.now = 4000;
         r.tick();
         assert_eq!(r.state.lock().unwrap().battery.percent, Some(50));
+    }
+
+    fn telemetry_runtime(app: &str) -> DeviceRuntime<Mock> {
+        let mut r = runtime();
+        r.session_writer = None;
+        r.hal.now = 10_000;
+        r.hal.wall = 1_791_287_400_000;
+        r.hal.battery = app_launcher::battery::BatteryReading {
+            voltage_mv: Some(3900),
+            charge: app_launcher::battery::ChargeState::Unknown,
+        };
+        r.state.lock().unwrap().open_app(app);
+        r.tick();
+        r
+    }
+    /// Advance unrelated wall-clock UI first, then measure the actual runtime
+    /// poll/result path independently of ordinary per-second clock revisions.
+    fn isolated_runtime_tick(r: &mut DeviceRuntime<Mock>, now: u64) -> bool {
+        r.hal.wall += now.saturating_sub(r.hal.now) as i64;
+        r.hal.now = now;
+        r.state.lock().unwrap().tick(r.hal.now, r.hal.wall);
+        r.tick()
+    }
+    #[test]
+    fn background_battery_voltage_and_charge_updates_do_not_rebuild_application_pages() {
+        use app_launcher::battery::ChargeState;
+        for app in [
+            "sub2api-monitor",
+            "clock",
+            "timer",
+            "settings",
+            "mac",
+            "notes",
+            "calculator",
+            "file-manager",
+            "office-viewer",
+        ] {
+            let mut r = telemetry_runtime(app);
+            r.hal.battery.voltage_mv = Some(3908);
+            assert!(
+                !isolated_runtime_tick(&mut r, 12_000),
+                "hidden battery invalidated {app}"
+            );
+            let s = r.state.lock().unwrap();
+            assert_eq!(
+                s.battery.voltage_mv,
+                Some(3902),
+                "telemetry must still advance"
+            );
+            assert_eq!(s.battery.percent, Some(70));
+            drop(s);
+            r.hal.battery.charge = ChargeState::PluggedInAssumed;
+            assert!(
+                !isolated_runtime_tick(&mut r, 14_000),
+                "hidden charging state invalidated {app}"
+            );
+            assert_eq!(
+                r.state.lock().unwrap().battery.charge,
+                ChargeState::PluggedInAssumed
+            );
+        }
+    }
+    #[test]
+    fn desktop_battery_refreshes_visible_values_and_device_detail_voltage() {
+        use app_launcher::{battery::ChargeState, status_bar::StatusPanelKind, ActiveApp};
+        let mut r = telemetry_runtime("sub2api-monitor");
+        r.state.lock().unwrap().active_app = ActiveApp::Launcher;
+        r.hal.battery.voltage_mv = Some(3908);
+        assert!(
+            !isolated_runtime_tick(&mut r, 12_000),
+            "rail does not show raw ADC voltage"
+        );
+        {
+            let mut s = r.state.lock().unwrap();
+            s.status_panel_open = true;
+            s.status_panel_kind = StatusPanelKind::Device;
+        }
+        r.hal.battery.voltage_mv = Some(3940);
+        assert!(
+            isolated_runtime_tick(&mut r, 14_000),
+            "visible 0.01V detail must update"
+        );
+        assert_eq!(
+            r.state.lock().unwrap().battery.percent,
+            Some(70),
+            "test isolates voltage from percentage"
+        );
+        r.state.lock().unwrap().status_panel_kind = StatusPanelKind::Control;
+        r.hal.battery.voltage_mv = Some(3910);
+        assert!(
+            !isolated_runtime_tick(&mut r, 16_000),
+            "control center does not show voltage"
+        );
+        r.hal.battery.charge = ChargeState::PluggedInAssumed;
+        assert!(
+            isolated_runtime_tick(&mut r, 18_000),
+            "control center charge label must update"
+        );
+        r.state.lock().unwrap().status_panel_open = false;
+        r.hal.battery.voltage_mv = Some(4200);
+        assert!(
+            isolated_runtime_tick(&mut r, 20_000),
+            "rail percentage must update"
+        );
+        r.state.lock().unwrap().settings.screen_on = false;
+        r.hal.battery.voltage_mv = None;
+        assert!(
+            !isolated_runtime_tick(&mut r, 22_000),
+            "screen-off telemetry must not rebuild"
+        );
+        assert_eq!(r.state.lock().unwrap().battery.percent, None);
+    }
+    #[test]
+    fn launch_backdrop_conservatively_keeps_visible_battery_updates() {
+        use app_launcher::battery::ChargeState;
+        let mut r = telemetry_runtime("sub2api-monitor");
+        r.state.lock().unwrap().app_launch.start(
+            "sub2api-monitor",
+            tiny_flutter::Rect::from_ltwh(100., 100., 100., 100.),
+            10_000,
+        );
+        r.last_battery_poll_ms = None;
+        r.hal.battery.voltage_mv = Some(4200);
+        assert!(
+            isolated_runtime_tick(&mut r, 10_010),
+            "launch still includes a desktop backdrop"
+        );
+        r.state.lock().unwrap().app_launch.cancel();
+        r.last_battery_poll_ms = None;
+        r.hal.battery.charge = ChargeState::PluggedInAssumed;
+        assert!(
+            !isolated_runtime_tick(&mut r, 10_020),
+            "settled application hides battery UI"
+        );
+    }
+    #[test]
+    fn actual_checkpoint_receipts_update_status_without_rebuilding_hidden_pages() {
+        use app_launcher::{radio::SettingsSection, session::PersistenceStatus};
+        for (app, storage, fail) in [
+            ("sub2api-monitor", false, false),
+            ("sub2api-monitor", false, true),
+            ("settings", true, false),
+            ("settings", true, true),
+            ("settings", false, true),
+        ] {
+            let mut r = telemetry_runtime(app);
+            if storage {
+                r.state.lock().unwrap().settings_view.section = SettingsSection::Storage;
+            }
+            let blocked = std::env::temp_dir().join(format!(
+                "p4desk-blocked-session-{}-{}-{}",
+                std::process::id(),
+                app,
+                storage
+            ));
+            let store = if fail {
+                let _ = std::fs::remove_file(&blocked);
+                std::fs::write(&blocked, b"synthetic").unwrap();
+                GenerationStore::new(blocked.join("sd"), &blocked).session_store()
+            } else {
+                r.store.session_store()
+            };
+            r.session_writer = Some(crate::persistence::SessionWriter::new(store.clone()).unwrap());
+            r.state.lock().unwrap().persistence_status = PersistenceStatus::Pending;
+            assert!(!isolated_runtime_tick(&mut r, 11_000));
+            assert!(!isolated_runtime_tick(&mut r, 12_000));
+            let expected = if fail {
+                PersistenceStatus::Failed
+            } else {
+                PersistenceStatus::Saved
+            };
+            let mut completed = false;
+            for i in 0..100 {
+                std::thread::sleep(std::time::Duration::from_millis(2));
+                let changed = isolated_runtime_tick(&mut r, 12_500 + i * 500);
+                if r.state.lock().unwrap().persistence_status == expected {
+                    assert_eq!(
+                        changed, storage,
+                        "only a visible Storage receipt should invalidate the UI"
+                    );
+                    completed = true;
+                    break;
+                }
+                assert!(!changed);
+            }
+            assert!(
+                completed,
+                "real checkpoint worker did not acknowledge its result"
+            );
+            if !fail {
+                assert!(
+                    store.load().unwrap().is_some(),
+                    "status must represent a durable checkpoint"
+                );
+            }
+            let revision = r.state.lock().unwrap().revision;
+            publish_persistence_status(&mut r.state.lock().unwrap(), expected);
+            assert_eq!(
+                r.state.lock().unwrap().revision,
+                revision,
+                "same status must not invalidate again"
+            );
+            r.session_writer = None;
+            if fail {
+                let _ = std::fs::remove_file(blocked);
+            }
+        }
     }
 
     #[test]
