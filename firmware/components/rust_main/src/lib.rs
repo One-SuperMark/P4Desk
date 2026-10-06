@@ -5,6 +5,5 @@ mod diagnostics;
 #[cfg(target_os = "espidf")]
 mod ffi;
 mod persistence;
-mod diagnostics;
 pub mod usage;
 pub mod runtime;
