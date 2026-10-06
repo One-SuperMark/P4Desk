@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <errno.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -127,6 +128,11 @@ void app_main(void)
     p4desk_usb_init();
     p4desk_radio_init();
     ESP_LOGI(TAG, "Rust UI starting");
+    errno = 0;
+    const ssize_t raw_stdout_probe = write(STDOUT_FILENO, "", 0);
+    const int raw_stdout_errno = errno;
+    ESP_LOGI(TAG, "console C_stdout_fd=%d raw_fd1_write=%d errno=%d native_usb=%d",
+             fileno(stdout), (int)raw_stdout_probe, raw_stdout_errno, usb_serial_jtag_is_connected());
     rust_main_entry();
     ESP_LOGE(TAG, "Rust UI returned unexpectedly");
     abort();

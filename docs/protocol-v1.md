@@ -86,3 +86,17 @@ Rust的 begin/end frame 成对调用，flush指针只在同步调用期间有效
 `int32_t p4desk_battery_voltage_mv(void)` 返回校准后的 BAT 毫伏值，无法读取返回 `-1`，C／Rust 均使用固定 32 位有符号整数。UI 每两秒读取一次后台缓存，百分比在 Rust 端平滑估算。7B 没有接入 MCU 的充电状态信号。按用户约定，`bool p4desk_typec_host_connected(void)` 返回原生 Type-C 的主机 SOF 连接状态，HAL 映射为 `PluggedInAssumed`／Unknown，独立于 Type-A 副屏 USB。此值不是 VBUS 或充电电流检测，不覆盖充电器／CH343 Type-C。
 
 `uint32_t p4desk_reset_reason(void)` 返回固定 SDK 6.0.2 的 `esp_reset_reason_t` 数值，Rust 显示启动原因；C 静态检查 POWERON=1、BROWNOUT=9、USB=11、PWR_GLITCH=14 和 CPU_LOCKUP=15。POWERON 不能区分断电和 EN 引脚复位。本次没有新增 USB wire 字段或改变版本。
+
+## 可选扩展：独立 Wi-Fi 用量监控
+
+继续使用 v1 control 帧（CRC、长度和序号规则不变，头字段保持小端）。旧固件会拒绝未知 op，主机提示需要更新固件。
+
+| Host op | 字段 | 回复与含义 |
+| --- | --- | --- |
+| `monitor_configure` | `request_id`, `site`, `key` | `ack` 表示已接受验证任务，**不代表保存成功** |
+| `monitor_forget` | `request_id` | `ack` 表示已接受清除任务 |
+| `monitor_get_status` | `request_id` | `monitor_status`，包含 `configured`, `busy`, `configuration_result`, `message` |
+
+`configuration_result`：任务开始时为 null；设备完成验证和存储读回后为 true，失败为 false。Mac 在收到接受 ACK 后轮询此字段，不能仅依赖 `configured`（可能属于上一个配置）或 `busy`（后续统计刷新也会设置它）。一次只接受一个配置任务；清除可取消待完成配置，最终以清除记录为准。
+
+配置不会混入便签 Snapshot、字体包或普通会话记录。响应不回传密钥；调试格式也屏蔽密钥。USB 断开不停止已配置的独立 Wi-Fi 监控。

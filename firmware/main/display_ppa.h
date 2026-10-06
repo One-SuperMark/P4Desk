@@ -7,6 +7,16 @@
 
 typedef struct p4desk_ppa p4desk_ppa_t;
 
+typedef struct {
+    uint32_t calls, errors, timeouts;
+    uint32_t submit_max_us; /**< SDK prepare/cache/submission combined; not pure cache time. */
+    uint32_t wait_max_us;   /**< Time waiting for completion after the SDK returns. */
+    int32_t last_error;
+} p4desk_ppa_stats_t;
+
+// Task-context coherent health snapshot. Contains no pixel data or addresses.
+void p4desk_ppa_stats(p4desk_ppa_t *ppa, p4desk_ppa_stats_t *out);
+
 // One persistent SRM client, used only by the display owner task.
 esp_err_t p4desk_ppa_create(p4desk_ppa_t **result);
 

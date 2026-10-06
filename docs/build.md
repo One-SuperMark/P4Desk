@@ -4,6 +4,8 @@
 
 `PlatformBackend::flush_strided` 可同步借用 RGB565 帧缓冲的一个区域，按原行距直接复制，省去滚动期间的中间打包。默认后端返回不支持并回退原 `flush`；P4 使用 `p4desk_pad_blit_rgb565`，`pixel_count` 与 `stride` 均以 `u16` 像素数计数（P4 上 `size_t`／Rust `usize` 为 32 位）。C 端核对矩形、行距和切片长度，借用在返回前结束，写入仍受原 Pad 锁保护，LCD 仍由唯一 display owner 提交。此为进程内 HAL 调用，USB 协议 v1 编码未改变。
 
+Pad 按实际变化像素累计三块 LCD 各自的更新范围，小更新局部复制，大过渡使用 PPA。输出基址与 600 行扫描保持完整；取消或从 JPEG 返回时全量恢复。PPA／JPEG 输出的 task M2C 同步由项目包装按 32 KiB 分块，运行期启用轻量堆边界保护。设计、边界和检查记录见 [全应用显示与内存检查](display-memory-performance.md)；可分别运行 `scripts/test-pad-damage.sh`、`scripts/test-display-cache-sync.sh` 做 ASan／UBSan 回归。
+
 ## 固定环境
 
 | 项目 | 版本 |
@@ -58,15 +60,13 @@ flasher_args.json
 
 ## 屏幕方向
 
-按当前摆放，送往 LCD 的可见像素整体旋转 **180°**。用户实板反馈 EK79007 MADCTL 命令返回成功后，屏幕没有实际旋转，因此使用实际像素旋转；Pad 与 USB 副屏最终方向一致。
+当前实机反馈旧画面上下颠倒后，将安装方向整体翻转 180°。当前板级配置为 `P4DESK_DISPLAY_ROTATION_DEGREES=0`、`P4DESK_TOUCH_ROTATION_DEGREES=180`，定义在 `firmware/components/board_p4/include/board_p4.h`。早期台面测试使用的是显示 180°、触摸 0°；旧验收文档保留当时配置，不代表当前方向。
 
-方向在 `firmware/components/board_p4/include/board_p4.h` 配置：`P4DESK_DISPLAY_ROTATION_DEGREES=180`、`P4DESK_TOUCH_ROTATION_DEGREES=0`。这与本机旧 `waveshare_touch_paint` 的实际编译配置一致：画面旋转 180°，GT911 使用原始坐标。面板扫描固定为 MADCTL `0x01`，写入只作用于 display owner 拥有的 BUILDING 目标。
-
-Pad 从未旋转的 Rust 画布同步输出，全宽帧直接借用连续像素；唯一 display owner 使用 PPA 复制／旋转 180°，提交拒绝时退回 CPU 反向拷贝。新版 Mac 在能力协商后，用 GPU 将可见1024×600像素旋转180°再编码 JPEG，P4 直接硬件解码到 LCD 缓冲；旧主机仍走解码暂存、PPA 裁切旋转路径，PPA 提交失败才退回 CPU。灰度 JPEG 先转换成 RGB565，并按本 session 的实际方向处理，避免重复旋转。608行解码填充不会进入画面。
+面板扫描固定为 MADCTL `0x01`。Pad 从 Rust 逻辑画布同步输出，由唯一 display owner 按当前角度使用 PPA 复制／旋转，提交拒绝时退回 CPU。Mac 从能力协商读取实际角度，按需先旋转可见 1024×600 像素再编码 JPEG；P4 避免重复旋转。旧主机仍走解码暂存与裁切路径。灰度 JPEG 转换成 RGB565 后也按 session 的实际方向处理，608 行解码填充不会进入画面。
 
 项目内 `lcd_frame_observer` 组件固定 ESP-IDF 6.0.2 DPI 源码 SHA256，仅在构建目录生成扩展，不修改全局 SDK。三块 LCD 缓冲各预留608行（总增加48KiB），DMA／面板继续扫描600行；精确指针容量查询确认可写范围。显示 owner 依据真实 completed／next 指针及连续 counter 切换缓冲，准备下一帧可与扫描重叠；同缓冲重复扫描、模式变更和迟到事件不会提前释放 DMA 所有权。事件丢失、溢出或期限超时会停止重用。
 
-GT911 保留本次已经调整后的原始坐标，`touch_task` 将每个触点限制到有效像素范围，统一提供给 Pad、原始多点触摸帧和 USB 回传。触摸和面板原生轴向分别校准，不能直接用显示角度替代 GT911 校正值。Mac 侧按 1024×600 逻辑坐标处理输入和画面。
+GT911 在 `touch_task` 中先限制坐标到有效像素范围，再按当前 180° 校正转换为逻辑坐标，统一提供给 Pad、原始多点触摸帧和 USB 回传。触摸和面板原生轴向分别校准，不能直接用显示角度替代 GT911 校正值。Mac 侧按 1024×600 逻辑坐标处理输入和画面。
 
 运行 `./scripts/test-display.sh` 检查生产代码的 RGB565／灰度方向、重复帧重建、行填充、完整 600 行和边界保护，使用 ASan／UBSan。
 
@@ -212,7 +212,7 @@ python3 scripts/generate-clock-assets.py --font heavy --check
 
 检查模式在临时目录生成并逐字节比较图集、元数据和来源说明；不修改已保存资源。源字体、尺寸、校验值、实际等宽字形 ID 与光学居中边界见 [时钟数字图集](../assets/clock/README.md)。
 
-动画由单调时间驱动，持续 640 ms，采用半页透视、正反面交接、软阴影与轻微落稳回弹，以 20 ms 门限提交变化卡片的局部 dirty，结束时补齐完整展开帧。离开时钟、进入副屏或关闭屏幕后取消动画，重新进入直接显示当前时间。局部 dirty 降低 Rust 绘制／提取开销；C 显示 owner 仍沿用既有整屏 180°复制和 LCD 提交路径。实现、参考来源与验证边界见 [翻页时钟动画](flip-clock-animation.md)；重绘门限不代表实测设备帧率。
+动画由单调时间驱动，持续 640 ms，采用半页透视、正反面交接、软阴影与轻微落稳回弹，以 20 ms 门限提交变化卡片的局部 dirty，结束时补齐完整展开帧。离开时钟、进入副屏或关闭屏幕后取消动画，重新进入直接显示当前时间。局部 dirty 降低 Rust 绘制／提取开销；C 显示 owner 仍沿用按板级方向校准的整屏复制和 LCD 提交路径。实现、参考来源与验证边界见 [翻页时钟动画](flip-clock-animation.md)；重绘门限不代表实测设备帧率。
 
 USB 首帧启动过渡的主机验证：
 
@@ -225,3 +225,22 @@ cargo test -p rust_main
 ```
 
 `display-transition` 使用 ASan／UBSan 校验首帧之前不计时、epoch 隔离与最终 LCD 完成条件；不替代开发板 JPEG／LCD 实机验收。
+
+
+### 显示中断与 Flash 保存
+
+Pad 自动保存会话时写入内部 SPIFFS，LCD 扫描仍需持续服务 DMA 完成中断。项目启用 `CONFIG_LCD_DSI_ISR_CACHE_SAFE=y`，由 SDK 选择 DW-GDMA ISR 安全与内部 RAM 对象配置。FreeRTOS 的 ISR 函数保持不放入 Flash。仅将 ISR 代码放入 IRAM 不等于使用可在 Flash 操作期间响应的中断分配标志。
+
+`CONFIG_ESP_MM_CACHE_MSYNC_C2M_CHUNKED_OPS=y`、`CONFIG_ESP_MM_CACHE_MSYNC_C2M_CHUNKED_OPS_MAX_LEN=0x8000` 将 C2M 缓存写回分成 32 KiB 的短临界区。display owner 在同步结束前持有输入锁、不发布目标缓冲，ISR 不写这些缓冲。
+
+已有 `firmware/sdkconfig` 覆盖 defaults 时，需在 ESP-IDF 6.0.2 中将上述三项同步启用后重新构建；从实际生成的 `config/sdkconfig.h` 检查选项，从 ELF 检查 LCD/DMA 回调及 FreeRTOS ISR 依赖位于内部指令 RAM。`p4desk_display_health` 每 30 秒记录帧边界间隔、现有 cache 写回耗时/错误及 PPA 耗时/错误，不记录画面。欠载计数为零不等同于所有 DSI 链路错误都已排除。
+
+### 整屏横向错位的诊断与扫描保护
+
+ESP-IDF 6.0.2 将 bridge 的 `fifo_underrun_discard_vcnt` 设置为水平像素数。ESP32-P4 TRM 的 Register 43.15 将它定义为按行计数抑制欠载中断的阈值；本屏水平 1024 像素、垂直总行 636，因此此前的零欠载统计存在漏报风险。项目本地 DPI 补丁将阈值设为 0，保持视频时序、帧大小、旋转和 DMA 所有权不变。
+
+`p4desk_dsi_host` 日志来自唯一 display owner 每 50 ms 读取的 Host INT_ST0/1。按 TRM §43.4.2.4，这两个寄存器读后清零；其他任务只读内部 RAM 累计快照，禁止直接读取硬件状态。`dpi_overflow_polls`、`dpi_underflow_polls` 分别统计采样见到 bit 7、bit 19 的次数，多次硬件事件可能合并在一次采样中。
+
+Host 的首次／最近时间是读到报告的采样时间，不是硬件故障发生的精确时刻。首次采样可能读到面板初始化期间累积的状态；应分别记录首次状态与后续是否新增，不能把启动标记当作运行期零错误，也不能按首次采样时间定位启动中的某一条命令。
+
+板级初始化将 DSI 使用的 DW-GDMA memory master 1 读取优先级设为 15，保留写优先级和其他 master 设置。TRM §21.2.1.16 说明较高 QoS 值表示较高仲裁优先级。此项降低 LCD 与缓存／PPA 竞争时的风险，不改变帧率，也不保证能恢复已经失步的显示流。构建、刷机、压力操作和人工实屏反馈分别记录在用量监控验收文件中。

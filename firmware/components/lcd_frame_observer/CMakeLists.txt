@@ -1,7 +1,7 @@
 # The implementation is compiled in the patched esp_lcd DPI translation unit.
 # This component publishes the header and schedules a project-local source swap.
 idf_component_register(INCLUDE_DIRS "include"
-                       REQUIRES esp_lcd
+                       REQUIRES esp_lcd esp_timer
                        REQUIRED_IDF_TARGETS esp32p4)
 
 if(CMAKE_BUILD_EARLY_EXPANSION)

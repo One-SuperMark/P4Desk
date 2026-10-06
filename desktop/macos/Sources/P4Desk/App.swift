@@ -107,6 +107,7 @@ struct DeskEditor: View {
             TabView {
                 NotesEditor(model: model).tabItem { Label("便签", systemImage: "note.text") }
                 ButtonsEditor(model: model).tabItem { Label("快捷按钮", systemImage: "square.grid.3x3") }
+                MonitorEditor(model: model).tabItem { Label("用量监控", systemImage: "chart.xyaxis.line") }
                 DisplayStatus(model: model).tabItem { Label("副屏", systemImage: "display") }
             }.padding(.top, 8)
             Divider()
@@ -335,5 +336,34 @@ final class RecorderView: NSView {
         let names: [UInt16: String] = [0:"A",1:"S",2:"D",3:"F",4:"H",5:"G",6:"Z",7:"X",8:"C",9:"V",11:"B",12:"Q",13:"W",14:"E",15:"R",16:"Y",17:"T",18:"1",19:"2",20:"3",21:"4",22:"6",23:"5",24:"=",25:"9",26:"7",27:"−",28:"8",29:"0",31:"O",32:"U",34:"I",35:"P",37:"L",38:"J",40:"K",45:"N",46:"M",36:"↩",48:"Tab",49:"空格",51:"⌫",53:"Esc",123:"←",124:"→",125:"↓",126:"↑"]
         let key = action.keyCode ?? 8
         return modifiers + (names[key] ?? "键 \(key)")
+    }
+}
+
+struct MonitorEditor: View {
+    @ObservedObject var model: DeskModel
+    var body: some View {
+        Form {
+            Section("P4 独立 Wi-Fi 监控") {
+                Text("将 Sub2API 站点和管理员 API Key 下发到设备。请先在板上连接 Wi-Fi 并完成对时；配置成功后不需要 Mac 在线。")
+                    .font(.callout).foregroundStyle(.secondary)
+                TextField("HTTPS 站点", text: $model.monitorSite)
+                SecureField("管理员 API Key", text: $model.monitorKey)
+                HStack {
+                    Button("读取本机用量监控配置") { model.importMonitorConfiguration() }
+                    Button("下发并验证") { Task { await model.configureMonitor() } }
+                        .buttonStyle(.borderedProminent).disabled(!model.connected || model.monitorKey.isEmpty)
+                }.disabled(model.monitorBusy)
+            }
+            Section("设备状态") {
+                Label(model.monitorConfigured ? "设备已配置" : "等待配置", systemImage: model.monitorConfigured ? "checkmark.circle" : "network")
+                Text(model.monitorMessage).foregroundStyle(.secondary).textSelection(.enabled)
+                HStack {
+                    Button("读取状态") { Task { await model.refreshMonitorStatus() } }
+                    Button("清除设备配置", role: .destructive) { Task { await model.configureMonitor(forget: true) } }
+                }.disabled(!model.connected || model.monitorBusy)
+            }
+            Text("密钥只保存在设备内部存储。P4 Desk 不保存所填写的密钥，统计缓存不含密钥。")
+                .font(.caption).foregroundStyle(.secondary)
+        }.formStyle(.grouped).task { await model.refreshMonitorStatus() }
     }
 }

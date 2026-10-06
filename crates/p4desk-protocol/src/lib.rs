@@ -152,6 +152,9 @@ impl Snapshot {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum HostMessage {
+    MonitorConfigure { request_id: u16, site: String, key: MonitorKey },
+    MonitorForget { request_id: u16 },
+    MonitorGetStatus { request_id: u16 },
     Hello {
         request_id: u16,
         version: u16,
@@ -192,7 +195,10 @@ pub enum HostMessage {
 impl HostMessage {
     pub fn request_id(&self) -> u16 {
         match self {
-            Self::Hello { request_id, .. }
+            Self::MonitorConfigure { request_id, .. }
+            | Self::MonitorForget { request_id }
+            | Self::MonitorGetStatus { request_id }
+            | Self::Hello { request_id, .. }
             | Self::Heartbeat { request_id }
             | Self::SetMode { request_id, .. }
             | Self::TimeSync { request_id, .. }
@@ -203,6 +209,12 @@ impl HostMessage {
         }
     }
 }
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct MonitorKey(pub String);
+impl std::fmt::Debug for MonitorKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str("[redacted]") }
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TouchPoint {
     pub id: u8,
@@ -212,6 +224,7 @@ pub struct TouchPoint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum DeviceMessage {
+    MonitorStatus { request_id: u16, configured: bool, busy: bool, configuration_result: Option<bool>, message: String },
     Caps {
         request_id: u16,
         version: u16,

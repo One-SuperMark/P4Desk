@@ -1,0 +1,177 @@
+{
+  "date": "2026-10-06",
+  "scope": "全应用公共显示与内存路径；空闲也偶发闪绿／水平错位",
+  "build": {
+    "status": "passed",
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "artifact": {
+      "bytes": 6463680,
+      "sha256": "355bba05fcc848d420a03298462b8f4e5fd1d321dab0b9fb820ca2bcadc2867c"
+    },
+    "heap_guard": "light",
+    "iram_route": "wrapper / SDK original / ISR query / failed alloc callback verified",
+    "wrapper_calls": 35,
+    "evidence": ".cache/system-display-audit/build-final.log",
+    "source_hashes_evidence": ".cache/system-display-audit/task-source-hashes.json",
+    "source_hashes_rechecked_after_capture": true
+  },
+  "flash": {
+    "status": "passed",
+    "hashes_verified": 3,
+    "nvs_tf_preserved": true,
+    "evidence": ".cache/system-display-audit/flash.log"
+  },
+  "host_tests": {
+    "renderer": 83,
+    "application": 73,
+    "failures": 0,
+    "c_asan_ubsan": [
+      "pad-damage",
+      "display-cache-sync",
+      "display-pipeline",
+      "monitor-http",
+      "display-pixels"
+    ],
+    "synthetic_pressure": {
+      "cycles": 48,
+      "frames": 2161,
+      "flushes_pixel_equal": 2161,
+      "live_sweep1_bytes": 18123524,
+      "live_sweep2_bytes": 18123524,
+      "peak_requested_bytes": 19683387,
+      "max_allocation_bytes": 1376160,
+      "vector_retained_bytes": 5512032,
+      "hardware_proof": false
+    },
+    "evidence_dir": ".cache/system-display-audit/",
+    "pinned_sdk_observer_tests": 13
+  },
+  "device": {
+    "status": "captured",
+    "planned_capture_seconds": 660,
+    "visual_flash_acceptance": "user_reports_currently_stable",
+    "evidence": ".cache/system-display-audit/monitor.log",
+    "user_feedback": "目前画面稳定，没有再闪绿或错位",
+    "user_visual_check": {
+      "result": "currently_stable",
+      "feedback": "目前画面稳定，没有再闪绿或错位",
+      "scope": "静置观察以及今日／本月、Home 返回、重新打开后的用户反馈；不是全天运行承诺"
+    },
+    "startup_host_status_note": "首轮状态样本记录 ST0=0x100000、ST1=0，一次 error_poll；截至中间记录，first_us=last_us=461055 且未增加。不把它表述为全部 DSI 错误为 0。",
+    "capture_seconds": 660,
+    "monitor_exit": 0,
+    "summary": {
+      "capture_seconds": 660,
+      "diagnostic_samples": 21,
+      "diagnostic_last_uptime_s": 632,
+      "final_heap": {
+        "uptime_s": 632,
+        "mode": "pad",
+        "internal_free": 64663,
+        "internal_min": 55915,
+        "psram_free": 18258716,
+        "psram_min": 17247564,
+        "alloc_failures": 0,
+        "last_alloc_bytes": 0,
+        "last_alloc_caps": 0,
+        "presented": 244,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0,
+        "jpeg_received": 0,
+        "jpeg_dropped": 0,
+        "frame_ack_dropped": 0
+      },
+      "lcd_host": {
+        "query": 0,
+        "polls": 9557,
+        "error_polls": 1,
+        "status0_or": 1048576,
+        "status1_or": 0,
+        "dpi_overflow_polls": 0,
+        "dpi_underflow_polls": 0,
+        "first_us": 461055,
+        "last_us": 461055
+      },
+      "lcd_health": {
+        "boundary_gap_max_us": 16673,
+        "delayed_over_25ms": 0,
+        "boundary_queue_peak": 2,
+        "cache_query": 0,
+        "cache_calls": 244,
+        "cache_errors": 0,
+        "cache_max_us": 1226,
+        "cache_last_error": 0,
+        "ppa_calls": 51,
+        "ppa_errors": 0,
+        "ppa_timeouts": 0,
+        "ppa_submit_max_us": 3060,
+        "ppa_wait_max_us": 15389,
+        "ppa_last_error": 0
+      },
+      "m2c": {
+        "calls": 51,
+        "chunks": 1938,
+        "errors": 0,
+        "max_chunk_us": 114
+      },
+      "copy": {
+        "partial": 193,
+        "full": 51,
+        "unchanged": 85,
+        "copied_bytes_window": 2700
+      },
+      "sampled_copy_bytes": 69260298,
+      "all_full_copy_bytes_for_same_copy_count": 299827200,
+      "avoided_copy_fraction": 0.769,
+      "lcd_underruns": 0,
+      "boots": 1,
+      "heap_assert_panic_count": 0,
+      "online_batches": 20,
+      "http_codes": {
+        "200": 72
+      },
+      "checkpoints_ok": 12,
+      "checkpoint_failures": 0,
+      "checkpoint_durations_ms": [
+        92,
+        139,
+        101,
+        84,
+        145,
+        86,
+        144,
+        85,
+        101,
+        127,
+        100,
+        126
+      ]
+    },
+    "scope": "连续 UART 记录覆盖静置、后台取数、自动保存和用户指定的监控页面操作；未重新做 USB 副屏实机压测。",
+    "evidence_summary": ".cache/system-display-audit/device-summary.json",
+    "other_apps_visual_check": "optional_feedback_pending; host regression already passed"
+  },
+  "limitations": [
+    "主机压力统计不包含固件 C HAL／LCD／JPEG／网络内存，不代表 P4 FPS。",
+    "正常日志仅说明观察窗口未检测到对应异常，不能证明闪屏唯一根因或完全消除。",
+    "Flash 持久化仍可能暂停 cache／总线；未盲目启用 auto-suspend。",
+    "文件管理与 Office 仍为占位入口。"
+  ],
+  "git": {
+    "commit": false,
+    "push": false
+  },
+  "remaining_performance_notes": [
+    {
+      "topic": "usage_monitor_full_redraw",
+      "observed_target": "若干低频窗口 draw_avg 约 193ms，draw_max 约 512ms；output 约 18ms。draw 不含此前 builder/set_root 的首遍 layout。",
+      "host_hotspot": "合成 24/31 点真实树热测中趋势图区约占完整 paint 的 89%/91%；数字 opaque dirty 40/40 成功、局部 App draw_avg 20us。仅为 Mac host 分解。",
+      "cause_in_code": "快速采样完成仍调用 state.changed，revision 触发整树重建。曲线每次 paint 重算几何、圆头/接点与抗锯齿。",
+      "next_safe_candidates": "复用不变图表像素／几何，费用和更新时间局部 dirty；继续保留数据口径与布局契约。",
+      "source_changed_this_followup": false,
+      "evidence": ".cache/system-display-audit/monitor-perf-hotspots.log"
+    }
+  ]
+}

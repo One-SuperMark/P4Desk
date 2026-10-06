@@ -23,8 +23,11 @@
 #include "esp_lcd_touch_gt911.h"
 #include "esp_log.h"
 #include "esp_random.h"
+#include "esp_timer.h"
 #include "esp_vfs_fat.h"
 #include "ff.h"
+#include "hal/axi_icm_ll.h"
+#include "p4desk_lcd_frame_observer.h"
 #include "sd_pwr_ctrl_by_on_chip_ldo.h"
 #include "sdmmc_cmd.h"
 
@@ -32,6 +35,32 @@ static const char *TAG = "board_p4";
 static esp_ldo_channel_handle_t s_dsi_power;
 static i2c_master_bus_handle_t s_i2c;
 static sdmmc_card_t *s_card;
+static esp_lcd_panel_handle_t s_diagnostic_panel;
+static int64_t s_display_log_us;
+static uint32_t s_logged_underruns;
+
+void board_p4_log_display_diagnostics(void)
+{
+    // Single task caller, bounded independently of UI frame activity. The ISR
+    // only updates counters; no screen content or buffer addresses are logged.
+    if (!s_diagnostic_panel) return;
+    const int64_t now_us = esp_timer_get_time();
+    if (now_us - s_display_log_us < 30000000) return;
+    s_display_log_us = now_us;
+    p4desk_lcd_underrun_stats_t stats;
+    const esp_err_t err = p4desk_lcd_underrun_stats(s_diagnostic_panel, &stats);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "display underrun snapshot failed: %s", esp_err_to_name(err));
+        return;
+    }
+    const uint32_t added = stats.count >= s_logged_underruns
+        ? stats.count - s_logged_underruns : stats.count;
+    s_logged_underruns = stats.count;
+    const int64_t age_ms = stats.count ? (now_us - stats.last_us) / 1000 : -1;
+    ESP_LOGI(TAG, "display underruns=%" PRIu32 " added=%" PRIu32
+             " first_us=%" PRId64 " last_us=%" PRId64 " last_age_ms=%" PRId64,
+             stats.count, added, stats.first_us, stats.last_us, age_ms);
+}
 
 static esp_err_t backlight_init(void)
 {
@@ -67,6 +96,15 @@ esp_err_t board_p4_brightness(uint8_t percent)
 static esp_err_t panel_init(board_p4_t *board)
 {
     ESP_RETURN_ON_ERROR(backlight_init(), TAG, "backlight init");
+    // DPI's DW-GDMA reads PSRAM on master port 1. Continuous scanout cannot
+    // wait behind cache/PPA traffic as a drawing job can. TRM 21.2.1.16 defines
+    // larger QoS values as higher priority; preserve the port's write priority
+    // and every other master's settings. No rate regulator is enabled here.
+    const uint32_t scan_read_before = AXI_ICM.mst_arqos_reg0.reg_gdma_mst2_arqos;
+    const uint32_t scan_write = AXI_ICM.mst_awqos_reg0.reg_gdma_mst2_awqos;
+    axi_icm_ll_set_dw_gdma_qos_arbiter_prio(1, scan_write, 15);
+    ESP_LOGI(TAG, "LCD scan read QoS=%" PRIu32 "->%" PRIu32 " write=%" PRIu32,
+             scan_read_before, (uint32_t)AXI_ICM.mst_arqos_reg0.reg_gdma_mst2_arqos, scan_write);
     const esp_ldo_channel_config_t power = {.chan_id = 3, .voltage_mv = 2500};
     ESP_RETURN_ON_ERROR(esp_ldo_acquire_channel(&power, &s_dsi_power), TAG, "DSI power");
 
@@ -104,6 +142,9 @@ static esp_err_t panel_init(board_p4_t *board)
     ESP_RETURN_ON_ERROR(esp_lcd_dpi_panel_get_frame_buffer(board->panel, P4DESK_FB_COUNT,
         &framebuffers[0], &framebuffers[1], &framebuffers[2]), TAG, "framebuffers");
     for (unsigned n = 0; n < P4DESK_FB_COUNT; n++) board->framebuffers[n] = framebuffers[n];
+    s_diagnostic_panel = board->panel;
+    s_display_log_us = esp_timer_get_time();
+    s_logged_underruns = 0;
     return ESP_OK;
 }
 

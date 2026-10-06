@@ -65,11 +65,249 @@ class ObserverPatchTests(unittest.TestCase):
     def test_preserves_license_bridge_and_original_refresh_callbacks(self) -> None:
         self.assertEqual(self.source.split(b"*/", 1)[0], self.patched.split(b"*/", 1)[0])
         bridge = function_source(self.original_text, "void mipi_dsi_bridge_isr_handler", "// Please note, errors")
-        self.assertIn(bridge, self.patched_text)
+        # Only replace the underrun printing branch, keeping interrupt clearing,
+        # VSYNC notification and yield behavior exactly as in the pinned driver.
+        _, before, after = next(change for change in patch.REPLACEMENTS
+                                if change[0] == "bounded_underrun_diagnostics")
+        self.assertEqual(function_source(self.patched_text, "void mipi_dsi_bridge_isr_handler",
+                                         "// Please note, errors"), bridge.replace(before, after))
         original_register = function_source(self.original_text, "esp_err_t esp_lcd_dpi_panel_register_event_callbacks")
         self.assertIn(original_register, self.patched_text)
         refresh = self.original_text.split("#if !MIPI_DSI_BRG_LL_EVENT_VSYNC\n", 1)[1].split("#endif", 1)[0]
         self.assertIn(refresh, self.patched_text)
+
+    def test_actual_bridge_underrun_counter_snapshot_and_vsync(self) -> None:
+        compiler = shutil.which("cc")
+        if not compiler:
+            self.skipTest("host C compiler unavailable")
+        bridge = function_source(self.patched_text, "void mipi_dsi_bridge_isr_handler",
+                                 "// Please note, errors")
+        query = function_source(self.patched_text, "esp_err_t p4desk_lcd_underrun_stats(",
+                                "esp_err_t p4desk_lcd_cache_stats(")
+        self.assertNotIn("ESP_DRAM_LOG", bridge)
+        self.assertNotIn("heap_caps_", bridge)
+        self.assertNotIn("panel_reset", bridge)
+        fixture = r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+typedef int esp_err_t;
+#define ESP_OK 0
+#define ESP_ERR_INVALID_ARG 1
+#define ESP_ERR_INVALID_STATE 2
+#define MIPI_DSI_BRG_LL_EVENT_UNDERRUN 1
+#define MIPI_DSI_BRG_LL_EVENT_VSYNC 2
+#define ESP_RETURN_ON_FALSE(condition, code, ...) do { if (!(condition)) return (code); } while(0)
+#define __containerof(pointer, type, field) ((type *)((char *)(pointer) - offsetof(type, field)))
+typedef struct { int (*draw_bitmap)(void), (*draw_bitmap_2d)(void); } esp_lcd_panel_t;
+typedef esp_lcd_panel_t *esp_lcd_panel_handle_t;
+typedef struct { uint32_t count; int64_t first_us, last_us; } p4desk_lcd_underrun_stats_t;
+typedef struct { int bridge; } mipi_dsi_hal_context_t;
+typedef struct { mipi_dsi_hal_context_t hal; } fake_bus_t;
+typedef struct {
+    esp_lcd_panel_t base;
+    fake_bus_t *bus;
+    int frame_observer_lock;
+    p4desk_lcd_underrun_stats_t underrun_stats;
+    bool (*on_refresh_done)(esp_lcd_panel_t *, void *, void *);
+    void *user_ctx;
+} esp_lcd_dpi_panel_t;
+static int lock_depth, cleared, refreshed, yielded;
+static uint32_t interrupt_status;
+static int64_t now_us;
+static bool in_isr, refresh_wakes;
+#define portENTER_CRITICAL_ISR(lock) do { (void)(lock); assert(in_isr && lock_depth == 0); ++lock_depth; } while(0)
+#define portEXIT_CRITICAL_ISR(lock) do { (void)(lock); assert(in_isr && lock_depth == 1); --lock_depth; } while(0)
+#define portENTER_CRITICAL(lock) do { (void)(lock); assert(!in_isr && lock_depth == 0); ++lock_depth; } while(0)
+#define portEXIT_CRITICAL(lock) do { (void)(lock); assert(!in_isr && lock_depth == 1); --lock_depth; } while(0)
+#define portYIELD_FROM_ISR() do { assert(in_isr && lock_depth == 0); ++yielded; } while(0)
+static int64_t esp_timer_get_time(void) { assert(in_isr && lock_depth == 0); return now_us; }
+static bool xPortInIsrContext(void) { return in_isr; }
+static uint32_t mipi_dsi_brg_ll_get_interrupt_status(int bridge)
+{ assert(bridge == 7); return interrupt_status; }
+static void mipi_dsi_brg_ll_clear_interrupt_status(int bridge, uint32_t status)
+{ assert(bridge == 7 && status == interrupt_status); ++cleared; }
+static int dpi_panel_draw_bitmap(void) { return 0; }
+static int dpi_panel_draw_bitmap_2d(void) { return 0; }
+static int wrong_method(void) { return 0; }
+static bool refresh(esp_lcd_panel_t *panel, void *event, void *context)
+{ assert(panel && !event && context == &refreshed && lock_depth == 0); ++refreshed; return refresh_wakes; }
+'''
+        checks = r'''
+int main(void)
+{
+    fake_bus_t bus = {.hal = {.bridge = 7}};
+    esp_lcd_dpi_panel_t panel = {
+        .base = {.draw_bitmap = dpi_panel_draw_bitmap, .draw_bitmap_2d = dpi_panel_draw_bitmap_2d},
+        .bus = &bus, .on_refresh_done = refresh, .user_ctx = &refreshed,
+    };
+    p4desk_lcd_underrun_stats_t stats = {.count = 99, .first_us = 99, .last_us = 99};
+    assert(p4desk_lcd_underrun_stats(&panel.base, &stats) == ESP_OK);
+    assert(stats.count == 0 && stats.first_us == 0 && stats.last_us == 0);
+    in_isr = true;
+    mipi_dsi_bridge_isr_handler(&panel);
+    assert(panel.underrun_stats.count == 0 && cleared == 1 && refreshed == 0);
+    interrupt_status = MIPI_DSI_BRG_LL_EVENT_UNDERRUN;
+    now_us = 0; mipi_dsi_bridge_isr_handler(&panel);
+    assert(panel.underrun_stats.count == 1 && panel.underrun_stats.first_us == 0);
+    now_us = 100; mipi_dsi_bridge_isr_handler(&panel);
+    assert(panel.underrun_stats.count == 2 && panel.underrun_stats.last_us == 100);
+    interrupt_status |= MIPI_DSI_BRG_LL_EVENT_VSYNC;
+    refresh_wakes = true; now_us = 200; mipi_dsi_bridge_isr_handler(&panel);
+    assert(panel.underrun_stats.count == 3 && refreshed == 1 && yielded == 1);
+    interrupt_status = MIPI_DSI_BRG_LL_EVENT_VSYNC;
+    refresh_wakes = false; mipi_dsi_bridge_isr_handler(&panel);
+    assert(panel.underrun_stats.count == 3 && refreshed == 2 && yielded == 1);
+    panel.underrun_stats.count = UINT32_MAX - 1;
+    interrupt_status = MIPI_DSI_BRG_LL_EVENT_UNDERRUN;
+    now_us = 300; mipi_dsi_bridge_isr_handler(&panel);
+    now_us = 400; mipi_dsi_bridge_isr_handler(&panel);
+    assert(panel.underrun_stats.count == UINT32_MAX && panel.underrun_stats.first_us == 0);
+    assert(panel.underrun_stats.last_us == 400 && lock_depth == 0);
+    assert(p4desk_lcd_underrun_stats(&panel.base, &stats) == ESP_ERR_INVALID_STATE);
+    assert(stats.count == 0 && stats.first_us == 0 && stats.last_us == 0);
+    in_isr = false;
+    assert(p4desk_lcd_underrun_stats(&panel.base, &stats) == ESP_OK);
+    assert(stats.count == UINT32_MAX && stats.first_us == 0 && stats.last_us == 400);
+    assert(p4desk_lcd_underrun_stats(NULL, &stats) == ESP_ERR_INVALID_ARG && stats.count == 0);
+    assert(p4desk_lcd_underrun_stats(&panel.base, NULL) == ESP_ERR_INVALID_ARG);
+    panel.base.draw_bitmap_2d = wrong_method;
+    stats.count = 99;
+    assert(p4desk_lcd_underrun_stats(&panel.base, &stats) == ESP_ERR_INVALID_ARG && stats.count == 0);
+    assert(lock_depth == 0 && cleared == 7);
+    return 0;
+}
+'''
+        with tempfile.TemporaryDirectory(prefix="p4desk-dpi-underrun-") as directory:
+            source = Path(directory) / "probe.c"
+            executable = Path(directory) / "probe"
+            source.write_text(fixture + bridge + "\n" + query + checks)
+            result = subprocess.run([compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
+                                     str(source), "-o", str(executable)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            subprocess.run([str(executable)], check=True, capture_output=True, text=True)
+
+    def test_existing_writeback_is_checked_before_buffer_publication(self) -> None:
+        compiler = shutil.which("cc")
+        if not compiler:
+            self.skipTest("host C compiler unavailable")
+        helper = function_source(self.patched_text, "static esp_err_t p4desk_dpi_sync_for_present(",
+                                 "static bool dpi_panel_draw_bitmap_hook_end(")
+        query = function_source(self.patched_text, "esp_err_t p4desk_lcd_cache_stats(",
+                                "esp_err_t p4desk_lcd_frame_buffer_capacity(")
+        start = self.patched_text.index("    if (!do_copy) { // no copy, just do cache memory write back")
+        end = self.patched_text.index("    } else if (dpi_panel->draw_bitmap_hook)", start)
+        direct = self.patched_text[start:end] + "    }\n    return ESP_OK;\n}\n"
+        self.assertEqual(helper.count("esp_cache_msync("), 1)
+        self.assertNotIn("esp_cache_msync(", direct)
+        fixture = r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+typedef int esp_err_t;
+#define ESP_OK 0
+#define ESP_ERR_INVALID_ARG 1
+#define ESP_ERR_INVALID_STATE 2
+#define ESP_CACHE_MSYNC_FLAG_DIR_C2M 1
+#define ESP_CACHE_MSYNC_FLAG_UNALIGNED 2
+#define ESP_RETURN_ON_FALSE(condition, code, ...) do { if (!(condition)) return (code); } while(0)
+#define ESP_RETURN_ON_ERROR(expression, ...) do { esp_err_t ret_ = (expression); if (ret_) return ret_; } while(0)
+#define ESP_LOGV(...) do {} while(0)
+#define __containerof(pointer, type, field) ((type *)((char *)(pointer) - offsetof(type, field)))
+typedef struct { int (*draw_bitmap)(void), (*draw_bitmap_2d)(void); } esp_lcd_panel_t;
+typedef esp_lcd_panel_t *esp_lcd_panel_handle_t;
+typedef struct { uint32_t calls, errors, max_us; uint64_t total_us; int32_t last_error; } p4desk_lcd_cache_stats_t;
+typedef struct {
+    esp_lcd_panel_t base;
+    int frame_observer_lock;
+    p4desk_lcd_cache_stats_t cache_stats;
+    uint8_t cur_fb_index;
+    uint8_t *fbs[3];
+    unsigned h_pixels;
+    bool (*on_color_trans_done)(esp_lcd_panel_t *, void *, void *);
+    void *user_ctx;
+} esp_lcd_dpi_panel_t;
+static bool in_isr;
+static int lock_depth, synced, notified;
+static esp_err_t sync_result;
+static int64_t clock_us, duration_us;
+static void *synced_address;
+static size_t synced_bytes;
+static bool xPortInIsrContext(void) { return in_isr; }
+#define portENTER_CRITICAL(lock) do { (void)(lock); assert(!in_isr && lock_depth == 0); ++lock_depth; } while(0)
+#define portEXIT_CRITICAL(lock) do { (void)(lock); assert(!in_isr && lock_depth == 1); --lock_depth; } while(0)
+static int64_t esp_timer_get_time(void) { assert(lock_depth == 0); return clock_us; }
+static esp_err_t esp_cache_msync(void *address, size_t bytes, int flags)
+{
+    assert(lock_depth == 0 && flags == (ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED));
+    ++synced; synced_address = address; synced_bytes = bytes; clock_us += duration_us;
+    return sync_result;
+}
+static int dpi_panel_draw_bitmap(void) { return 0; }
+static int dpi_panel_draw_bitmap_2d(void) { return 0; }
+static int wrong_method(void) { return 0; }
+static bool notify(esp_lcd_panel_t *panel, void *event, void *context)
+{ assert(panel && !event && !context && lock_depth == 0); ++notified; return false; }
+'''
+        prefix = r'''
+static esp_err_t draw_direct(esp_lcd_dpi_panel_t *dpi_panel, uint8_t index, int y_start, int y_end)
+{
+    bool do_copy = false;
+    uint8_t draw_buf_fb_index = index;
+    size_t bits_per_pixel = 16;
+    (void)&dpi_panel->base;
+'''
+        checks = r'''
+int main(void)
+{
+    uint8_t storage[3][8192];
+    esp_lcd_dpi_panel_t panel = {
+        .base = {.draw_bitmap = dpi_panel_draw_bitmap, .draw_bitmap_2d = dpi_panel_draw_bitmap_2d},
+        .fbs = {storage[0], storage[1], storage[2]}, .h_pixels = 1024,
+        .on_color_trans_done = notify,
+    };
+    duration_us = 43;
+    assert(draw_direct(&panel, 1, 0, 3) == ESP_OK);
+    assert(synced == 1 && notified == 1 && panel.cur_fb_index == 1);
+    assert(synced_address == storage[1] && synced_bytes == 6144);
+    p4desk_lcd_cache_stats_t stats;
+    assert(p4desk_lcd_cache_stats(&panel.base, &stats) == ESP_OK);
+    assert(stats.calls == 1 && stats.errors == 0 && stats.max_us == 43 && stats.total_us == 43);
+    sync_result = 17; duration_us = 71;
+    assert(draw_direct(&panel, 2, 1, 3) == 17);
+    assert(synced == 2 && notified == 1 && panel.cur_fb_index == 1);
+    assert(synced_address == storage[2] + 2048 && synced_bytes == 4096);
+    assert(p4desk_lcd_cache_stats(&panel.base, &stats) == ESP_OK);
+    assert(stats.calls == 2 && stats.errors == 1 && stats.max_us == 71 && stats.total_us == 114 && stats.last_error == 17);
+    panel.cache_stats.calls = UINT32_MAX; panel.cache_stats.errors = UINT32_MAX;
+    panel.cache_stats.total_us = UINT64_MAX - 1;
+    duration_us = (int64_t)UINT32_MAX + 1;
+    assert(draw_direct(&panel, 2, 0, 3) == 17);
+    assert(panel.cur_fb_index == 1 && notified == 1 && synced == 3);
+    assert(p4desk_lcd_cache_stats(&panel.base, &stats) == ESP_OK);
+    assert(stats.calls == UINT32_MAX && stats.errors == UINT32_MAX);
+    assert(stats.max_us == UINT32_MAX && stats.total_us == UINT64_MAX);
+    in_isr = true;
+    assert(p4desk_lcd_cache_stats(&panel.base, &stats) == ESP_ERR_INVALID_STATE && stats.calls == 0);
+    in_isr = false;
+    assert(p4desk_lcd_cache_stats(NULL, &stats) == ESP_ERR_INVALID_ARG && stats.calls == 0);
+    assert(p4desk_lcd_cache_stats(&panel.base, NULL) == ESP_ERR_INVALID_ARG);
+    panel.base.draw_bitmap_2d = wrong_method;
+    assert(p4desk_lcd_cache_stats(&panel.base, &stats) == ESP_ERR_INVALID_ARG && stats.calls == 0);
+    assert(lock_depth == 0);
+    return 0;
+}
+'''
+        with tempfile.TemporaryDirectory(prefix="p4desk-dpi-cache-") as directory:
+            source = Path(directory) / "probe.c"
+            executable = Path(directory) / "probe"
+            source.write_text(fixture + helper + query + prefix + direct + checks)
+            result = subprocess.run([compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
+                                     str(source), "-o", str(executable)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            subprocess.run([str(executable)], check=True, capture_output=True, text=True)
 
     def test_padding_preserves_original_scan_and_visible_geometry(self) -> None:
         original_geometry = (
@@ -87,6 +325,149 @@ class ObserverPatchTests(unittest.TestCase):
         self.assertIn(cache_geometry, self.patched_text)
         self.assertIn("    size_t fb_size = dpi_panel->fb_size;\n", self.patched_text)
         self.assertEqual(self.patched_text.count("dpi_panel->fb_capacity = fb_capacity;"), 1)
+
+    def test_host_error_poll_has_one_owner_and_retains_reports(self) -> None:
+        compiler = shutil.which("cc")
+        if not compiler:
+            self.skipTest("host C compiler unavailable")
+        poll = function_source(self.patched_text, "esp_err_t p4desk_lcd_host_errors_poll(",
+                               "esp_err_t p4desk_lcd_host_error_stats(")
+        query = function_source(self.patched_text, "esp_err_t p4desk_lcd_host_error_stats(",
+                                "esp_err_t p4desk_lcd_underrun_stats(")
+        self.assertEqual(poll.count("host->int_st0.val"), 1)
+        self.assertEqual(poll.count("host->int_st1.val"), 1)
+        self.assertNotIn("host->", query)
+        self.assertNotIn("ESP_LOG", poll)
+        self.assertNotIn("heap_caps_", poll)
+        self.assertNotIn("reset(", poll)
+        fixture = r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+typedef int esp_err_t;
+typedef void *TaskHandle_t;
+#define ESP_OK 0
+#define ESP_ERR_INVALID_ARG 1
+#define ESP_ERR_INVALID_STATE 2
+#define P4DESK_DSI_HOST_DPI_FIFO_OVERFLOW (UINT32_C(1) << 7)
+#define P4DESK_DSI_HOST_DPI_FIFO_UNDERFLOW (UINT32_C(1) << 19)
+#define ESP_RETURN_ON_FALSE(condition, code, ...) do { if (!(condition)) return (code); } while(0)
+#define __containerof(pointer, type, field) ((type *)((char *)(pointer) - offsetof(type, field)))
+typedef struct { int (*draw_bitmap)(void), (*draw_bitmap_2d)(void); } esp_lcd_panel_t;
+typedef esp_lcd_panel_t *esp_lcd_panel_handle_t;
+typedef struct {
+    uint32_t polls, error_polls, status0_or, status1_or, dpi_overflow_polls, dpi_underflow_polls;
+    uint32_t last_status0, last_status1;
+    int64_t first_error_us, last_error_us;
+} p4desk_lcd_host_error_stats_t;
+typedef struct { struct { volatile uint32_t val; } int_st0, int_st1; } fake_host_t;
+typedef struct { struct { fake_host_t *host; } hal; } fake_bus_t;
+typedef struct {
+    esp_lcd_panel_t base;
+    int frame_observer_lock;
+    fake_bus_t *bus;
+    p4desk_lcd_host_error_stats_t host_error_stats;
+    TaskHandle_t host_error_owner;
+} esp_lcd_dpi_panel_t;
+static bool in_isr;
+static int lock_depth, first_task, second_task;
+static TaskHandle_t caller;
+static int64_t now_us;
+static bool xPortInIsrContext(void) { return in_isr; }
+static TaskHandle_t xTaskGetCurrentTaskHandle(void) { assert(!in_isr); return caller; }
+#define portENTER_CRITICAL(lock) do { (void)(lock); assert(!in_isr && lock_depth == 0); ++lock_depth; } while(0)
+#define portEXIT_CRITICAL(lock) do { (void)(lock); assert(!in_isr && lock_depth == 1); --lock_depth; } while(0)
+static int64_t esp_timer_get_time(void) { assert(lock_depth == 0); return now_us; }
+static int dpi_panel_draw_bitmap(void) { return 0; }
+static int dpi_panel_draw_bitmap_2d(void) { return 0; }
+static int wrong_method(void) { return 0; }
+'''
+        checks = r'''
+int main(void)
+{
+    fake_host_t host = {0};
+    fake_bus_t bus = {.hal = {.host = &host}};
+    esp_lcd_dpi_panel_t panel = {
+        .base = {.draw_bitmap = dpi_panel_draw_bitmap, .draw_bitmap_2d = dpi_panel_draw_bitmap_2d},
+        .bus = &bus,
+    };
+    caller = &first_task;
+    assert(p4desk_lcd_host_errors_poll(&panel.base) == ESP_OK);
+    assert(panel.host_error_owner == caller && panel.host_error_stats.polls == 1);
+    assert(panel.host_error_stats.error_polls == 0);
+    host.int_st0.val = 4; host.int_st1.val = P4DESK_DSI_HOST_DPI_FIFO_UNDERFLOW;
+    now_us = 100;
+    assert(p4desk_lcd_host_errors_poll(&panel.base) == ESP_OK);
+    // Hardware read-clear behavior is specified by TRM; emulate clearing between
+    // polls here, while structural checks above ensure one production read each.
+    host.int_st0.val = host.int_st1.val = 0;
+    now_us = 150;
+    assert(p4desk_lcd_host_errors_poll(&panel.base) == ESP_OK);
+    p4desk_lcd_host_error_stats_t stats;
+    caller = &second_task;
+    assert(p4desk_lcd_host_error_stats(&panel.base, &stats) == ESP_OK);
+    assert(stats.polls == 3 && stats.error_polls == 1 && stats.status0_or == 4);
+    assert(stats.dpi_underflow_polls == 1 && stats.last_status0 == 0 && stats.last_status1 == 0);
+    assert(stats.first_error_us == 100 && stats.last_error_us == 100);
+    host.int_st0.val = 32; host.int_st1.val = P4DESK_DSI_HOST_DPI_FIFO_OVERFLOW;
+    assert(p4desk_lcd_host_errors_poll(&panel.base) == ESP_ERR_INVALID_STATE);
+    assert(panel.host_error_stats.polls == 3 && host.int_st0.val == 32 && host.int_st1.val == 128);
+    caller = &first_task; now_us = 200;
+    assert(p4desk_lcd_host_errors_poll(&panel.base) == ESP_OK);
+    assert(p4desk_lcd_host_error_stats(&panel.base, &stats) == ESP_OK);
+    assert(stats.error_polls == 2 && stats.status0_or == 36);
+    assert(stats.status1_or == (P4DESK_DSI_HOST_DPI_FIFO_OVERFLOW | P4DESK_DSI_HOST_DPI_FIFO_UNDERFLOW));
+    assert(stats.dpi_overflow_polls == 1 && stats.first_error_us == 100 && stats.last_error_us == 200);
+    panel.host_error_stats.polls = panel.host_error_stats.error_polls = UINT32_MAX;
+    panel.host_error_stats.dpi_overflow_polls = panel.host_error_stats.dpi_underflow_polls = UINT32_MAX;
+    host.int_st1.val |= P4DESK_DSI_HOST_DPI_FIFO_UNDERFLOW; now_us = 300;
+    assert(p4desk_lcd_host_errors_poll(&panel.base) == ESP_OK);
+    assert(p4desk_lcd_host_error_stats(&panel.base, &stats) == ESP_OK);
+    assert(stats.polls == UINT32_MAX && stats.error_polls == UINT32_MAX && stats.dpi_overflow_polls == UINT32_MAX);
+    assert(stats.dpi_underflow_polls == UINT32_MAX && stats.last_error_us == 300);
+    in_isr = true;
+    assert(p4desk_lcd_host_errors_poll(&panel.base) == ESP_ERR_INVALID_STATE);
+    assert(p4desk_lcd_host_error_stats(&panel.base, &stats) == ESP_ERR_INVALID_STATE && stats.polls == 0);
+    in_isr = false;
+    assert(p4desk_lcd_host_errors_poll(NULL) == ESP_ERR_INVALID_ARG);
+    assert(p4desk_lcd_host_error_stats(NULL, &stats) == ESP_ERR_INVALID_ARG && stats.polls == 0);
+    assert(p4desk_lcd_host_error_stats(&panel.base, NULL) == ESP_ERR_INVALID_ARG);
+    panel.base.draw_bitmap_2d = wrong_method;
+    assert(p4desk_lcd_host_errors_poll(&panel.base) == ESP_ERR_INVALID_ARG);
+    assert(p4desk_lcd_host_error_stats(&panel.base, &stats) == ESP_ERR_INVALID_ARG && stats.polls == 0);
+    assert(lock_depth == 0);
+    return 0;
+}
+'''
+        with tempfile.TemporaryDirectory(prefix="p4desk-dpi-host-") as directory:
+            source = Path(directory) / "probe.c"
+            executable = Path(directory) / "probe"
+            source.write_text(fixture + poll + query + checks)
+            result = subprocess.run([compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
+                                     str(source), "-o", str(executable)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            subprocess.run([str(executable)], check=True, capture_output=True, text=True)
+
+    def test_underrun_line_mask_and_isr_safety_requirements(self) -> None:
+        self.assertIn("mipi_dsi_brg_ll_set_underrun_discard_count(hal->bridge, 0);", self.patched_text)
+        self.assertNotIn("mipi_dsi_brg_ll_set_underrun_discard_count(hal->bridge, panel_config->video_timing.h_size);",
+                         self.patched_text)
+        callback = function_source(self.patched_text, "bool mipi_dsi_dma_trans_done_cb(",
+                                   "void mipi_dsi_bridge_isr_handler(")
+        bridge = function_source(self.patched_text, "void mipi_dsi_bridge_isr_handler(",
+                                 "// Please note, errors")
+        self.assertNotIn("host->int_st", callback + bridge)
+        registration = function_source(self.patched_text, "esp_err_t p4desk_lcd_frame_observer_register(",
+                                       "esp_err_t p4desk_lcd_host_errors_poll(")
+        self.assertIn("#if CONFIG_LCD_DSI_ISR_CACHE_SAFE", registration)
+        self.assertIn("esp_ptr_in_iram(callback)", registration)
+        self.assertIn("esp_ptr_internal(context)", registration)
+        cmake = (COMPONENT / "CMakeLists.txt").read_text()
+        self.assertIn("CONFIG_LCD_DSI_OBJ_FORCE_INTERNAL", cmake)
+        linker = (SDK_SOURCE.parents[1] / "linker.lf").read_text()
+        self.assertIn("esp_lcd_panel_dpi: mipi_dsi_dma_trans_done_cb (noflash)", linker)
+        self.assertIn("esp_lcd_panel_dpi: mipi_dsi_bridge_isr_handler (noflash)", linker)
 
     def test_actual_capacity_calculation_and_exact_pointer_query(self) -> None:
         compiler = shutil.which("cc")
@@ -330,6 +711,80 @@ int main(void)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 subprocess.run([str(executable)], check=True, capture_output=True, text=True)
 
+    def test_board_diagnostic_logs_are_bounded_and_preserve_zero_and_delta(self) -> None:
+        compiler = shutil.which("cc")
+        if not compiler:
+            self.skipTest("host C compiler unavailable")
+        board_source = (COMPONENT.parent / "board_p4/board_p4.c").read_text()
+        logger = function_source(board_source, "void board_p4_log_display_diagnostics(void)",
+                                 "static esp_err_t backlight_init(void)")
+        fixture = r'''
+#include <assert.h>
+#include <inttypes.h>
+#include <stddef.h>
+#include <stdint.h>
+typedef int esp_err_t;
+typedef void *esp_lcd_panel_handle_t;
+typedef struct { uint32_t count; int64_t first_us, last_us; } p4desk_lcd_underrun_stats_t;
+#define ESP_OK 0
+static esp_lcd_panel_handle_t s_diagnostic_panel;
+static int64_t s_display_log_us, now_us;
+static uint32_t s_logged_underruns;
+static unsigned queried, logged, warned;
+static esp_err_t query_result;
+static p4desk_lcd_underrun_stats_t available;
+static uint32_t logged_count, logged_added;
+static int64_t logged_first, logged_last, logged_age;
+static int64_t esp_timer_get_time(void) { return now_us; }
+static esp_err_t p4desk_lcd_underrun_stats(esp_lcd_panel_handle_t panel,
+                                         p4desk_lcd_underrun_stats_t *out)
+{ assert(panel == &available); ++queried; *out = available; return query_result; }
+static void record_log(uint32_t count, uint32_t added, int64_t first, int64_t last, int64_t age)
+{ ++logged; logged_count = count; logged_added = added; logged_first = first; logged_last = last; logged_age = age; }
+#define ESP_LOGI(tag, format, ...) record_log(__VA_ARGS__)
+#define ESP_LOGW(tag, format, ...) do { ++warned; } while(0)
+'''
+        checks = r'''
+int main(void)
+{
+    now_us = 30000000; board_p4_log_display_diagnostics();
+    assert(queried == 0 && logged == 0); // No initialized panel.
+    s_diagnostic_panel = &available;
+    now_us = 29999999; board_p4_log_display_diagnostics();
+    assert(queried == 0);
+    now_us = 30000000; board_p4_log_display_diagnostics();
+    assert(queried == 1 && logged == 1 && logged_count == 0 && logged_added == 0);
+    assert(logged_first == 0 && logged_last == 0 && logged_age == -1);
+    now_us = 59999999; board_p4_log_display_diagnostics();
+    assert(queried == 1 && logged == 1);
+    available = (p4desk_lcd_underrun_stats_t){.count = 3, .first_us = 41000000, .last_us = 55000000};
+    now_us = 60000000; board_p4_log_display_diagnostics();
+    assert(queried == 2 && logged == 2 && logged_count == 3 && logged_added == 3);
+    assert(logged_first == 41000000 && logged_last == 55000000 && logged_age == 5000);
+    now_us = 90000000; board_p4_log_display_diagnostics();
+    assert(logged_count == 3 && logged_added == 0 && logged_age == 35000);
+    available = (p4desk_lcd_underrun_stats_t){.count = 1, .first_us = 110000000, .last_us = 110000000};
+    now_us = 120000000; board_p4_log_display_diagnostics();
+    assert(logged_count == 1 && logged_added == 1); // Counter reset never wraps delta.
+    query_result = 1;
+    now_us = 150000000; board_p4_log_display_diagnostics();
+    now_us = 150000001; board_p4_log_display_diagnostics();
+    assert(queried == 5 && logged == 4 && warned == 1);
+    query_result = ESP_OK; available.count = 2; available.last_us = 175000000;
+    now_us = 180000000; board_p4_log_display_diagnostics();
+    assert(queried == 6 && logged == 5 && logged_added == 1 && logged_age == 5000);
+    return 0;
+}
+'''
+        with tempfile.TemporaryDirectory(prefix="p4desk-board-underrun-") as directory:
+            source = Path(directory) / "probe.c"
+            executable = Path(directory) / "probe"
+            source.write_text(fixture + logger + checks)
+            result = subprocess.run([compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
+                                     str(source), "-o", str(executable)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            subprocess.run([str(executable)], check=True, capture_output=True, text=True)
+
     def test_component_cmake_defers_exactly_one_source_replacement(self) -> None:
         cmake = shutil.which("cmake")
         if not cmake:
@@ -350,13 +805,21 @@ function(idf_component_register)
     add_library(__idf_lcd_frame_observer INTERFACE)
 endfunction()
 function(idf_component_get_property output component property)
-    set(${{output}} "{SDK_SOURCE.parents[1]}" PARENT_SCOPE)
+    if(component STREQUAL "esp_lcd" AND property STREQUAL "COMPONENT_DIR")
+        set(${{output}} "{SDK_SOURCE.parents[1]}" PARENT_SCOPE)
+    elseif(component STREQUAL "esp_timer" AND property STREQUAL "COMPONENT_LIB")
+        set(${{output}} __idf_esp_timer PARENT_SCOPE)
+    else()
+        message(FATAL_ERROR "unexpected component property lookup")
+    endif()
 endfunction()
 function(idf_build_get_property output property)
     set(${{output}} "{sys.executable}" PARENT_SCOPE)
 endfunction()
 file(WRITE "${{CMAKE_CURRENT_BINARY_DIR}}/other.c" "int other;\\n")
 add_library(__idf_esp_lcd STATIC "{SDK_SOURCE}" "${{CMAKE_CURRENT_BINARY_DIR}}/other.c")
+add_library(__idf_esp_timer INTERFACE)
+target_include_directories(__idf_esp_timer INTERFACE "${{CMAKE_CURRENT_BINARY_DIR}}/timer/include")
 add_subdirectory("{COMPONENT}" observer)
 function(check_replacement)
     get_target_property(sources __idf_esp_lcd SOURCES)
@@ -374,6 +837,14 @@ function(check_replacement)
     get_target_property(includes __idf_esp_lcd INCLUDE_DIRECTORIES)
     if(NOT "{SDK_SOURCE.parent}" IN_LIST includes OR NOT "{COMPONENT / 'include'}" IN_LIST includes)
         message(FATAL_ERROR "DPI private or observer header include missing")
+    endif()
+    get_target_property(links __idf_esp_lcd LINK_LIBRARIES)
+    if(NOT __idf_esp_timer IN_LIST links)
+        message(FATAL_ERROR "generated DPI needs esp_timer's include and link dependency")
+    endif()
+    get_target_property(interface_links __idf_esp_lcd INTERFACE_LINK_LIBRARIES)
+    if(NOT "$<LINK_ONLY:__idf_esp_timer>" IN_LIST interface_links)
+        message(FATAL_ERROR "esp_timer must remain a private static-library dependency")
     endif()
 endfunction()
 cmake_language(DEFER CALL check_replacement)

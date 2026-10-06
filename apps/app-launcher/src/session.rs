@@ -52,6 +52,7 @@ pub enum SavedApp {
     Calculator(Box<CalcState>),
     Mac,
     Settings,
+    Usage,
     Planned(crate::planned_apps::PlannedApp),
 }
 impl SavedApp {
@@ -63,6 +64,7 @@ impl SavedApp {
             Self::Calculator(_) => "calculator",
             Self::Mac => "mac",
             Self::Settings => "settings",
+            Self::Usage => "sub2api-monitor",
             Self::Planned(app) => app.id(),
         }
     }
@@ -80,6 +82,7 @@ impl SavedApp {
             ActiveApp::Calculator(calc) => Self::Calculator(Box::new(calc.lock().unwrap().clone())),
             ActiveApp::MacControls => Self::Mac,
             ActiveApp::Settings => Self::Settings,
+            ActiveApp::Usage => Self::Usage,
             ActiveApp::Planned(app) => Self::Planned(*app),
             ActiveApp::Launcher | ActiveApp::DisplaySetup => return None,
         })
@@ -91,6 +94,8 @@ impl SavedApp {
             Self::Calculator(calc) => ActiveApp::Calculator(Arc::new(Mutex::new((**calc).clone()))),
             Self::Mac => ActiveApp::MacControls,
             Self::Settings => ActiveApp::Settings,
+            Self::Usage => ActiveApp::Usage,
+            Self::Planned(crate::planned_apps::PlannedApp::Usage) => ActiveApp::Usage,
             Self::Planned(app) => ActiveApp::Planned(*app),
             Self::Notes {
                 selected_id,

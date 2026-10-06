@@ -33,6 +33,7 @@ pub enum ActiveApp {
     Calculator(Arc<Mutex<CalcState>>),
     MacControls,
     Settings,
+    Usage,
     Planned(crate::planned_apps::PlannedApp),
     /// Temporary handoff page, never stored as a background app.
     DisplaySetup,
@@ -47,6 +48,7 @@ impl ActiveApp {
             Self::Calculator(_) => Some("calculator"),
             Self::MacControls => Some("mac"),
             Self::Settings => Some("settings"),
+            Self::Usage => Some("sub2api-monitor"),
             Self::Planned(app) => Some(app.id()),
             Self::DisplaySetup => Some("display"),
         }
@@ -68,6 +70,7 @@ impl Default for NotesView {
 }
 #[derive(Debug, Clone)]
 pub enum UiCommand {
+    Usage(crate::usage::Command),
     Radio(crate::radio::RadioCommand),
     DeleteNote(String),
     Action(String),
@@ -101,6 +104,7 @@ pub struct LauncherState {
     pub settings: LocalSettings,
     pub radio: crate::radio::RadioSnapshot,
     pub settings_view: crate::radio::SettingsView,
+    pub usage: crate::usage::State,
     pub usb_connected: bool,
     pub connected: bool,
     pub sd_ready: bool,
@@ -154,6 +158,7 @@ impl LauncherState {
             settings: LocalSettings::default(),
             radio: crate::radio::RadioSnapshot::default(),
             settings_view: crate::radio::SettingsView::default(),
+            usage: crate::usage::State::default(),
             usb_connected: false,
             connected: false,
             sd_ready: false,
@@ -203,7 +208,7 @@ impl LauncherState {
             "settings" => ActiveApp::Settings,
             "file-manager" => ActiveApp::Planned(crate::planned_apps::PlannedApp::Files),
             "office-viewer" => ActiveApp::Planned(crate::planned_apps::PlannedApp::Office),
-            "sub2api-monitor" => ActiveApp::Planned(crate::planned_apps::PlannedApp::Usage),
+            "sub2api-monitor" => ActiveApp::Usage,
             "display" => ActiveApp::DisplaySetup,
             _ => ActiveApp::Launcher,
         });
@@ -463,6 +468,18 @@ impl LauncherState {
             && self.mode == Mode::Pad
             && self.settings.screen_on
     }
+    pub fn usage_headline_visible(&self) -> bool {
+        matches!(self.active_app, ActiveApp::Usage)
+            && self.mode == Mode::Pad
+            && self.settings.screen_on
+            && !self.status_panel_open
+            && self.usage.page != crate::usage::Page::Connection
+            && self.app_launch.frame(self.monotonic_ms).is_none()
+    }
+    pub fn sync_usage_headline(&mut self) {
+        let visible = self.usage_headline_visible();
+        self.usage.sync_headline(self.monotonic_ms, visible);
+    }
     pub fn take_timer_animation_dirty(&mut self, size: Size) -> Option<Rect> {
         if !self.timer_visible() || !self.timer.finished {
             self.timer_completion.cancel();
@@ -483,6 +500,8 @@ impl LauncherState {
     pub fn tick(&mut self, monotonic_ms: u64, unix_ms: i64) -> bool {
         self.monotonic_ms = monotonic_ms;
         self.unix_ms = unix_ms;
+        self.usage
+            .set_clock_context(unix_ms, self.settings.timezone_minutes);
         if self.mode != Mode::Pad || !self.settings.screen_on {
             self.status_panel_open = false;
         }
@@ -511,6 +530,7 @@ impl LauncherState {
         if !self.clock_visible() {
             self.flip_clock.snap(&self.clock);
         }
+        self.sync_usage_headline();
         let previous_finish = self.timer.finished_at_ms();
         let changed = self.timer.tick(monotonic_ms);
         if !self.timer_visible() || !self.timer.finished {
@@ -523,6 +543,27 @@ impl LauncherState {
         let second = monotonic_ms / 1000;
         let unix_second = (unix_ms > 0).then(|| unix_ms.div_euclid(1000));
         if second != self.last_second || unix_second != self.last_unix_second || changed {
+            // The monitor shows minute-resolution reset times. Keep wall time
+            // and background deadlines current without rebuilding its entire
+            // dashboard every second. Real UI/network events still call
+            // changed(), while launches retain their original frame cadence.
+            let idle_monitor = matches!(self.active_app, ActiveApp::Usage)
+                && self.mode == Mode::Pad
+                && self.settings.screen_on
+                && !self.status_panel_open
+                && self.app_launch.frame(monotonic_ms).is_none()
+                && self.timer_completion.progress(monotonic_ms).is_none();
+            let minute_changed = match (self.last_unix_second, unix_second) {
+                (Some(before), Some(after)) => before.div_euclid(60) != after.div_euclid(60),
+                _ => self.last_second / 60 != second / 60,
+            };
+            let clock_reset = self.last_second == u64::MAX
+                || match (self.last_unix_second, unix_second) {
+                    (Some(before), Some(after)) => after != before && after != before + 1,
+                    (None, None) => false,
+                    _ => true,
+                };
+            let timer_finished = self.timer.finished_at_ms() != previous_finish;
             let animate = self.clock_visible()
                 && self.time_valid
                 && self
@@ -539,8 +580,10 @@ impl LauncherState {
                 self.date = "等待 Mac 校时".into();
             }
             self.flip_clock.update(&self.clock, monotonic_ms, animate);
-            self.changed();
-            return true;
+            if !idle_monitor || minute_changed || clock_reset || timer_finished {
+                self.changed();
+                return true;
+            }
         }
         false
     }

@@ -499,7 +499,16 @@ pub fn blit_mask(
     mask: &[u8],
     color: Color,
 ) {
-    if w == 0 || h == 0 || color.a == 0 || mask.is_empty() {
+    let Some(count) = (w as usize).checked_mul(h as usize) else {
+        return;
+    };
+    if w == 0
+        || h == 0
+        || w > i32::MAX as u32
+        || h > i32::MAX as u32
+        || color.a == 0
+        || mask.len() < count
+    {
         return;
     }
 
@@ -515,8 +524,8 @@ pub fn blit_mask(
 
     let x1 = x.max(clip_x1);
     let y1 = y.max(clip_y1);
-    let x2 = (x + w as i32).min(clip_x2);
-    let y2 = (y + h as i32).min(clip_y2);
+    let x2 = x.saturating_add(w as i32).min(clip_x2);
+    let y2 = y.saturating_add(h as i32).min(clip_y2);
 
     if x2 <= x1 || y2 <= y1 {
         return;
@@ -554,7 +563,10 @@ pub fn blit_image_565(
     h: u32,
     pixels: &[u16],
 ) {
-    if w == 0 || h == 0 || pixels.len() < (w * h) as usize {
+    let Some(count) = (w as usize).checked_mul(h as usize) else {
+        return;
+    };
+    if w == 0 || h == 0 || w > i32::MAX as u32 || h > i32::MAX as u32 || pixels.len() < count {
         return;
     }
 
@@ -569,8 +581,8 @@ pub fn blit_image_565(
 
     let x1 = x.max(clip_x1);
     let y1 = y.max(clip_y1);
-    let x2 = (x + w as i32).min(clip_x2);
-    let y2 = (y + h as i32).min(clip_y2);
+    let x2 = x.saturating_add(w as i32).min(clip_x2);
+    let y2 = y.saturating_add(h as i32).min(clip_y2);
 
     if x2 <= x1 || y2 <= y1 {
         return;
@@ -1094,5 +1106,71 @@ pub fn blit_image_565_spans(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod blit_boundary_tests {
+    use super::*;
+    use crate::Pixmap565;
+
+    #[test]
+    fn malformed_sources_and_extreme_coordinates_leave_destination_unchanged() {
+        let mut destination = Pixmap565::new(4, 4).unwrap();
+        destination.fill(0x1234);
+        let original = destination.clone();
+        for (x, y, w, h) in [
+            (0, 0, 2, 2),
+            (0, 0, 65_536, 65_536),
+            (0, 0, u32::MAX, u32::MAX),
+            (i32::MAX, i32::MAX, 1, 1),
+            (i32::MIN, i32::MIN, 1, 1),
+        ] {
+            blit_mask(
+                &mut destination.as_mut(),
+                None,
+                x,
+                y,
+                w,
+                h,
+                &[255],
+                Color::WHITE,
+            );
+            blit_image_565(&mut destination.as_mut(), None, x, y, w, h, &[0xffff]);
+            assert_eq!(destination, original);
+        }
+    }
+
+    #[test]
+    fn valid_masks_and_negative_origin_images_keep_exact_clipping() {
+        let mut destination = Pixmap565::new(4, 4).unwrap();
+        blit_image_565(
+            &mut destination.as_mut(),
+            None,
+            -1,
+            -1,
+            3,
+            3,
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9],
+        );
+        assert_eq!(
+            destination.data(),
+            &[5, 6, 0, 0, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        );
+        destination.fill(0x1234);
+        blit_mask(
+            &mut destination.as_mut(),
+            None,
+            1,
+            1,
+            2,
+            2,
+            &[0, 255, 255, 0],
+            Color::WHITE,
+        );
+        let mut expected = [0x1234; 16];
+        expected[6] = 0xffff;
+        expected[9] = 0xffff;
+        assert_eq!(destination.data(), expected);
     }
 }

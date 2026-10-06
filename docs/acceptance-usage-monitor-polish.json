@@ -1,0 +1,550 @@
+{
+  "schema": "p4desk.acceptance.usage-monitor-polish.v1",
+  "date": "2026-10-06",
+  "branch": "codex/folio-ui",
+  "user_scope": {
+    "priority": "数字排版和动画",
+    "removed": [
+      "今日 · 当前账号汇总",
+      "请求数",
+      "昨日全站 Token",
+      "主数卡分割线"
+    ],
+    "retained": [
+      "TOTAL TOKENS",
+      "完整数字",
+      "目标约数",
+      "费用"
+    ],
+    "hero_height_px": 208,
+    "previous_hero_height_px": 188,
+    "number_height_px": 90,
+    "previous_number_height_px": 58,
+    "maximum_font_px": 64,
+    "previous_maximum_font_px": 52,
+    "vertical_alignment": "actual numeral outlines centred at card y=104px; label and cost use matching top/bottom padding"
+  },
+  "animation": {
+    "font": "DINish Heavy, unchanged licensed font",
+    "same_scope_ms": 1000,
+    "period_ms": 800,
+    "easing": "easeOutQuart integer rational",
+    "frame_gate_ms": 33,
+    "approximation": "authoritative target; stable throughout animation",
+    "glyphs": "layout-cached antialiased masks; no per-digit String allocations",
+    "damage": "changed numeric suffix, whole strip on geometry changes; integer-aligned clip",
+    "storage": "interpolants never persisted as totals"
+  },
+  "http": {
+    "ownership": "single worker; batch-local session",
+    "identity": "exact HTTPS authority plus key",
+    "retain": "only complete 200 plus persistent connection",
+    "reset": "after every success, error, cancellation and worker stop",
+    "retry": "none added",
+    "bounds": "CA/hostname validation, no redirect; 256KiB response, 16KiB request body, 12s absolute deadline, max6s individual I/O",
+    "logging": "length/timing/flags/memory only"
+  },
+  "host_tests": {
+    "full_regression_passed": 267,
+    "full_regression_failed": 0,
+    "full_regression_log": ".cache/usage-redesign/polish-rust-tests.log",
+    "final_related_unit_passed": 24,
+    "final_real_widget_passed": 3,
+    "final_related_log": ".cache/usage-redesign/polish-final-render-tests.log",
+    "pixel_scope": "small changes, digit-count growth, u64 maximum descending, final equality with independent static render",
+    "http_suites": "body and production C session, Clang -Werror, ASan and UBSan passed",
+    "http_log": ".cache/usage-redesign/polish-http-tests.log",
+    "synthetic_previews": 18,
+    "preview_dir": ".cache/usage-redesign/polish-final-previews",
+    "lcd_observer_passed": 11,
+    "lcd_observer_log": ".cache/usage-redesign/polish-final-observer-tests.log",
+    "display_pipeline": "passed, ASan/UBSan",
+    "display_pipeline_log": ".cache/usage-redesign/polish-final-pipeline-tests.log"
+  },
+  "firmware_build": {
+    "status": "passed",
+    "bytes": 6456256,
+    "sha256": "b90772f90abd2bcf86e31f58828b22b6e897790cade989254a3775518bfa62a9",
+    "esp_idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "log": ".cache/usage-redesign/polish-final-build.log",
+    "artifact": ".cache/usage-redesign/polish-final-firmware/p4desk.bin"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/usage-redesign/polish-final-flash.log",
+    "hash_verified_images": 3,
+    "verified_backup": true,
+    "erased_data_partitions": false
+  },
+  "device": {
+    "status": "captured",
+    "capture_seconds": 185,
+    "log": ".cache/usage-redesign/polish-final-monitor.log",
+    "batch_count": 38,
+    "online_batches": 31,
+    "all_online_batches_ok": true,
+    "boot_preflight_offline_count": 7,
+    "http_requests": 107,
+    "http_200": 107,
+    "reused_http_requests": 75,
+    "successful_batch_durations_ms": {
+      "full": [
+        1659,
+        1205,
+        1866,
+        1179,
+        1600,
+        1601,
+        1610
+      ],
+      "headline": [
+        1163,
+        1195,
+        1126,
+        1116,
+        1431,
+        1145,
+        1171,
+        1291,
+        1202,
+        1123,
+        1135
+      ]
+    },
+    "steady_headline_interval_ms": {
+      "count": 11,
+      "min": 4993,
+      "max": 5012,
+      "median": 4995
+    },
+    "lcd_bridge_underrun_samples": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "display_health": [
+      {
+        "boundary_gap_max_us": 16714,
+        "delayed_over_25ms": 0,
+        "boundary_queue_peak": 2,
+        "cache_query": 0,
+        "cache_calls": 91,
+        "cache_errors": 0,
+        "cache_max_us": 1347,
+        "cache_last_error": 0,
+        "ppa_calls": 91,
+        "ppa_errors": 0,
+        "ppa_timeouts": 0,
+        "ppa_submit_max_us": 2259,
+        "ppa_wait_max_us": 18901,
+        "ppa_last_error": 0
+      },
+      {
+        "boundary_gap_max_us": 16714,
+        "delayed_over_25ms": 0,
+        "boundary_queue_peak": 2,
+        "cache_query": 0,
+        "cache_calls": 163,
+        "cache_errors": 0,
+        "cache_max_us": 1347,
+        "cache_last_error": 0,
+        "ppa_calls": 163,
+        "ppa_errors": 0,
+        "ppa_timeouts": 0,
+        "ppa_submit_max_us": 2331,
+        "ppa_wait_max_us": 18901,
+        "ppa_last_error": 0
+      },
+      {
+        "boundary_gap_max_us": 16714,
+        "delayed_over_25ms": 0,
+        "boundary_queue_peak": 2,
+        "cache_query": 0,
+        "cache_calls": 199,
+        "cache_errors": 0,
+        "cache_max_us": 1347,
+        "cache_last_error": 0,
+        "ppa_calls": 199,
+        "ppa_errors": 0,
+        "ppa_timeouts": 0,
+        "ppa_submit_max_us": 2331,
+        "ppa_wait_max_us": 18901,
+        "ppa_last_error": 0
+      },
+      {
+        "boundary_gap_max_us": 16714,
+        "delayed_over_25ms": 0,
+        "boundary_queue_peak": 2,
+        "cache_query": 0,
+        "cache_calls": 231,
+        "cache_errors": 0,
+        "cache_max_us": 1347,
+        "cache_last_error": 0,
+        "ppa_calls": 231,
+        "ppa_errors": 0,
+        "ppa_timeouts": 0,
+        "ppa_submit_max_us": 2331,
+        "ppa_wait_max_us": 18901,
+        "ppa_last_error": 0
+      },
+      {
+        "boundary_gap_max_us": 16714,
+        "delayed_over_25ms": 0,
+        "boundary_queue_peak": 2,
+        "cache_query": 0,
+        "cache_calls": 267,
+        "cache_errors": 0,
+        "cache_max_us": 1347,
+        "cache_last_error": 0,
+        "ppa_calls": 267,
+        "ppa_errors": 0,
+        "ppa_timeouts": 0,
+        "ppa_submit_max_us": 2331,
+        "ppa_wait_max_us": 18901,
+        "ppa_last_error": 0
+      },
+      {
+        "boundary_gap_max_us": 16714,
+        "delayed_over_25ms": 0,
+        "boundary_queue_peak": 2,
+        "cache_query": 0,
+        "cache_calls": 296,
+        "cache_errors": 0,
+        "cache_max_us": 1347,
+        "cache_last_error": 0,
+        "ppa_calls": 296,
+        "ppa_errors": 0,
+        "ppa_timeouts": 0,
+        "ppa_submit_max_us": 2331,
+        "ppa_wait_max_us": 18901,
+        "ppa_last_error": 0
+      }
+    ],
+    "heap": [
+      {
+        "uptime_s": 30,
+        "internal_free": 78847,
+        "internal_largest": 69632,
+        "psram_free": 13545704,
+        "psram_largest": 11796480,
+        "presented": 91,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0,
+        "jpeg_received": 0,
+        "jpeg_dropped": 0,
+        "frame_ack_dropped": 0
+      },
+      {
+        "uptime_s": 60,
+        "internal_free": 76103,
+        "internal_largest": 69632,
+        "psram_free": 13521232,
+        "psram_largest": 11796480,
+        "presented": 163,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0,
+        "jpeg_received": 0,
+        "jpeg_dropped": 0,
+        "frame_ack_dropped": 0
+      },
+      {
+        "uptime_s": 90,
+        "internal_free": 76135,
+        "internal_largest": 69632,
+        "psram_free": 13519820,
+        "psram_largest": 11796480,
+        "presented": 199,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0,
+        "jpeg_received": 0,
+        "jpeg_dropped": 0,
+        "frame_ack_dropped": 0
+      },
+      {
+        "uptime_s": 120,
+        "internal_free": 76031,
+        "internal_largest": 69632,
+        "psram_free": 13519336,
+        "psram_largest": 11796480,
+        "presented": 231,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0,
+        "jpeg_received": 0,
+        "jpeg_dropped": 0,
+        "frame_ack_dropped": 0
+      },
+      {
+        "uptime_s": 150,
+        "internal_free": 76071,
+        "internal_largest": 69632,
+        "psram_free": 13519328,
+        "psram_largest": 11796480,
+        "presented": 267,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0,
+        "jpeg_received": 0,
+        "jpeg_dropped": 0,
+        "frame_ack_dropped": 0
+      },
+      {
+        "uptime_s": 180,
+        "internal_free": 76047,
+        "internal_largest": 69632,
+        "psram_free": 13519272,
+        "psram_largest": 11796480,
+        "presented": 296,
+        "bad_jpeg": 0,
+        "parser_errors": 0,
+        "control_queue": 0,
+        "jpeg_received": 0,
+        "jpeg_dropped": 0,
+        "frame_ack_dropped": 0
+      }
+    ],
+    "session_saves": [
+      {
+        "ok": true,
+        "duration_ms": 134
+      },
+      {
+        "ok": true,
+        "duration_ms": 121
+      },
+      {
+        "ok": true,
+        "duration_ms": 86
+      },
+      {
+        "ok": true,
+        "duration_ms": 145
+      },
+      {
+        "ok": true,
+        "duration_ms": 92
+      }
+    ],
+    "panic_assert_watchdog": false,
+    "boot_events": 1,
+    "scope": "Short observation with page/period switching, Home/reopening, online fetches and multiple Flash session saves. User confirmed spacing acceptable and no further brief green flash at time of reply. This does not establish long-duration absence of all DSI errors."
+  },
+  "user_acceptance": {
+    "layout": "confirmed: 高度和留白合适",
+    "animation": "period switching and Home reopening included in user display check; final pixel correctness tested on host",
+    "display_stability": "user: 暂时没有再闪绿; short observation only"
+  },
+  "git": {
+    "committed_this_turn": false,
+    "pushed_this_turn": false
+  },
+  "attempts": [
+    {
+      "name": "initial polish build",
+      "firmware_build": {
+        "status": "passed",
+        "bytes": 6452816,
+        "sha256": "7102750f395deb5db603c996281d4899813f4e75182e27e9f94c781e876336b2",
+        "esp_idf": "6.0.2",
+        "rust": "nightly-2026-09-27",
+        "log": ".cache/usage-redesign/polish-build.log",
+        "artifact": ".cache/usage-redesign/polish-firmware/p4desk.bin"
+      },
+      "flash": {
+        "status": "passed",
+        "log": ".cache/usage-redesign/polish-flash.log",
+        "hash_verified_images": 3,
+        "verified_backup": true,
+        "erased_data_partitions": false
+      },
+      "device": {
+        "status": "captured",
+        "capture_seconds": 125,
+        "completed_batches": 23,
+        "all_batches_ok": false,
+        "http_requests": 73,
+        "http_200": 73,
+        "reused_requests": 50,
+        "batch_durations_ms": {
+          "full": [
+            16,
+            1572,
+            1568
+          ],
+          "headline": [
+            1132,
+            1158,
+            1177,
+            1191,
+            997,
+            1123,
+            1135,
+            1060,
+            1167,
+            1306,
+            1201,
+            1140,
+            1151,
+            1068,
+            1196,
+            1049,
+            976,
+            1154,
+            1156,
+            1078
+          ]
+        },
+        "steady_headline_interval_ms": {
+          "count": 21,
+          "min": 4991,
+          "max": 5012,
+          "median": 4999
+        },
+        "lcd_underruns": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "panic_assert_watchdog": false,
+        "scope": "Short observation; user reported brief green flash while remaining on original page, therefore zero underrun is not stability acceptance.",
+        "log": ".cache/usage-redesign/polish-monitor.log",
+        "online_batches_ok": true,
+        "boot_preflight": {
+          "result": "Offline",
+          "duration_ms": 16,
+          "before_wifi_ready": true
+        },
+        "online_full_duration_ms": [
+          1572,
+          1568
+        ]
+      },
+      "user_acceptance": {
+        "layout": "not accepted: card height/vertical spacing needs adjustment",
+        "animation": "brief green flash reported, same page afterwards",
+        "display_stability": "not accepted"
+      }
+    }
+  ],
+  "display_protection": {
+    "lcd_dsi_isr_cache_safe": true,
+    "dw_gdma_isr_iram_safe": true,
+    "lcd_dsi_objects_internal": true,
+    "dw_gdma_objects_internal": true,
+    "cache_c2m_chunked": true,
+    "cache_chunk_bytes": 32768,
+    "rotation_changed": false,
+    "panel_timing_changed": false,
+    "ownership_changed": false,
+    "existing_writeback": "checked before publishing; timing recorded without extra sync",
+    "isr_symbols_log": ".cache/usage-redesign/polish-final-isr-symbols.txt",
+    "iram_functions": [
+      "dma_boundary",
+      "mipi_dsi_bridge_isr_handler",
+      "mipi_dsi_dma_trans_done_cb",
+      "dw_gdma_channel_default_isr",
+      "esp_timer_get_time",
+      "xQueueGenericSendFromISR",
+      "vTaskGenericNotifyGiveFromISR"
+    ],
+    "scope": "Fixes definite configuration risks in Flash/cache operations. User green-flash root cause not proven by time-aligned reproduction."
+  },
+  "followup_issues": [
+    {
+      "issue": "whole_screen_horizontal_wrap",
+      "user_report": "显示错位了",
+      "state": "flashed_and_observed_visual_acceptance_pending",
+      "layout_feedback_retained": "高度和留白合适",
+      "evidence_limit": "Earlier zero bridge-underrun counters do not establish display-stream correctness; the SDK discard threshold can mask events. No pixel or credential content is recorded.",
+      "protection": {
+        "dsi_dw_gdma_memory_read_qos": 15,
+        "other_master_and_write_qos": "preserved",
+        "bridge_underrun_discard_vcnt": 0,
+        "host_error_poll_ms": 50,
+        "fifo_flags": "INT_ST1 bit7 overflow / bit19 underflow",
+        "automatic_display_reset_added": false,
+        "timing_rotation_and_layout": "unchanged"
+      },
+      "build": {
+        "bytes": 6458032,
+        "sha256": "cbed0b190b5930c3d5b0d5c9606a798ce9b264ab1f80940d0d5bbc33bb44f36b",
+        "esp_idf": "6.0.2",
+        "scope": "DSI scan QoS and complete underrun/Host error diagnostics"
+      },
+      "build_log": ".cache/usage-redesign/wrap/build.log",
+      "flash_log": ".cache/usage-redesign/wrap/flash.log",
+      "tests": {
+        "observer": {
+          "passed": 13,
+          "log": ".cache/usage-redesign/wrap/observer-tests.log"
+        },
+        "display_owner_pipeline": {
+          "result": "ASan+UBSan passed",
+          "log": ".cache/usage-redesign/wrap/pipeline-tests.log"
+        },
+        "production_widget_strided": {
+          "passed": 4,
+          "covers": "four transitions, exact slice/pitch, no packed fallback, full-screen endpoint equality"
+        },
+        "c_strided_copy_audit": {
+          "result": "temporary extracted-production harness ASan+UBSan passed",
+          "artifact": "temporary harness removed"
+        }
+      },
+      "device": {
+        "capture_seconds": 185,
+        "log": ".cache/usage-redesign/wrap/monitor.log",
+        "stats": {
+          "health_snapshots": 6,
+          "last_health": "I (182737) p4desk_display_health: boundary_gap_max_us=31656 delayed_over_25ms=1 boundary_queue_peak=1 cache_query=0 cache_calls=209 cache_errors=0 cache_max_us=1205 cache_last_error=0 ppa_calls=209 ppa_errors=0 ppa_timeouts=0 ppa_submit_max_us=2422 ppa_wait_max_us=14098 ppa_last_error=0",
+          "host_snapshots": 6,
+          "last_host": "I (182722) p4desk_dsi_host: query=0 polls=2744 error_polls=1 status0_or=0x100000 status1_or=0x0 dpi_overflow_polls=0 dpi_underflow_polls=0 first_us=500816 last_us=500816",
+          "bridge_snapshots": 6,
+          "last_bridge": "I (183201) board_p4: display underruns=0 added=0 first_us=0 last_us=0 last_age_ms=-1",
+          "successful_session_saves_ms": [
+            92,
+            111,
+            127,
+            106
+          ],
+          "batch_count": 36,
+          "online_batches_ok": 35,
+          "batch_failures_by_reason": {
+            "Offline": 1
+          },
+          "http_requests": 114,
+          "http_200": 114,
+          "panic_or_assert": false
+        },
+        "boot_host_flag": {
+          "status0": "0x100000",
+          "definition": "INT_ST0 bit20 DPHY_ERRORS_4: Lane0 LP1 contention",
+          "observed_polls": 1,
+          "later_increments": 0,
+          "limit": "First observation may include pre-poll initialization reports; occurrence time and root cause are not determined."
+        },
+        "scope": "Firmware logs and runtime operation; no new human visual acceptance has been received. Zero detected FIFO/bridge events does not prove elimination of whole-screen displacement."
+      },
+      "flash_verification": {
+        "images_verified": 3,
+        "firmware_partitions_only": true,
+        "data_partitions_erased": false
+      }
+    }
+  ],
+  "latest_display_audit": {
+    "record": "acceptance-system-display-memory.json",
+    "date": "2026-10-06",
+    "scope": "Repeated idle green flashes and whole-screen wrap; shared memory/render/display corrections",
+    "user_feedback": "目前画面稳定，没有再闪绿或错位",
+    "evidence_limit": "Continuous capture in latest record is separate from earlier short observations; no unique root-cause claim."
+  }
+}

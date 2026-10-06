@@ -16,7 +16,7 @@
 | 系统界面与默认同步字体 HarmonyOS Sans SC Regular／HarmonyOS Sans Regular | 官方 OpenHarmony `utils_system_resources`，固定 `4d96c1c7158103732b687e9ea47f4454f6df3ea4`，原静态 1.9 / 400 | HarmonyOS Sans Fonts License Agreement，`third_party/licenses/HarmonyOS-Sans-LICENSE.txt`；固件设置页和 Mac 字库页标注字体名称 |
 | 先前字形与对比使用的 Noto Sans SC Regular | notofonts/noto-cjk 的 SubsetOTF/SC/NotoSansSC-Regular.otf | SIL OFL 1.1，`NotoSans-OFL.txt` 和 `NotoSans-copyright.txt` |
 | 原框架 Roboto、DejaVu 回退字体及对应 baked 字形 | 参考项目 assets/fonts | Apache-2.0／DejaVu 许可，`Roboto-Apache-2.0.txt`、`DejaVu-fonts.txt` |
-| 翻页时钟 DINish Heavy／Black 及 alpha8 数字图集 | 官方 [playbeing/dinish](https://github.com/playbeing/dinish)，固定 `a5f3b2a3b932336225815bf9005e3b72cc3de71c`，静态 4.007 / Heavy 800、Black 900 | SIL OFL 1.1，`third_party/licenses/DINish-OFL.txt` 保留原版权声明；固定源地址及 SHA256 见 `assets/fonts/SOURCES.json` |
+| 翻页时钟、用量监控主数使用的 DINish Heavy／Black 及 alpha8 数字图集 | 官方 [playbeing/dinish](https://github.com/playbeing/dinish)，固定 `a5f3b2a3b932336225815bf9005e3b72cc3de71c`，静态 4.007 / Heavy 800、Black 900 | SIL OFL 1.1，`third_party/licenses/DINish-OFL.txt` 保留原版权声明；固定源地址及 SHA256 见 `assets/fonts/SOURCES.json` |
 | 先前时钟及样式对比使用的 Roboto Mono Bold | Google 官方 [googlefonts/RobotoMono](https://github.com/googlefonts/RobotoMono)，固定 `895ec691990d041dd727c7b5afa3ce56525d98e6`，静态 3.001 / Bold 700 | SIL OFL 1.1，`third_party/licenses/RobotoMono-OFL.txt` 保留原版权声明 |
 
 ESP-IDF 驱动依赖由 manifest 的 `==` 版本及 `firmware/dependencies.lock` 中的 component hash 固定。Rust 依赖由根 `Cargo.lock` 固定。字体原文件的长度和 SHA256 记录于 `assets/fonts/SOURCES.json`。
@@ -34,6 +34,8 @@ ESP-IDF 驱动依赖由 manifest 的 `==` 版本及 `firmware/dependencies.lock`
 项目新代码使用根 MIT 许可；第三方文件与派生板级代码继续遵循其原许可。
 
 Folio 分支的状态电池数字同样使用固定 DINish Heavy 原始轮廓。`scripts/generate-battery-vectors.swift` 从本地固定 SHA256 字体提取 11 个等宽数字／横线，生成 `apps/app-launcher/src/battery_digits_generated.rs`；这些字形遵循已有 SIL OFL 1.1 及 `third_party/licenses/DINish-OFL.txt`，不使用 Apple 字体。
+
+用量监控的主数内嵌同一份未经修改的 DINish Heavy TTF，使用有界 Latin 字形缓存绘制。数字居中到统一槽位、逗号保留自然宽度；这只是排版，不修改字体轮廓或源字体的字符 advance。系统中文继续使用 HarmonyOS Sans。
 
 ## Numix Circle 深浅图标（2026-09-30）
 

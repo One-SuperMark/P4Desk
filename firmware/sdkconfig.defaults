@@ -13,11 +13,21 @@ CONFIG_SPIRAM_SPEED_200M=y
 CONFIG_SPIRAM_BOOT_INIT=y
 CONFIG_SPIRAM_USE_MALLOC=y
 CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=4096
-CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=65536
+# Keep task stacks and SDIO burst buffers out of competition with UI/JSON malloc.
+CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=131072
 CONFIG_SPIRAM_MEMTEST=y
+# Detect allocation boundary overwrites without a periodic full-heap scan.
+CONFIG_HEAP_POISONING_LIGHT=y
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_400=y
 CONFIG_CACHE_L2_CACHE_256KB=y
 CONFIG_CACHE_L2_CACHE_LINE_128B=y
+# Session checkpoints use SPIFFS while the display keeps scanning. ISR code
+# placement alone does not keep an interrupt enabled during flash operations.
+CONFIG_LCD_DSI_ISR_CACHE_SAFE=y
+# Every Pad source is immutable under the owner lock and the LCD destination
+# stays unpublished until all chunks finish; ISRs never access either buffer.
+CONFIG_ESP_MM_CACHE_MSYNC_C2M_CHUNKED_OPS=y
+CONFIG_ESP_MM_CACHE_MSYNC_C2M_CHUNKED_OPS_MAX_LEN=0x8000
 # Release C/HAL hot paths use -O2; Rust keeps the shared IDF configuration.
 # CONFIG_COMPILER_OPTIMIZATION_DEBUG is not set
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
@@ -69,3 +79,10 @@ CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
 
 # Three public NTP servers; the radio worker controls retry/refresh timing.
 CONFIG_LWIP_SNTP_MAX_SERVERS=3
+
+# HTTPS monitoring uses trusted roots and validates certificate hostnames.
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+# Preserve internal DMA memory for the C6 SDIO receive stream during TLS.
+# CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC is not set
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y

@@ -4,6 +4,30 @@ import P4DeskCore
 import CoreVideo
 
 enum Diagnostics {
+    @MainActor static func configureMonitorFromMac() -> Int32 {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        var code: Int32 = 1
+        Task { @MainActor in
+            let model = DeskModel.shared
+            model.start()
+            for _ in 0..<100 {
+                if model.connected { break }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            if model.connected {
+                model.importMonitorConfiguration()
+                if !model.monitorKey.isEmpty { await model.configureMonitor() }
+                if model.monitorMessage == "验证并保存成功，P4 可脱离 Mac 独立刷新" { code = 0 }
+            }
+            print("{\"probe\":\"monitor_configure\",\"connected\":\(model.connected),\"configured\":\(code == 0)}")
+            if code != 0 { print(model.monitorMessage) }
+            await model.shutdown()
+            stop(app)
+        }
+        app.run()
+        return code
+    }
     static func virtualDisplay() -> Int32 {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
@@ -147,9 +171,10 @@ enum Diagnostics {
 
 @main
 enum P4DeskLauncher {
-    static func main() {
+    @MainActor static func main() {
         if let index = CommandLine.arguments.firstIndex(of: "--inspect-display"), CommandLine.arguments.count > index + 1,
            let id = UInt32(CommandLine.arguments[index + 1]) { exit(Diagnostics.inspectDisplay(id)) }
+        if CommandLine.arguments.contains("--configure-monitor-from-mac") { exit(Diagnostics.configureMonitorFromMac()) }
         if CommandLine.arguments.contains("--probe-virtual-display") { exit(Diagnostics.virtualDisplay()) }
         if CommandLine.arguments.contains("--probe-jpeg") { exit(Diagnostics.jpeg()) }
         if CommandLine.arguments.contains("--self-test") { exit(Diagnostics.selfTest()) }

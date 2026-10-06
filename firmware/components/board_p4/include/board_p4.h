@@ -8,10 +8,10 @@
 
 #define P4DESK_WIDTH 1024
 #define P4DESK_HEIGHT 600
-// Matches the working 7B paint firmware: rotate display pixels, keep GT911 raw.
-// Panel and touch have different native axes, so calibrate each explicitly.
-#define P4DESK_DISPLAY_ROTATION_DEGREES 180
-#define P4DESK_TOUCH_ROTATION_DEGREES 0
+// Current enclosure placement is 180 degrees from the original bench setup.
+// LCD and GT911 have opposite native axes; update output and input together.
+#define P4DESK_DISPLAY_ROTATION_DEGREES 0
+#define P4DESK_TOUCH_ROTATION_DEGREES 180
 #if (P4DESK_DISPLAY_ROTATION_DEGREES != 0 && P4DESK_DISPLAY_ROTATION_DEGREES != 180) || \
     (P4DESK_TOUCH_ROTATION_DEGREES != 0 && P4DESK_TOUCH_ROTATION_DEGREES != 180)
 #error "P4Desk display and touch rotations must be 0 or 180"
@@ -29,6 +29,9 @@ typedef struct {
 esp_err_t board_p4_init(board_p4_t *board);
 esp_err_t board_p4_brightness(uint8_t percent);
 uint64_t board_p4_sd_free_bytes(void);
+// Call from one task at the UI performance cadence; internally limited to 30s.
+// Logs read-only DMA underrun counters even when no UI frames were produced.
+void board_p4_log_display_diagnostics(void);
 
 // Read-only battery monitoring; charging remains under the board's hardware IC.
 esp_err_t board_p4_battery_init(void);

@@ -69,6 +69,32 @@ struct GlyphCache {
     order: VecDeque<(char, u32)>,
     bytes: usize,
 }
+impl GlyphCache {
+    fn insert_or_get(&mut self, key: (char, u32), glyph: Glyph) -> Glyph {
+        // Rasterization runs outside the lock. Another renderer may have
+        // installed this glyph since the first lookup; charge it only once.
+        if let Some(existing) = self.entries.get(&key) {
+            return existing.clone();
+        }
+        let bytes = glyph.bitmap().len();
+        if bytes > CACHE_BYTES {
+            return glyph;
+        }
+        while self.entries.len() >= CACHE_GLYPHS || self.bytes + bytes > CACHE_BYTES {
+            if let Some(old) = self.order.pop_front() {
+                if let Some(g) = self.entries.remove(&old) {
+                    self.bytes -= g.bitmap().len();
+                }
+            } else {
+                break;
+            }
+        }
+        self.bytes += bytes;
+        self.order.push_back(key);
+        self.entries.insert(key, glyph.clone());
+        glyph
+    }
+}
 
 #[derive(Clone)]
 pub struct Font {
@@ -192,22 +218,10 @@ impl Font {
                 bitmap: Bitmap::Owned(b.into()),
             }
         };
-        let mut cache = self.cache.lock().unwrap_or_else(|p| p.into_inner());
-        while cache.entries.len() >= CACHE_GLYPHS
-            || cache.bytes + glyph.bitmap().len() > CACHE_BYTES
-        {
-            if let Some(old) = cache.order.pop_front() {
-                if let Some(g) = cache.entries.remove(&old) {
-                    cache.bytes -= g.bitmap().len();
-                }
-            } else {
-                break;
-            }
-        }
-        cache.bytes += glyph.bitmap().len();
-        cache.order.push_back(key);
-        cache.entries.insert(key, glyph.clone());
-        glyph
+        self.cache
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .insert_or_get(key, glyph)
     }
     pub fn advance(&self, ch: char, size: f32) -> f32 {
         if ch == '\u{200a}' {
@@ -290,6 +304,32 @@ impl Font {
 mod tests {
     use super::*;
     use crate::graphics::fontpack::{encode_fontpack, PackGlyph};
+
+    fn owned_glyph(bytes: usize, value: u8) -> Glyph {
+        Glyph {
+            width: bytes,
+            height: 1,
+            xmin: 0,
+            ymin: 0,
+            advance: bytes as f32,
+            bitmap: Bitmap::Owned(vec![value; bytes].into()),
+        }
+    }
+
+    #[test]
+    fn competing_insertions_charge_one_glyph_and_oversized_masks_are_not_retained() {
+        let mut cache = GlyphCache::default();
+        let first = cache.insert_or_get(('x', 220), owned_glyph(40, 70));
+        let competing = cache.insert_or_get(('x', 220), owned_glyph(40, 90));
+        assert_eq!(cache.bytes, 40);
+        assert_eq!(cache.order.len(), 1);
+        assert_eq!(cache.entries.len(), 1);
+        assert_eq!(first.bitmap(), competing.bitmap());
+        let large = cache.insert_or_get(('y', 9000), owned_glyph(CACHE_BYTES + 1, 127));
+        assert_eq!(large.bitmap().len(), CACHE_BYTES + 1);
+        assert_eq!(cache.bytes, 40);
+        assert_eq!(cache.entries.len(), 1);
+    }
 
     #[test]
     fn old_synced_atlas_cannot_override_ui_but_custom_content_font_still_works() {

@@ -12,6 +12,7 @@ const MIN_UNIX_MS: i64 = 946_684_800_000;
 const MAX_UNIX_MS: i64 = 4_102_444_800_000;
 
 pub trait Hal {
+    fn usage_transport(&mut self) -> Option<Box<dyn app_launcher::usage::api::Transport + Send>> { None }
     fn radio_snapshot(&self, _revision: u32) -> Option<app_launcher::radio::RadioSnapshot> {
         None
     }
@@ -71,6 +72,7 @@ pub struct DeviceRuntime<H: Hal> {
     status: Option<(Mode, bool, bool, u64)>,
     session_writer: Option<crate::persistence::SessionWriter>,
     recovered_clock: Option<(i64, u64)>,
+    usage: Option<crate::usage::Service>,
 }
 impl<H: Hal> DeviceRuntime<H> {
     pub fn new(mut hal: H, root: impl Into<PathBuf>, local_root: impl Into<PathBuf>) -> Self {
@@ -96,31 +98,31 @@ impl<H: Hal> DeviceRuntime<H> {
             Ok(Some(session)) => {
                 session.restore(&mut state);
                 recovered_clock = session.unix_ms.map(|ms| (ms, hal.monotonic_ms()));
-                println!(
+                crate::diagnostics::diagnostic!(
                     "p4desk_session: restore=ok apps={} recent={} clock={} timer=paused",
                     session.background.len() + usize::from(session.foreground.is_some()),
                     session.recent.len(),
                     session.unix_ms.is_some()
                 );
             }
-            Ok(None) => println!("p4desk_session: restore=empty"),
+            Ok(None) => crate::diagnostics::diagnostic!("p4desk_session: restore=empty"),
             Err(_) => {
                 state.persistence_status = app_launcher::session::PersistenceStatus::Failed;
                 state.notice = "应用状态恢复失败，请检查存储".into();
-                println!("p4desk_session: restore=failed");
+                crate::diagnostics::diagnostic!("p4desk_session: restore=failed");
             }
         }
         let session_writer = match crate::persistence::SessionWriter::new(session_store) {
             Ok(writer) => Some(writer),
             Err(error) => {
-                println!("p4desk_session: thread_start_error={error}");
+                crate::diagnostics::diagnostic!("p4desk_session: thread_start_error={error}");
                 None
             }
         };
         if session_writer.is_none() {
             state.persistence_status = app_launcher::session::PersistenceStatus::Failed;
         }
-        println!(
+        crate::diagnostics::diagnostic!(
             "p4desk_session: writer={}",
             if session_writer.is_some() {
                 "ready"
@@ -128,6 +130,12 @@ impl<H: Hal> DeviceRuntime<H> {
                 "unavailable"
             }
         );
+        let monitor_store = store.monitor_store();
+        match monitor_store.load_config() {
+            Ok(config) => state.usage.config = config,
+            Err(_) => state.usage.status = "监控配置读取失败，请重新配置".into(),
+        }
+        let usage = hal.usage_transport().and_then(|transport| crate::usage::Service::new(transport, monitor_store).ok());
         let was_connected = hal.connected();
         Self {
             hal,
@@ -142,6 +150,7 @@ impl<H: Hal> DeviceRuntime<H> {
             status: None,
             session_writer,
             recovered_clock,
+            usage,
         }
     }
     fn ack(
@@ -181,6 +190,29 @@ impl<H: Hal> DeviceRuntime<H> {
             return;
         }
         match message {
+            HostMessage::MonitorGetStatus { .. } => {
+                let state = self.state.lock().unwrap();
+                self.hal.send(&DeviceMessage::MonitorStatus { request_id: id,
+                    configured: state.usage.config.is_some(), busy: state.usage.busy,
+                    configuration_result: state.usage.configuration_result, message: state.usage.status.clone() }, id);
+            }
+            HostMessage::MonitorConfigure { site, key, .. } => {
+                let result = if self.usage.is_none() { Err("monitor_unavailable") }
+                    else if self.state.lock().unwrap().usage.busy { Err("monitor_busy") }
+                    else { app_launcher::usage::Config::new(&site, &key.0).map(|c| {
+                        let mut state = self.state.lock().unwrap();
+                        self.usage.as_mut().unwrap().command(&mut state, app_launcher::usage::Command::Save(c));
+                    }).map_err(|_|"monitor_config_invalid") };
+                // ACK means queued. Poll monitor_get_status for validated persistence.
+                self.ack(id, "monitor_configure", result, None);
+            }
+            HostMessage::MonitorForget { .. } => {
+                let result = if let Some(service) = &mut self.usage {
+                    let mut state = self.state.lock().unwrap();
+                    service.command(&mut state, app_launcher::usage::Command::Forget); Ok(())
+                } else { Err("monitor_unavailable") };
+                self.ack(id, "monitor_forget", result, None);
+            }
             HostMessage::Hello { version, .. } => {
                 if version != PROTOCOL_VERSION {
                     self.hello = false;
@@ -446,6 +478,7 @@ impl<H: Hal> DeviceRuntime<H> {
             state.changed();
         }
         state.tick(now, unix_ms);
+        if let Some(usage) = &mut self.usage { usage.poll(&mut state); }
         if let Some(writer) = &mut self.session_writer {
             if writer.due(now) {
                 let snapshot = app_launcher::session::Session::capture(&state);
@@ -491,6 +524,12 @@ impl<H: Hal> DeviceRuntime<H> {
         let changed = !commands.is_empty();
         for command in commands {
             let result = match command {
+                UiCommand::Usage(command) => {
+                    let mut state = self.state.lock().unwrap();
+                    if let Some(usage) = &mut self.usage { usage.command(&mut state, command); }
+                    else { state.usage.status = "监控网络服务未启动".into(); state.changed(); }
+                    Ok(())
+                }
                 UiCommand::Radio(command) => {
                     if self.hal.radio_command(&command) {
                         Ok(())

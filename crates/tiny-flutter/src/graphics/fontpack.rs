@@ -74,6 +74,30 @@ struct BitmapCache {
     order: VecDeque<(u16, char)>,
     bytes: usize,
 }
+impl BitmapCache {
+    fn insert_or_get(&mut self, key: (u16, char), data: Arc<[u8]>) -> Arc<[u8]> {
+        // File reads run outside the cache lock, so recheck after the read.
+        if let Some(existing) = self.entries.get(&key) {
+            return existing.clone();
+        }
+        if data.len() > CACHE_BYTES {
+            return data;
+        }
+        while self.bytes + data.len() > CACHE_BYTES || self.entries.len() >= 512 {
+            if let Some(old) = self.order.pop_front() {
+                if let Some(bytes) = self.entries.remove(&old) {
+                    self.bytes -= bytes.len();
+                }
+            } else {
+                break;
+            }
+        }
+        self.bytes += data.len();
+        self.order.push_back(key);
+        self.entries.insert(key, data.clone());
+        data
+    }
+}
 
 pub struct FontPack {
     source: Source,
@@ -265,17 +289,7 @@ impl FontPack {
                         f.read_exact(&mut data).ok()?;
                     }
                     let data: Arc<[u8]> = data.into();
-                    let mut cache = self.cache.lock().ok()?;
-                    while cache.bytes + data.len() > CACHE_BYTES || cache.entries.len() >= 512 {
-                        let old = cache.order.pop_front()?;
-                        if let Some(bytes) = cache.entries.remove(&old) {
-                            cache.bytes -= bytes.len();
-                        }
-                    }
-                    cache.bytes += data.len();
-                    cache.order.push_back(key);
-                    cache.entries.insert(key, data.clone());
-                    data
+                    self.cache.lock().ok()?.insert_or_get(key, data)
                 };
                 (data, 0)
             }
@@ -341,6 +355,19 @@ pub fn encode_fontpack(mut glyphs: Vec<PackGlyph>) -> Result<Vec<u8>, &'static s
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn competing_file_reads_do_not_duplicate_cache_bytes_or_eviction_order() {
+        let mut cache = BitmapCache::default();
+        let first = cache.insert_or_get((22, '中'), Arc::from([1u8, 2, 3, 4]));
+        let competing = cache.insert_or_get((22, '中'), Arc::from([9u8, 8, 7, 6]));
+        assert!(Arc::ptr_eq(&first, &competing));
+        assert_eq!(cache.bytes, 4);
+        assert_eq!(cache.order.len(), 1);
+        assert_eq!(cache.entries.len(), 1);
+        let oversized = cache.insert_or_get((128, '文'), vec![0; CACHE_BYTES + 1].into());
+        assert_eq!(oversized.len(), CACHE_BYTES + 1);
+        assert_eq!(cache.bytes, 4);
+    }
     fn glyph() -> PackGlyph {
         PackGlyph {
             character: '中',

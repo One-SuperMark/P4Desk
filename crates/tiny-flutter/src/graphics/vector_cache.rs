@@ -53,14 +53,90 @@ impl Entry {
 struct Cache {
     entries: Vec<Entry>,
     bytes: usize,
+    building_bytes: usize,
     stamp: u64,
     hits: u64,
     misses: u64,
 }
 thread_local! { static CACHE: RefCell<Cache> = RefCell::new(Cache::default()); }
 
+/// Reserve both captures before allocating either of them. `draw` may enter
+/// another cached surface, so pending captures must share the same budget.
+struct CaptureReservation {
+    bytes: usize,
+}
+impl CaptureReservation {
+    fn new(key: &Key, bytes: usize) -> Option<Self> {
+        CACHE.with(|cache| {
+            let mut cache = cache.borrow_mut();
+            if bytes > PIXEL_BUDGET.checked_sub(cache.building_bytes)? {
+                return None;
+            }
+            if let Some(index) = cache.entries.iter().position(|e| &e.key == key) {
+                let old = cache.entries.swap_remove(index);
+                cache.bytes -= old.bytes();
+            }
+            while cache.bytes + cache.building_bytes + bytes > PIXEL_BUDGET
+                || cache.entries.len() >= ENTRY_LIMIT
+            {
+                let index = cache
+                    .entries
+                    .iter()
+                    .enumerate()
+                    .min_by_key(|(_, e)| e.used)?
+                    .0;
+                let old = cache.entries.swap_remove(index);
+                cache.bytes -= old.bytes();
+            }
+            cache.building_bytes += bytes;
+            Some(Self { bytes })
+        })
+    }
+    fn finish(mut self, mut entry: Entry) {
+        CACHE.with(|cache| {
+            let mut cache = cache.borrow_mut();
+            let bytes = entry.bytes();
+            // Exact reservations normally match Vec capacities. Keep the
+            // fallback safe if that allocation contract ever changes.
+            if bytes > self.bytes {
+                return;
+            }
+            if let Some(index) = cache.entries.iter().position(|e| e.key == entry.key) {
+                let old = cache.entries.swap_remove(index);
+                cache.bytes -= old.bytes();
+            }
+            while cache.entries.len() >= ENTRY_LIMIT {
+                let index = cache
+                    .entries
+                    .iter()
+                    .enumerate()
+                    .min_by_key(|(_, e)| e.used)
+                    .unwrap()
+                    .0;
+                let old = cache.entries.swap_remove(index);
+                cache.bytes -= old.bytes();
+            }
+            if cache.entries.try_reserve(1).is_ok() {
+                entry.used = cache.stamp;
+                cache.entries.push(entry);
+                cache.bytes += bytes;
+                cache.building_bytes -= self.bytes;
+                self.bytes = 0;
+            }
+        });
+    }
+}
+impl Drop for CaptureReservation {
+    fn drop(&mut self) {
+        if self.bytes != 0 {
+            CACHE.with(|cache| cache.borrow_mut().building_bytes -= self.bytes);
+        }
+    }
+}
+
 /// Entries, retained pixel bytes, cache hits and misses on the current UI thread.
-/// No user content is exposed; retained pixel storage is capped at 6 MiB, shared by icons and static surfaces.
+/// No user content is exposed; retained and in-progress pixel captures share a
+/// 6 MiB budget across icons and static surfaces. Metadata is not pixel storage.
 pub fn vector_cache_stats() -> (usize, usize, u64, u64) {
     CACHE.with(|c| {
         let c = c.borrow();
@@ -177,6 +253,75 @@ mod tests {
             assert!(bytes <= PIXEL_BUDGET && entries <= ENTRY_LIMIT);
         }
         assert!(vector_cache_stats().0 < 120);
+    }
+
+    fn assert_capture_budget() {
+        CACHE.with(|c| {
+            let c = c.borrow();
+            assert!(c.bytes + c.building_bytes <= PIXEL_BUDGET);
+        });
+    }
+
+    fn full_surface(canvas: &mut Canvas, id: usize, draw: impl FnOnce(&mut Canvas)) {
+        surface(
+            canvas,
+            Rect::from_ltwh(0.0, 0.0, 1024.0, 600.0),
+            id,
+            10,
+            [0; 12],
+            false,
+            draw,
+        );
+    }
+
+    #[test]
+    fn nested_capture_evicts_before_allocation_and_falls_back_without_changing_pixels() {
+        CACHE.with(|c| *c.borrow_mut() = Cache::default());
+        let mut pixels = Pixmap565::new(1024, 600).unwrap();
+        let mut canvas = Canvas::new(pixels.as_mut());
+        for id in 1..=2 {
+            canvas.clear(Color::BLACK);
+            full_surface(&mut canvas, id, |canvas| canvas.clear(Color::WHITE));
+        }
+        assert_eq!(vector_cache_stats().1, 1024 * 600 * 4 * 2);
+        canvas.clear(Color::BLACK);
+        let expected = Color::from_hex(0x3175a9);
+        full_surface(&mut canvas, 3, |canvas| {
+            assert_capture_budget();
+            CACHE.with(|c| {
+                let c = c.borrow();
+                assert_eq!(c.building_bytes, 1024 * 600 * 4);
+                assert_eq!(c.entries.len(), 1, "evict old storage before capture");
+            });
+            full_surface(canvas, 4, |canvas| {
+                assert_capture_budget();
+                full_surface(canvas, 5, |canvas| {
+                    assert_capture_budget();
+                    // Three full translucent captures exceed the budget. The
+                    // innermost draw must still execute without caching it.
+                    CACHE.with(|c| assert_eq!(c.borrow().building_bytes, 1024 * 600 * 8));
+                    canvas.clear(expected);
+                });
+            });
+        });
+        assert_capture_budget();
+        CACHE.with(|c| assert_eq!(c.borrow().building_bytes, 0));
+        assert!(pixels.data().iter().all(|p| *p == expected.to_rgb565()));
+        assert_eq!(vector_cache_stats().0, 2);
+    }
+
+    #[test]
+    fn abandoned_capture_returns_its_reservation() {
+        CACHE.with(|c| *c.borrow_mut() = Cache::default());
+        let mut pixels = Pixmap565::new(1024, 600).unwrap();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            full_surface(&mut Canvas::new(pixels.as_mut()), 1, |_| {
+                panic!("synthetic paint failure")
+            });
+        }));
+        assert!(result.is_err());
+        CACHE.with(|c| assert_eq!(c.borrow().building_bytes, 0));
+        assert_eq!(vector_cache_stats().1, 0);
     }
 }
 
@@ -335,6 +480,18 @@ fn replay(canvas: &mut Canvas, area: Rect, key: Key, draw: impl FnOnce(&mut Canv
     // Capture only the region actually painted. Later partial draws may reuse
     // a containing entry; a larger clip must rasterize its uncovered pixels.
     let region = visible;
+    let Some(bytes) = region
+        .w
+        .checked_mul(region.h)
+        .and_then(|n| n.checked_mul(if key.opaque { 2 } else { 4 }))
+    else {
+        draw(canvas);
+        return;
+    };
+    let Some(reservation) = CaptureReservation::new(&key, bytes) else {
+        draw(canvas);
+        return;
+    };
     let before = if key.opaque {
         Some(Vec::new())
     } else {
@@ -347,37 +504,11 @@ fn replay(canvas: &mut Canvas, area: Rect, key: Key, draw: impl FnOnce(&mut Canv
     let Some(after) = copy_region(canvas, region) else {
         return;
     };
-    CACHE.with(|cache| {
-        let mut cache = cache.borrow_mut();
-        if let Some(index) = cache.entries.iter().position(|e| e.key == key) {
-            let old = cache.entries.swap_remove(index);
-            cache.bytes -= old.bytes();
-        }
-        let entry = Entry {
-            key,
-            region,
-            before,
-            after,
-            used: cache.stamp,
-        };
-        let bytes = entry.bytes();
-        if bytes > PIXEL_BUDGET {
-            return;
-        }
-        while cache.bytes + bytes > PIXEL_BUDGET || cache.entries.len() >= ENTRY_LIMIT {
-            let index = cache
-                .entries
-                .iter()
-                .enumerate()
-                .min_by_key(|(_, e)| e.used)
-                .unwrap()
-                .0;
-            let old = cache.entries.swap_remove(index);
-            cache.bytes -= old.bytes();
-        }
-        if cache.entries.try_reserve(1).is_ok() {
-            cache.entries.push(entry);
-            cache.bytes += bytes;
-        }
+    reservation.finish(Entry {
+        key,
+        region,
+        before,
+        after,
+        used: 0,
     });
 }

@@ -30,7 +30,8 @@ impl Pixmap565 {
 
     /// Create from existing Vec of RGB565 words.
     pub fn from_vec(width: u32, height: u32, data: Vec<u16>) -> Option<Self> {
-        if width == 0 || height == 0 || data.len() != (width as usize) * (height as usize) {
+        let total = (width as usize).checked_mul(height as usize)?;
+        if width == 0 || height == 0 || data.len() != total {
             None
         } else {
             Some(Self {
@@ -112,6 +113,20 @@ impl Pixmap565 {
         }
 
         (x1, y1, x2, y2, total_pixels)
+    }
+}
+
+#[cfg(test)]
+mod construction_tests {
+    use super::*;
+
+    #[test]
+    fn imported_pixels_require_exact_nonzero_dimensions() {
+        assert!(Pixmap565::from_vec(0, 2, Vec::new()).is_none());
+        assert!(Pixmap565::from_vec(2, 2, vec![7; 3]).is_none());
+        assert!(Pixmap565::from_vec(u32::MAX, u32::MAX, vec![7]).is_none());
+        let pixels = Pixmap565::from_vec(2, 2, vec![1, 2, 3, 4]).unwrap();
+        assert_eq!(pixels.data(), &[1, 2, 3, 4]);
     }
 }
 

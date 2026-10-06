@@ -31,6 +31,11 @@ final class DeskModel: ObservableObject {
     @Published var encoderQueueStatistics: LatestFrameQueueStatistics?
     @Published var jpegDeliveryStatistics: LatestFrameQueueStatistics?
     @Published var encoderDiagnostics: JPEGEncoderDiagnostics?
+    @Published var monitorSite = ""
+    @Published var monitorKey = ""
+    @Published var monitorBusy = false
+    @Published var monitorMessage = "连接 USB 后可为设备配置独立 Wi-Fi 监控"
+    @Published var monitorConfigured = false
     @Published var fontPath = ""
     @Published var fontToolPath = ""
 
@@ -261,6 +266,48 @@ final class DeskModel: ObservableObject {
             if pending[candidate] == nil { return candidate }
         }
         throw DeskError.usbQueueUnavailable
+    }
+    func importMonitorConfiguration() {
+        do {
+            let c = try MonitorConfiguration.readLocal()
+            monitorSite = c.site; monitorKey = c.key
+            monitorMessage = "已读取本机配置，点击下发后由 P4 验证并保存"
+        } catch { monitorMessage = "未找到可用的本机用量监控配置，请手动填写" }
+    }
+    func configureMonitor(forget: Bool = false) async {
+        guard connected, !monitorBusy else { return }
+        monitorBusy = true
+        defer { monitorBusy = false }
+        do {
+            if forget { _ = try await request("monitor_forget", [:]) }
+            else {
+                let c = try MonitorConfiguration(site: monitorSite, key: monitorKey)
+                _ = try await request("monitor_configure", ["site": c.site, "key": c.key])
+            }
+            monitorKey = ""
+            monitorMessage = forget ? "正在清除设备配置" : "设备正在通过 Wi-Fi 验证连接…"
+            for _ in 0..<90 {
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+                let status = try await request("monitor_get_status", [:], expected: "monitor_status")
+                monitorConfigured = status["configured"] as? Bool == true
+                if let ok = status["configuration_result"] as? Bool {
+                    monitorMessage = ok ? (forget ? "设备配置已清除" : "验证并保存成功，P4 可脱离 Mac 独立刷新") : (status["message"] as? String ?? "设备配置失败")
+                    return
+                }
+            }
+            monitorMessage = "设备仍未完成验证，请查看板上连接状态"
+        } catch {
+            // Do not interpolate configuration, payloads or database errors.
+            monitorMessage = "配置未完成，请检查 USB、板上 Wi-Fi、时间和管理员密钥"
+        }
+    }
+    func refreshMonitorStatus() async {
+        guard connected else { return }
+        do {
+            let status = try await request("monitor_get_status", [:], expected: "monitor_status")
+            monitorConfigured = status["configured"] as? Bool == true
+            monitorMessage = status["message"] as? String ?? "设备未返回监控状态"
+        } catch { monitorMessage = "无法读取监控状态，请检查连接和固件版本" }
     }
     private func request(_ op: String, _ fields: [String: Any], expected: String? = nil, timeout: Double = 3) async throws -> [String: Any] {
         guard usbOpen else { throw DeskError.usbDisconnected }

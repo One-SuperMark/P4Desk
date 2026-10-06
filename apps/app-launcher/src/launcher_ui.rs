@@ -189,6 +189,7 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             ActiveApp::Calculator(_) => "计算器",
             ActiveApp::MacControls => "Mac 控制",
             ActiveApp::Settings => "设置",
+            ActiveApp::Usage => "用量监控",
             ActiveApp::Planned(app) => app.title(),
             ActiveApp::DisplaySetup => "USB 副屏",
             ActiveApp::Launcher => unreachable!(),
@@ -212,6 +213,7 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             )),
             ActiveApp::MacControls => Box::new(mac_page(state.clone(), content_w)),
             ActiveApp::Settings => unreachable!(),
+            ActiveApp::Usage => Box::new(crate::usage::ui::build(state.clone(), Size::new(content_w, content_h))),
             ActiveApp::Planned(app) => Box::new(crate::planned_apps::build(
                 app,
                 Size::new(content_w, content_h),
@@ -257,6 +259,7 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
                 | ActiveApp::Calculator(_)
                 | ActiveApp::Timer
                 | ActiveApp::DisplaySetup
+                | ActiveApp::Usage
         )
     {
         // The slim gap between cards and the grid keeps notices clear of app icons.

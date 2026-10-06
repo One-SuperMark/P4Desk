@@ -38,4 +38,8 @@ function(p4desk_lcd_observer_finish)
     get_property(generated GLOBAL PROPERTY P4DESK_DPI_OBSERVER_GENERATED)
     get_property(header_dir GLOBAL PROPERTY P4DESK_DPI_OBSERVER_INCLUDE)
     p4desk_lcd_observer_replace_source(__idf_esp_lcd "${original}" "${generated}" "${header_dir}")
+    # The bridge ISR reads the IRAM-safe monotonic clock. This dependency must
+    # belong to esp_lcd, where the generated translation unit is compiled.
+    idf_component_get_property(timer_target esp_timer COMPONENT_LIB)
+    target_link_libraries(__idf_esp_lcd PRIVATE "${timer_target}")
 endfunction()

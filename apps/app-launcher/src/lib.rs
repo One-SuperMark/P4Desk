@@ -21,6 +21,7 @@ pub mod storage;
 pub mod timer;
 pub mod timer_completion;
 pub mod widgets;
+pub mod usage;
 
 pub use launcher_state::{ActiveApp, LauncherState, UiCommand, APP_IDS};
 pub use launcher_ui::build_launcher_ui;

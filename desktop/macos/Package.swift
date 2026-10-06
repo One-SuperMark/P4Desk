@@ -9,7 +9,7 @@ let package = Package(
         .target(name: "P4DeskNative", publicHeadersPath: "include", cxxSettings: [.unsafeFlags(["-fobjc-arc"])],
                 linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("CoreGraphics"),
                                  .linkedFramework("IOKit"), .linkedFramework("IOUSBHost")]),
-        .target(name: "P4DeskCore"),
+        .target(name: "P4DeskCore", linkerSettings: [.linkedLibrary("sqlite3")]),
         .executableTarget(name: "P4Desk", dependencies: ["P4DeskCore", "P4DeskNative"],
                           linkerSettings: [.linkedFramework("ScreenCaptureKit"), .linkedFramework("VideoToolbox"),
                                            .linkedFramework("ImageIO"), .linkedFramework("ApplicationServices")]),

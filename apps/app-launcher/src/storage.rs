@@ -88,6 +88,9 @@ pub struct GenerationStore {
     pub active_generation: u64,
 }
 impl GenerationStore {
+    pub fn monitor_store(&self) -> MonitorStore {
+        MonitorStore { local: self.local_root.clone(), cache: self.root.clone() }
+    }
     pub fn session_store(&self) -> SessionStore {
         SessionStore {
             root: self.local_root.clone(),
@@ -468,6 +471,45 @@ fn write_journal_after<T: Serialize>(
 #[derive(Clone)]
 pub struct SessionStore {
     root: PathBuf,
+}
+
+/// Monitor credentials stay in internal flash. Only redacted aggregates go to TF.
+#[derive(Clone)]
+pub struct MonitorStore { local: PathBuf, cache: PathBuf }
+#[derive(Serialize, Deserialize)]
+struct MonitorCache {
+    identity: String,
+    scope: crate::usage::Scope,
+    data: crate::usage::Data,
+}
+impl MonitorStore {
+    pub fn load_config(&self) -> Result<Option<crate::usage::Config>, &'static str> {
+        let c = read_journal::<Option<crate::usage::Config>>(&self.local, "monitor")?.flatten();
+        if c.as_ref().is_some_and(|c| crate::usage::Config::new(&c.site, &c.key).as_ref() != Ok(c)) { return Err("monitor_config_invalid"); }
+        Ok(c)
+    }
+    pub fn save_config(&self, c: Option<&crate::usage::Config>) -> Result<(), &'static str> {
+        write_journal(&self.local, "monitor", &c)?;
+        // A null newest record prevents recovery of an old credential even if
+        // power fails while removing older slots. Keep that tombstone intact.
+        let (active, _) = latest_journal(&self.local,"monitor").ok_or("monitor_readback")?;
+        let stale = self.local.join(format!("monitor.{}.json",1-active));
+        if stale.exists() { fs::remove_file(stale).map_err(|_|"monitor_cleanup")?; }
+        if self.load_config()?.as_ref() != c { return Err("monitor_readback"); }
+        Ok(())
+    }
+    fn identity(c:&crate::usage::Config)->String {
+        let mut h=Sha256::new(); h.update(c.site.as_bytes());h.update([0]);h.update(c.key.as_bytes()); format!("{:x}",h.finalize())
+    }
+    pub fn save_cache(&self,c:&crate::usage::Config,scope:&crate::usage::Scope,data:&crate::usage::Data)->Result<(), &'static str> {
+        if !self.cache.is_dir() { return Err("sd_unavailable"); }
+        // One bounded latest snapshot, no raw API response and no request logs.
+        write_journal(&self.cache,"monitor-cache",&MonitorCache{identity:Self::identity(c),scope:scope.clone(),data:data.clone()})
+    }
+    pub fn load_cache(&self,c:&crate::usage::Config,scope:&crate::usage::Scope)->Option<crate::usage::Data> {
+        let cached=read_journal::<MonitorCache>(&self.cache,"monitor-cache").ok().flatten()?;
+        (cached.identity==Self::identity(c)&&cached.scope==*scope).then_some(cached.data)
+    }
 }
 impl SessionStore {
     fn latest(&self) -> Option<(usize, Journal, crate::session::Session)> {

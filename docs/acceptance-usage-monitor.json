@@ -1,0 +1,175 @@
+{
+  "schema": "p4desk.acceptance.usage-monitor.v1",
+  "date": "2026-10-06",
+  "branch": "codex/folio-ui",
+  "implementation": {
+    "source": "local Sub2APIMonitor API semantics",
+    "transport": "independent P4 Wi-Fi HTTPS",
+    "ui": "tiny-flutter / tiny_gfx, Folio dark/light",
+    "pages": [
+      "overview",
+      "account quotas",
+      "models",
+      "users",
+      "connection settings"
+    ],
+    "refresh_seconds": 60,
+    "max_response_bytes": 262144,
+    "max_accounts": 200,
+    "tls_allocation": "external PSRAM",
+    "worker_stack_bytes": 16384,
+    "reserved_internal_bytes": 131072
+  },
+  "host_tests": {
+    "rust": {
+      "passed": 238,
+      "failed": 0,
+      "log": ".cache/usage/final-rust-tests.log"
+    },
+    "runtime_after_memory_change": {
+      "passed": 34,
+      "failed": 0,
+      "log": ".cache/usage/final-runtime-tests.log"
+    },
+    "swift": {
+      "passed": 56,
+      "failed": 0,
+      "log": ".cache/usage/swift-tests.log"
+    },
+    "display_pixels": {
+      "status": "passed",
+      "scope": "CPU RGB565/gray rotation 0 and 180, 600/608 crop, guards",
+      "log": ".cache/usage/display-tests.log"
+    },
+    "visual_previews": "synthetic dark/light pages; host only",
+    "http_body": {
+      "status": "passed",
+      "log": ".cache/usage/http-body-tests.log",
+      "scenarios": [
+        "prefetched body after parser complete",
+        "fragmented reads",
+        "exact capacity",
+        "overflow guards",
+        "incomplete EOF",
+        "transport failure"
+      ]
+    },
+    "project_credential_scan": "passed; no current admin key in tracked/untracked project payload"
+  },
+  "firmware_build": {
+    "status": "passed",
+    "esp_idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "bytes": 6231936,
+    "sha256": "492fc9aee81f65669c591be833b68474ba8e96bd2333a96ac545f148279b3ad3",
+    "log": ".cache/usage/stable-build.log",
+    "saved_artifact": ".cache/usage/final-firmware/p4desk.bin"
+  },
+  "mac_app": {
+    "status": "built_signed_installed",
+    "path": "/Applications/P4Desk.app",
+    "signature": "Developer ID; deep strict verification passed",
+    "log": ".cache/usage/build-macos.log"
+  },
+  "failed_attempts": [
+    {
+      "stage": "first device boot",
+      "evidence": ".cache/usage/monitor.log",
+      "failure": "Rust println! stdout failure panicked before first UI paint"
+    },
+    {
+      "stage": "previous commit recovery",
+      "commit": "554371162f51dfe8bd732515cbe5e9f927d0d49d",
+      "evidence": ".cache/usage/recovery-monitor.log",
+      "failure": "same stdout panic reproduced, including old firmware"
+    },
+    {
+      "stage": "first HTTPS validation after logging fix",
+      "evidence": ".cache/usage/fix-monitor.log",
+      "failure": "ESP-Hosted SDIO RX allocation assert during TLS",
+      "console_probe": {
+        "c_stdout_fd": 3,
+        "raw_fd1_zero_write": -1,
+        "raw_errno": 0,
+        "native_usb_connected": false
+      },
+      "correction": "route Rust diagnostics via IDF console; move TLS allocations to PSRAM; reduce worker internal stack to 32 KiB"
+    }
+  ],
+  "orientation": {
+    "reason": "user photo reported upside-down current screen",
+    "display_rotation_degrees": 0,
+    "gt911_rotation_degrees": 180,
+    "usb": "negotiated from device capability",
+    "human_acceptance": "方向、触摸都正常，未再重启"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/usage/stable-flash.log",
+    "hash_verified_images": 3,
+    "backup_verified": true,
+    "data_partitions_erased": false
+  },
+  "device": {
+    "status": "passed_observed_130_seconds",
+    "initial_online_configuration": {
+      "status": "validated_and_saved",
+      "log": ".cache/usage/configure-device-final.log",
+      "pc_response": {
+        "connected": true,
+        "configured": true
+      }
+    },
+    "initial_online_http": {
+      "log": ".cache/usage/final-monitor.log",
+      "tls_certificate_validated": true,
+      "status_200": true,
+      "remaining_issue": "prefetched 164-byte batch response skipped before final body-drain fix"
+    },
+    "body_fix_observation": {
+      "duration_seconds": 180,
+      "mac_companion_running": false,
+      "configuration_restored_without_resending": true,
+      "online_batches": 3,
+      "complete_data_batches": 3,
+      "panic_or_assert": false,
+      "log": ".cache/usage/verified-monitor.log",
+      "internal_dma_headroom_followup": "increase reserved internal pool to 128 KiB; previous steady largest internal block was only 2432 bytes"
+    },
+    "final": {
+      "log": ".cache/usage/stable-monitor.log",
+      "duration_seconds": 130,
+      "boot_count": 1,
+      "mac_companion_running": false,
+      "configuration_restored_without_resending": true,
+      "wifi_time_sync": true,
+      "session_restored": true,
+      "session_saved": true,
+      "http_requests": 13,
+      "all_http_status_200": true,
+      "successful_batches": 8,
+      "all_completed_data_full": true,
+      "max_page_counts": {
+        "models": 6,
+        "users": 0,
+        "accounts": 1,
+        "trend": 6
+      },
+      "panic_assert_watchdog_or_restart": false,
+      "final_heap": {
+        "internal_free": 70715,
+        "internal_largest": 63488,
+        "psram_free": 19751692,
+        "psram_largest": 17301504
+      },
+      "min_observed_dma_largest": 63488,
+      "min_observed_worker_stack_free": 10216,
+      "scope": "startup, NTP, restored credentials, live HTTPS, page changes and refresh; not a long-duration soak test"
+    }
+  },
+  "user_acceptance": {
+    "orientation_touch_no_reboot": "confirmed by user after direction and TLS allocation fixes",
+    "monitor_pages": "数据与页面切换正常，点击正常",
+    "scope": "总览、账号额度、模型、用户和刷新按钮；方向、Home 与应用点击也已确认"
+  }
+}

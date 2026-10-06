@@ -6,6 +6,7 @@
 #include "esp_attr.h"
 #include "esp_cache.h"
 #include "esp_heap_caps.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
@@ -13,7 +14,35 @@ struct p4desk_ppa {
     ppa_client_handle_t client;
     SemaphoreHandle_t complete;
     bool poisoned; // Owner task only; remains set after an uncertain DMA timeout.
+    portMUX_TYPE stats_lock;
+    p4desk_ppa_stats_t stats;
 };
+
+void p4desk_ppa_stats(p4desk_ppa_t *ppa, p4desk_ppa_stats_t *out)
+{
+    if (!out) return;
+    *out = (p4desk_ppa_stats_t){0};
+    if (!ppa) return;
+    portENTER_CRITICAL(&ppa->stats_lock);
+    *out = ppa->stats;
+    portEXIT_CRITICAL(&ppa->stats_lock);
+}
+
+static void record_stats(p4desk_ppa_t *ppa, esp_err_t result, int64_t submit_us, int64_t wait_us)
+{
+    const uint32_t submit = submit_us > UINT32_MAX ? UINT32_MAX : (uint32_t)submit_us;
+    const uint32_t wait = wait_us > UINT32_MAX ? UINT32_MAX : (uint32_t)wait_us;
+    portENTER_CRITICAL(&ppa->stats_lock);
+    if (ppa->stats.calls < UINT32_MAX) ++ppa->stats.calls;
+    if (result != ESP_OK) {
+        if (ppa->stats.errors < UINT32_MAX) ++ppa->stats.errors;
+        if (result == ESP_ERR_TIMEOUT && ppa->stats.timeouts < UINT32_MAX) ++ppa->stats.timeouts;
+        ppa->stats.last_error = result;
+    }
+    if (submit > ppa->stats.submit_max_us) ppa->stats.submit_max_us = submit;
+    if (wait > ppa->stats.wait_max_us) ppa->stats.wait_max_us = wait;
+    portEXIT_CRITICAL(&ppa->stats_lock);
+}
 
 static bool IRAM_ATTR transaction_done(ppa_client_handle_t client,
                                      ppa_event_data_t *event, void *context)
@@ -32,6 +61,7 @@ esp_err_t p4desk_ppa_create(p4desk_ppa_t **result)
     // Callback context and semaphore must remain available to the DMA ISR.
     p4desk_ppa_t *ppa = heap_caps_calloc(1, sizeof(*ppa), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     if (!ppa) return ESP_ERR_NO_MEM;
+    portMUX_INITIALIZE(&ppa->stats_lock);
     ppa->complete = xSemaphoreCreateBinary();
     if (!ppa->complete) { free(ppa); return ESP_ERR_NO_MEM; }
 
@@ -103,11 +133,20 @@ esp_err_t p4desk_ppa_copy_rgb565(p4desk_ppa_t *ppa, uint16_t *destination,
     // The IDF driver performs input C2M and output M2C cache synchronization.
     // No CPU may read/write the output between submission and completion.
     xSemaphoreTake(ppa->complete, 0);
+    const int64_t submit_start_us = esp_timer_get_time();
     esp_err_t ret = ppa_do_scale_rotate_mirror(ppa->client, &config);
-    if (ret != ESP_OK) return ret; // Rejected before DMA submission: CPU fallback is safe.
+    const int64_t submitted_us = esp_timer_get_time();
+    if (ret != ESP_OK) {
+        record_stats(ppa, ret, submitted_us - submit_start_us, 0);
+        return ret; // Rejected before DMA submission: CPU fallback is safe.
+    }
     if (xSemaphoreTake(ppa->complete, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
         ppa->poisoned = true;
+        record_stats(ppa, ESP_ERR_TIMEOUT, submitted_us - submit_start_us,
+                     esp_timer_get_time() - submitted_us);
         return ESP_ERR_TIMEOUT;
     }
+    record_stats(ppa, ESP_OK, submitted_us - submit_start_us,
+                 esp_timer_get_time() - submitted_us);
     return ESP_OK;
 }

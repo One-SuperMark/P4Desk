@@ -52,6 +52,7 @@ const _: () = {
 };
 
 extern "C" {
+    fn board_p4_log_display_diagnostics();
     fn p4desk_radio_snapshot(out: *mut app_launcher::radio::RadioSnapshot, last: u32) -> bool;
     fn p4desk_radio_submit(op: u32, id: u32, data: *const u8, length: usize) -> bool;
     fn host_lcd_draw_bitmap(x1: i32, y1: i32, x2: i32, y2: i32, pixels: *const u16);
@@ -105,6 +106,9 @@ extern "C" {
 }
 pub struct EspHal;
 impl Hal for EspHal {
+    fn usage_transport(&mut self) -> Option<Box<dyn app_launcher::usage::api::Transport + Send>> {
+        Some(Box::new(crate::usage::EspTransport))
+    }
     fn radio_snapshot(&self, revision: u32) -> Option<app_launcher::radio::RadioSnapshot> {
         let mut out = app_launcher::radio::RadioSnapshot::default();
         unsafe { p4desk_radio_snapshot(&mut out, revision) }.then_some(out)
@@ -367,19 +371,20 @@ pub extern "C" fn rust_main_entry() {
         }
         if iteration_started_us >= next_ui_metrics_us {
             next_ui_metrics_us = iteration_started_us.saturating_add(30_000_000);
+            unsafe { board_p4_log_display_diagnostics(); }
             let m = app.take_frame_metrics();
             if m.frames > 0 {
                 let (entries, bytes, hits, misses) = tiny_flutter::vector_cache_stats();
-                println!("p4desk_ui_perf: frames={} draw_avg_us={} output_avg_us={} draw_max_us={} total_max_us={} render_cache_entries={} render_cache_bytes={} cache_hits={} cache_misses={}",
+                crate::diagnostics::diagnostic!("p4desk_ui_perf: frames={} draw_avg_us={} output_avg_us={} draw_max_us={} total_max_us={} render_cache_entries={} render_cache_bytes={} cache_hits={} cache_misses={}",
                     m.frames, m.draw_us / m.frames, m.output_us / m.frames,
                     m.max_draw_us, m.max_total_us, entries, bytes, hits, misses);
                 if m.drag_frames > 0 {
-                    println!("p4desk_drag_perf: frames={} draw_avg_us={} output_avg_us={} total_max_us={} opaque_frames={}",
+                    crate::diagnostics::diagnostic!("p4desk_drag_perf: frames={} draw_avg_us={} output_avg_us={} total_max_us={} opaque_frames={}",
                         m.drag_frames, m.drag_draw_us / m.drag_frames, m.drag_output_us / m.drag_frames, m.drag_max_us, m.opaque_frames);
                 }
                 let s = tiny_flutter::widgets::take_scroll_metrics();
                 if s.paints > 0 {
-                    println!("p4desk_scroll_perf: builds={} build_us={} paints={} blit_avg_us={} blit_max_us={}",
+                    crate::diagnostics::diagnostic!("p4desk_scroll_perf: builds={} build_us={} paints={} blit_avg_us={} blit_max_us={}",
                         s.builds, s.build_us, s.paints, s.blit_us/s.paints, s.blit_max_us);
                 }
             }

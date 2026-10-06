@@ -59,6 +59,70 @@ esp_err_t p4desk_lcd_frame_observer_register(esp_lcd_panel_handle_t panel,
                                            p4desk_lcd_frame_observer_cb_t callback,
                                            void *context);
 
+/** Bounded bridge-underrun diagnostics; timestamps use the ESP monotonic clock. */
+typedef struct {
+    uint32_t count;     /**< Cumulative count since panel creation; saturates at UINT32_MAX. */
+    int64_t first_us;   /**< First underrun timestamp; zero with count == 0. */
+    int64_t last_us;    /**< Latest underrun timestamp, including after count saturation. */
+} p4desk_lcd_underrun_stats_t;
+
+/**
+ * @brief Read one coherent underrun snapshot without resetting its counters.
+ *
+ * Task context only. Handles returned by EK79007's DPI wrapper are supported.
+ * The bridge ISR only increments the counter and records monotonic timestamps;
+ * it does not log, allocate, reset the panel, or modify framebuffer ownership.
+ * Query at a bounded diagnostic cadence (for example every 30 seconds), not per
+ * frame. count == 0 means no underrun was observed since panel creation.
+ * Do not query concurrently with panel initialization or deletion. *out is
+ * cleared on failure when non-NULL.
+ */
+esp_err_t p4desk_lcd_underrun_stats(esp_lcd_panel_handle_t panel,
+                                  p4desk_lcd_underrun_stats_t *out);
+
+/** Presentation writeback timing only; no framebuffer contents or addresses. */
+typedef struct {
+    uint32_t calls;       /**< Cumulative attempts, saturates. */
+    uint32_t errors;      /**< Failed writebacks, saturates. */
+    uint32_t max_us;      /**< Longest whole cache call, including chunk scheduling. */
+    uint64_t total_us;    /**< Cumulative call duration, saturates. */
+    int32_t last_error;   /**< Most recent failing esp_err_t; zero until first error. */
+} p4desk_lcd_cache_stats_t;
+
+/** Task-context coherent snapshot, same handle/lifetime rules as underruns. */
+esp_err_t p4desk_lcd_cache_stats(esp_lcd_panel_handle_t panel,
+                               p4desk_lcd_cache_stats_t *out);
+
+#define P4DESK_DSI_HOST_DPI_FIFO_OVERFLOW (UINT32_C(1) << 7)
+#define P4DESK_DSI_HOST_DPI_FIFO_UNDERFLOW (UINT32_C(1) << 19)
+
+/** Read-clear Host errors accumulated by the sole display-owner task. */
+typedef struct {
+    uint32_t polls, error_polls;
+    uint32_t status0_or, status1_or;
+    uint32_t dpi_overflow_polls, dpi_underflow_polls;
+    uint32_t last_status0, last_status1;
+    int64_t first_error_us, last_error_us; /**< Observation times, not hardware occurrence times. */
+} p4desk_lcd_host_error_stats_t;
+
+/**
+ * @brief Poll Host INT_ST0/1 exactly once and retain their read-clear reports.
+ *
+ * Task context only. The first caller becomes the polling owner for this panel;
+ * calls from another task are rejected before any register read. Use only from
+ * the single display-owner task; do not also read these registers in another
+ * diagnostic or ISR. This operation clears hardware reports as documented by
+ * ESP32-P4 TRM section 43.4.2.4. It never changes masks, timing or transmission.
+ * Counters count polls with each flag, not hardware events: multiple events may
+ * coalesce between polls. No logging or framebuffer-content inspection occurs.
+ * Do not call concurrently with panel initialization/deletion or Host reset.
+ */
+esp_err_t p4desk_lcd_host_errors_poll(esp_lcd_panel_handle_t panel);
+
+/** Task-context coherent RAM snapshot; does not read/clear hardware status. */
+esp_err_t p4desk_lcd_host_error_stats(esp_lcd_panel_handle_t panel,
+                                    p4desk_lcd_host_error_stats_t *out);
+
 /**
  * @brief Get the reserved writable capacity of an exact DPI framebuffer.
  *

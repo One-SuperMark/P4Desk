@@ -1,0 +1,353 @@
+{
+  "schema": "p4desk.acceptance.usage-monitor-redesign.v1",
+  "date": "2026-10-06",
+  "branch": "codex/folio-ui",
+  "base_head": "554371162f51dfe8bd732515cbe5e9f927d0d49d",
+  "source_reference": {
+    "application": "Installed /Applications/用量监控.app, viewed read-only",
+    "source": "/Volumes/work/workspace/Sub2APIMonitor/Panel.swift and App.swift",
+    "layout": "Large Token headline; small actual cost; green session/weekly quota with reset-time bars; model ranks; blue Token trend",
+    "p4_adaptation": "1024x600 landscape two columns; Folio light/dark; explicit Day/Month/Total controls",
+    "metric_constraints": [
+      "Today headline labels account-batch scope; yesterday and overview trends label global scope",
+      "Only actual previous-local-day hourly Token data; no synthetic median baseline",
+      "Users summary covers returned rows and selected period, not guaranteed all users",
+      "Account detail headline is model aggregation, not a complete settlement ledger",
+      "No balance, service event history or SQLite request archive added"
+    ]
+  },
+  "implementation": {
+    "ui": "tiny-flutter / tiny_gfx Rust; ESP-IDF 6.0.2 C HAL",
+    "pages": [
+      "overview",
+      "quotas",
+      "models",
+      "users",
+      "account/user detail",
+      "connection settings"
+    ],
+    "interaction": [
+      "vector top navigation",
+      "model selection",
+      "detail model pagination",
+      "nearest trend bucket on tap",
+      "drag cancels chart tap"
+    ],
+    "data_flow": [
+      "independent Wi-Fi HTTPS",
+      "single worker and latest pending generation",
+      "four scoped Arc data snapshots in RAM",
+      "immediate retry after Wi-Fi and trusted time recovery",
+      "HTTP/auth failures retain backoff"
+    ],
+    "rendering": "Pure wall clock advancement redraws idle monitor on minute boundary; input, connectivity, results and timer completion still update immediately",
+    "display_diagnostics": "Actual DPI bridge underrun ISR records bounded counter and monotonic timestamps; board logs outside new-frame condition every 30 seconds",
+    "display_rotation_degrees": 0,
+    "touch_rotation_degrees": 180,
+    "display_owner_or_panel_timings_changed": false
+  },
+  "host_verification": {
+    "rust_regression_before_final_preflight_addition": {
+      "passed": 265,
+      "failed": 0,
+      "log": ".cache/usage-redesign/final-rust-tests.log"
+    },
+    "final_worker_tests": {
+      "passed": 9,
+      "failed": 0,
+      "log": ".cache/usage-redesign/delivery-worker-tests.log"
+    },
+    "monitor_ui_data_cadence_tests": {
+      "passed": 34,
+      "failed": 0,
+      "log": ".cache/usage-redesign/final-ui-tests.log",
+      "note": "Included in Rust regression; not additive."
+    },
+    "generated_lcd_observer_c_tests": {
+      "passed": 10,
+      "failed": 0,
+      "log": ".cache/usage-redesign/lcd-tests.log"
+    },
+    "production_renderer_previews": {
+      "count": 18,
+      "data": "synthetic; no real accounts or statistics",
+      "path": ".cache/usage-redesign/previews"
+    },
+    "git_diff_check": "passed",
+    "irq_link_map": {
+      "bridge_isr": "0x4ff492ac IRAM",
+      "esp_timer_impl_get_time": "0x4ff40332 IRAM",
+      "underrun_irq": "enabled on actual bus 0 and submitted panel"
+    }
+  },
+  "firmware_build": {
+    "status": "passed",
+    "bytes": 6342208,
+    "sha256": "2ff48e8af7e8f27b7f536de4e8018072a0e9a9526ee93f4972bd2155322de11a",
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "rotation_degrees": 0,
+    "touch_rotation_degrees": 180,
+    "build_log": ".cache/usage-redesign/delivery-build.log",
+    "saved_artifact": ".cache/usage-redesign/final-firmware/p4desk.bin"
+  },
+  "flash": {
+    "status": "passed",
+    "log": ".cache/usage-redesign/delivery-flash.log",
+    "hash_verified_images": 3,
+    "backup_verified": true,
+    "data_partitions_erased": false,
+    "temporary_black_screen": {
+      "reported_during": "flash verification/reset window",
+      "human_followup": "已恢复，画面正常",
+      "remaining_black_screen_report": false
+    }
+  },
+  "device_observations": [
+    {
+      "log": ".cache/usage-redesign/device-monitor.log",
+      "capture_duration_seconds": 125,
+      "http_requests": 12,
+      "all_http_status_200": true,
+      "successful_batches": 2,
+      "all_completed_data_full": true,
+      "first_http_since_boot_ms": 33126,
+      "panic_assert_watchdog_detected": false,
+      "startup_marker_during_capture": true,
+      "display_underrun_samples": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "diagnostics": [
+        {
+          "uptime_s": 30,
+          "internal_free": 84999,
+          "internal_largest": 81920,
+          "psram_free": 19673040,
+          "psram_largest": 16777216,
+          "presented": 9,
+          "bad_jpeg": 0,
+          "parser_errors": 0,
+          "control_queue": 0,
+          "jpeg_received": 0,
+          "jpeg_dropped": 0,
+          "frame_ack_dropped": 0
+        },
+        {
+          "uptime_s": 60,
+          "internal_free": 76567,
+          "internal_largest": 69632,
+          "psram_free": 19668252,
+          "psram_largest": 16777216,
+          "presented": 16,
+          "bad_jpeg": 0,
+          "parser_errors": 0,
+          "control_queue": 0,
+          "jpeg_received": 0,
+          "jpeg_dropped": 0,
+          "frame_ack_dropped": 0
+        },
+        {
+          "uptime_s": 90,
+          "internal_free": 76463,
+          "internal_largest": 69632,
+          "psram_free": 19668340,
+          "psram_largest": 16777216,
+          "presented": 22,
+          "bad_jpeg": 0,
+          "parser_errors": 0,
+          "control_queue": 0,
+          "jpeg_received": 0,
+          "jpeg_dropped": 0,
+          "frame_ack_dropped": 0
+        },
+        {
+          "uptime_s": 120,
+          "internal_free": 76043,
+          "internal_largest": 69632,
+          "psram_free": 19666828,
+          "psram_largest": 16777216,
+          "presented": 27,
+          "bad_jpeg": 0,
+          "parser_errors": 0,
+          "control_queue": 0,
+          "jpeg_received": 0,
+          "jpeg_dropped": 0,
+          "frame_ack_dropped": 0
+        }
+      ],
+      "minimum_observed_worker_stack_free": 9864,
+      "ui_perf_windows": [
+        {
+          "frames": 1,
+          "draw_avg_us": 41685,
+          "output_avg_us": 19321,
+          "draw_max_us": 41685,
+          "total_max_us": 61006,
+          "render_cache_entries": 4,
+          "render_cache_bytes": 29984,
+          "cache_hits": 0,
+          "cache_misses": 4
+        },
+        {
+          "frames": 7,
+          "draw_avg_us": 106338,
+          "output_avg_us": 19353,
+          "draw_max_us": 119225,
+          "total_max_us": 138058,
+          "render_cache_entries": 4,
+          "render_cache_bytes": 29984,
+          "cache_hits": 28,
+          "cache_misses": 4
+        },
+        {
+          "frames": 7,
+          "draw_avg_us": 148369,
+          "output_avg_us": 20441,
+          "draw_max_us": 420439,
+          "total_max_us": 439540,
+          "render_cache_entries": 4,
+          "render_cache_bytes": 29984,
+          "cache_hits": 56,
+          "cache_misses": 4
+        },
+        {
+          "frames": 6,
+          "draw_avg_us": 99736,
+          "output_avg_us": 19317,
+          "draw_max_us": 101547,
+          "total_max_us": 122301,
+          "render_cache_entries": 4,
+          "render_cache_bytes": 29984,
+          "cache_hits": 80,
+          "cache_misses": 4
+        },
+        {
+          "frames": 5,
+          "draw_avg_us": 104960,
+          "output_avg_us": 20198,
+          "draw_max_us": 116755,
+          "total_max_us": 135843,
+          "render_cache_entries": 4,
+          "render_cache_bytes": 29984,
+          "cache_hits": 100,
+          "cache_misses": 4
+        }
+      ],
+      "scope": "Short observation only. UI timing is windowed render/output timing, not touch-to-display latency or a long soak test."
+    },
+    {
+      "log": ".cache/usage-redesign/delivery-monitor.log",
+      "capture_duration_seconds": 90,
+      "http_requests": 16,
+      "all_http_status_200": true,
+      "successful_batches": 8,
+      "all_completed_data_full": true,
+      "first_http_since_boot_ms": 12040,
+      "panic_assert_watchdog_detected": false,
+      "startup_marker_during_capture": false,
+      "display_underrun_samples": [
+        0,
+        0
+      ],
+      "diagnostics": [
+        {
+          "uptime_s": 30,
+          "internal_free": 74259,
+          "internal_largest": 65536,
+          "psram_free": 19668144,
+          "psram_largest": 16777216,
+          "presented": 11,
+          "bad_jpeg": 0,
+          "parser_errors": 0,
+          "control_queue": 0,
+          "jpeg_received": 0,
+          "jpeg_dropped": 0,
+          "frame_ack_dropped": 0
+        },
+        {
+          "uptime_s": 60,
+          "internal_free": 72667,
+          "internal_largest": 63488,
+          "psram_free": 19665676,
+          "psram_largest": 16777216,
+          "presented": 30,
+          "bad_jpeg": 0,
+          "parser_errors": 0,
+          "control_queue": 0,
+          "jpeg_received": 0,
+          "jpeg_dropped": 0,
+          "frame_ack_dropped": 0
+        },
+        {
+          "uptime_s": 90,
+          "internal_free": 72759,
+          "internal_largest": 63488,
+          "psram_free": 19664692,
+          "psram_largest": 16777216,
+          "presented": 48,
+          "bad_jpeg": 0,
+          "parser_errors": 0,
+          "control_queue": 0,
+          "jpeg_received": 0,
+          "jpeg_dropped": 0,
+          "frame_ack_dropped": 0
+        }
+      ],
+      "minimum_observed_worker_stack_free": 10024,
+      "ui_perf_windows": [
+        {
+          "frames": 9,
+          "draw_avg_us": 140899,
+          "output_avg_us": 31755,
+          "draw_max_us": 404081,
+          "total_max_us": 421514,
+          "render_cache_entries": 4,
+          "render_cache_bytes": 29984,
+          "cache_hits": 36,
+          "cache_misses": 4
+        },
+        {
+          "frames": 20,
+          "draw_avg_us": 60381,
+          "output_avg_us": 14494,
+          "draw_max_us": 115900,
+          "total_max_us": 132506,
+          "render_cache_entries": 4,
+          "render_cache_bytes": 29984,
+          "cache_hits": 100,
+          "cache_misses": 4
+        },
+        {
+          "frames": 17,
+          "draw_avg_us": 66722,
+          "output_avg_us": 14621,
+          "draw_max_us": 128216,
+          "total_max_us": 145524,
+          "render_cache_entries": 4,
+          "render_cache_bytes": 29984,
+          "cache_hits": 156,
+          "cache_misses": 4
+        }
+      ],
+      "scope": "Short observation only. UI timing is windowed render/output timing, not touch-to-display latency or a long soak test."
+    }
+  ],
+  "human_acceptance": {
+    "pages_period_data_clicks": "布局更合适，数据和点击正常",
+    "green_flash": "暂时没有再闪绿屏",
+    "final_post_flash_screen": "已恢复，画面正常"
+  },
+  "green_flash_conclusion": {
+    "status": "not reproduced in current short observations; user also reports no recurrence",
+    "captured_underruns": 0,
+    "root_cause": "not established",
+    "caveat": "Zero underrun samples and short no-recurrence feedback do not prove permanent elimination of all display anomalies. Diagnostic coverage confirmed on actual panel; no proven ownership/PPA/cache omission found."
+  },
+  "git": {
+    "committed_this_turn": false,
+    "pushed_this_turn": false
+  }
+}

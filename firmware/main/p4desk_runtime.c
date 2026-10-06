@@ -4,7 +4,9 @@
 #include "pad_touch_queue.h"
 #include "display_pixels.h"
 #include "display_ppa.h"
+#include "display_cache_sync.h"
 #include "display_pipeline.h"
+#include "pad_damage.h"
 #include "display_transition.h"
 #include "p4desk_lcd_frame_observer.h"
 
@@ -20,6 +22,7 @@
 #include "esp_heap_caps.h"
 #include "esp_lcd_mipi_dsi.h"
 #include "esp_log.h"
+#include "esp_memory_utils.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -32,6 +35,8 @@ _Static_assert(sizeof(int32_t) == 4 && sizeof(uint32_t) == 4, "HAL 32-bit intege
 _Static_assert(sizeof(int64_t) == 8 && sizeof(uint64_t) == 8, "HAL 64-bit integer ABI");
 _Static_assert(sizeof(uint16_t) == 2, "HAL pixel and sequence ABI");
 _Static_assert(sizeof(void *) == 4 && sizeof(size_t) == 4, "P4 Rust target uses 32-bit pointers");
+_Static_assert(ATOMIC_INT_LOCK_FREE == 2 && ATOMIC_BOOL_LOCK_FREE == 2 && ATOMIC_POINTER_LOCK_FREE == 2,
+               "LCD ISR requires lock-free internal atomic operations");
 
 #define MODE_PAD 0U
 #define MODE_DISPLAY 1U
@@ -65,6 +70,7 @@ typedef struct {
     bool replayed, transition_unmasked;
     uint32_t mode, epoch, session, jpeg_bytes;
     uint16_t sequence;
+    uint16_t sync_y1, sync_y2;
     int64_t submitted_us;
     frame_timings_t timings;
 } display_job_t;
@@ -74,6 +80,8 @@ static board_p4_t *s_board;
 static QueueHandle_t s_control_queue, s_jpeg_queue, s_lcd_events;
 static SemaphoreHandle_t s_pad_lock, s_brightness_lock;
 static uint16_t *s_pad_pixels;
+static p4pad_damage_t s_pad_damage; // Guarded by s_pad_lock, one debt per LCD buffer.
+static atomic_bool s_pad_reinitialize;
 static _Atomic(TaskHandle_t) s_pad_writer;
 static _Atomic(TaskHandle_t) s_display_owner_task;
 static jpeg_decoder_handle_t s_decoder;
@@ -85,6 +93,10 @@ static atomic_bool s_pad_dirty;
 static atomic_bool s_lcd_ownership_lost;
 static atomic_uint s_presented_frames, s_bad_jpeg;
 static atomic_uint s_jpeg_received, s_jpeg_dropped, s_frame_ack_dropped;
+static atomic_uint s_lcd_boundary_gap_max_us, s_lcd_delayed_boundaries, s_lcd_boundary_queue_peak;
+static atomic_uint s_alloc_failures, s_last_alloc_bytes, s_last_alloc_caps;
+static atomic_uint s_pad_partial_copies, s_pad_full_copies, s_pad_skipped_copies;
+static atomic_uint s_pad_copy_bytes_window;
 static portMUX_TYPE s_state_lock = portMUX_INITIALIZER_UNLOCKED;
 static uint32_t s_mode = MODE_PAD, s_epoch = 1, s_session, s_jpeg_rotation_degrees;
 static bool s_connected, s_invalidated = true, s_time_valid;
@@ -94,6 +106,15 @@ static atomic_int s_battery_voltage_mv = -1;
 static atomic_uchar s_brightness = 75;
 static atomic_bool s_backlight_on = true;
 static bool s_pad_touch_active, s_pad_touch_blocked;
+
+static void IRAM_ATTR allocation_failed(size_t bytes, uint32_t caps, const char *function)
+{
+    (void)function;
+    // Called inside allocator failure paths: no allocation, logging or heap walk.
+    atomic_fetch_add_explicit(&s_alloc_failures, 1, memory_order_relaxed);
+    atomic_store_explicit(&s_last_alloc_bytes, (uint32_t)bytes, memory_order_relaxed);
+    atomic_store_explicit(&s_last_alloc_caps, caps, memory_order_relaxed);
+}
 static uint8_t s_pad_touch_id;
 static int32_t s_pad_touch_x, s_pad_touch_y;
 static p4desk_pad_touch_queue_t s_pad_touch_queue;
@@ -207,6 +228,10 @@ bool p4desk_set_mode_with_jpeg_rotation(uint32_t mode, uint32_t session, uint32_
         s_pad_touch_active = false;
         s_pad_touch_blocked = true; // Re-arm after all contacts are released.
         p4desk_pad_touch_queue_reset(&s_pad_touch_queue);
+        // Publish restoration together with the mode/epoch. The display owner
+        // must not see a new Pad epoch with debt from JPEG-overwritten buffers.
+        if (mode == MODE_PAD) atomic_store(&s_pad_reinitialize, true);
+        atomic_store(&s_pad_dirty, true);
         changed = true;
     }
     if (mode == MODE_PAD) p4dt_cancel(&s_display_transition);
@@ -216,7 +241,6 @@ bool p4desk_set_mode_with_jpeg_rotation(uint32_t mode, uint32_t session, uint32_
         discard_packets(s_jpeg_queue);
         // The USB owner must consume an in-flight message to its boundary.
         // Its original epoch discards stale JPEGs after this mode change.
-        atomic_store(&s_pad_dirty, true);
         display_wake();
     }
     return true;
@@ -366,9 +390,19 @@ static void pad_blit_rows(int32_t x1, int32_t y1, int32_t x2, int32_t y2,
     if (left < right && top < bottom) {
         // The Rust flush pointer is borrowed only during this synchronous call.
         for (int32_t row = top; row < bottom; row++) {
-            memcpy(s_pad_pixels + row * P4DESK_WIDTH + left,
-                   pixels + (row - y1) * stride + left - x1,
-                   (right - left) * sizeof(uint16_t));
+            uint16_t *destination = s_pad_pixels + row * P4DESK_WIDTH + left;
+            const uint16_t *source = pixels + (row - y1) * stride + left - x1;
+            const size_t width = (size_t)(right - left);
+            if (memcmp(destination, source, width * sizeof(uint16_t)) == 0) continue;
+            // Rebuilds may output a large unchanged surface. Retain the actual
+            // changed span so an idle clock tick does not become a full-screen
+            // PPA transfer merely because its parent widget was rebuilt.
+            size_t first = 0, last = width;
+            while (first < last && destination[first] == source[first]) ++first;
+            while (last > first && destination[last - 1] == source[last - 1]) --last;
+            memcpy(destination + first, source + first, (last - first) * sizeof(uint16_t));
+            p4pad_damage_mark(&s_pad_damage, left + (int32_t)first, row,
+                              left + (int32_t)last, row + 1);
         }
     }
     if (own_lock) {
@@ -676,6 +710,18 @@ static void consume_boundary(display_pipeline_t *pipeline, const lcd_boundary_t 
         ESP_LOGE(TAG, "LCD DMA boundary sequence lost; buffers remain owned");
         abort();
     }
+    if (pipeline->counter_valid && boundary->at_us >= pipeline->last_boundary_us) {
+        const uint64_t elapsed = (uint64_t)(boundary->at_us - pipeline->last_boundary_us);
+        const uint32_t gap = elapsed > UINT32_MAX ? UINT32_MAX : (uint32_t)elapsed;
+        // Single owner writes; the diagnostic task only takes numeric snapshots.
+        if (gap > atomic_load_explicit(&s_lcd_boundary_gap_max_us, memory_order_relaxed))
+            atomic_store_explicit(&s_lcd_boundary_gap_max_us, gap, memory_order_relaxed);
+        if (gap > 25000) {
+            const uint32_t count = atomic_load_explicit(&s_lcd_delayed_boundaries, memory_order_relaxed);
+            if (count < UINT32_MAX)
+                atomic_store_explicit(&s_lcd_delayed_boundaries, count + 1, memory_order_relaxed);
+        }
+    }
     pipeline->last_counter = event->counter;
     pipeline->counter_valid = true;
     pipeline->last_boundary_us = boundary->at_us;
@@ -690,6 +736,9 @@ static void consume_boundary(display_pipeline_t *pipeline, const lcd_boundary_t 
 
 static void drain_boundaries(display_pipeline_t *pipeline)
 {
+    const uint32_t queued = (uint32_t)uxQueueMessagesWaiting(s_lcd_events);
+    if (queued > atomic_load_explicit(&s_lcd_boundary_queue_peak, memory_order_relaxed))
+        atomic_store_explicit(&s_lcd_boundary_queue_peak, queued, memory_order_relaxed);
     lcd_boundary_t boundary;
     while (xQueueReceive(s_lcd_events, &boundary, 0) == pdTRUE) consume_boundary(pipeline, &boundary);
     if (atomic_load_explicit(&s_lcd_ownership_lost, memory_order_relaxed) ||
@@ -705,7 +754,12 @@ static void submit_ready(display_pipeline_t *pipeline)
     if (index < 0) return;
     display_job_t *job = &pipeline->jobs[index];
     if (!job_current(job)) {
-        if (job->mode == MODE_PAD) atomic_store(&s_pad_dirty, true);
+        if (job->mode == MODE_PAD) {
+            // A stale job may have consumed the full restoration debt for a
+            // newer Pad epoch. Recreate every debt before retrying it.
+            atomic_store(&s_pad_reinitialize, true);
+            atomic_store(&s_pad_dirty, true);
+        }
         if (!p4dp_discard_prepared(&pipeline->owner, index)) abort();
         memset(job, 0, sizeof(*job));
         return;
@@ -715,8 +769,10 @@ static void submit_ready(display_pipeline_t *pipeline)
     job->submitted_us = esp_timer_get_time();
     // The driver synchronizes cache and publishes only this PENDING buffer.
     // Actual completed/next identities, rather than a VSYNC count, release it.
-    ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(s_board->panel, 0, 0, P4DESK_WIDTH,
-                                             P4DESK_HEIGHT, s_board->framebuffers[index]));
+    // Exact framebuffer base is always submitted. DPI still scans 600 rows;
+    // y bounds only limit cache writeback of newly copied rows.
+    ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(s_board->panel, 0, job->sync_y1, P4DESK_WIDTH,
+                                             job->sync_y2, s_board->framebuffers[index]));
 }
 
 static bool take_latest_jpeg(owned_packet_t *packet)
@@ -744,18 +800,46 @@ static bool prepare_buffer(display_pipeline_t *pipeline)
     if (index < 0) return false;
     display_job_t *job = &pipeline->jobs[index];
     memset(job, 0, sizeof(*job));
+    job->sync_y2 = P4DESK_HEIGHT;
     state_snapshot(&job->mode, &job->epoch, &job->session);
     bool prepared = false;
     if (job->mode == MODE_PAD) {
         if (atomic_exchange(&s_pad_dirty, false)) {
             xSemaphoreTake(s_pad_lock, portMAX_DELAY);
-            // Same owner/client as JPEG: hold immutable Pad source until SRM
-            // completes, and only write this reserved BUILDING LCD buffer.
+            if (atomic_exchange(&s_pad_reinitialize, false))
+                p4pad_damage_invalidate_all(&s_pad_damage);
+            p4pad_rect_t damage, output;
+            if (!p4pad_damage_take(&s_pad_damage, (unsigned)index, &damage)) {
+                xSemaphoreGive(s_pad_lock);
+                atomic_fetch_add(&s_pad_skipped_copies, 1);
+                goto prepared_done;
+            }
+            const uint32_t pixels = (uint32_t)(damage.x2 - damage.x1) *
+                                    (uint32_t)(damage.y2 - damage.y1);
+            const bool rotate = P4DESK_DISPLAY_ROTATION_DEGREES == 180;
             const int64_t copy_started_us = esp_timer_get_time();
-            esp_err_t copied = s_ppa ? p4desk_ppa_copy_rgb565(s_ppa,
-                s_board->framebuffers[index], P4DESK_FB_BYTES, s_pad_pixels,
-                P4DESK_FB_BYTES, P4DESK_WIDTH, P4DESK_HEIGHT,
-                P4DESK_DISPLAY_ROTATION_DEGREES == 180, 1000) : ESP_ERR_NOT_SUPPORTED;
+            esp_err_t copied;
+            if (pixels < P4DESK_WIDTH * P4DESK_HEIGHT * 3U / 4U) {
+                copied = p4pad_damage_copy_rgb565(&s_pad_damage,
+                    s_board->framebuffers[index], s_lcd_capacity[index] / sizeof(uint16_t), P4DESK_WIDTH,
+                    s_pad_pixels, P4DESK_WIDTH * P4DESK_HEIGHT, P4DESK_WIDTH, &damage, rotate)
+                    ? ESP_OK : ESP_ERR_INVALID_ARG;
+                if (copied != ESP_OK) abort();
+                if (!p4pad_damage_map_rect(&s_pad_damage, &damage, rotate, &output)) abort();
+                job->sync_y1 = (uint16_t)output.y1;
+                job->sync_y2 = (uint16_t)output.y2;
+                atomic_fetch_add(&s_pad_partial_copies, 1);
+                atomic_fetch_add(&s_pad_copy_bytes_window, pixels * sizeof(uint16_t));
+            } else {
+                // Large transitions keep hardware rotation. A small update
+                // uses neither full-frame PPA nor its whole-output M2C call.
+                copied = s_ppa ? p4desk_ppa_copy_rgb565(s_ppa,
+                    s_board->framebuffers[index], P4DESK_FB_BYTES, s_pad_pixels,
+                    P4DESK_FB_BYTES, P4DESK_WIDTH, P4DESK_HEIGHT,
+                    rotate, 1000) : ESP_ERR_NOT_SUPPORTED;
+                atomic_fetch_add(&s_pad_full_copies, 1);
+                atomic_fetch_add(&s_pad_copy_bytes_window, P4DESK_FB_BYTES);
+            }
             if (copied == ESP_ERR_TIMEOUT || copied == ESP_ERR_INVALID_STATE) {
                 ESP_LOGE(TAG, "Pad PPA completion deadline missed; buffers remain owned");
                 abort();
@@ -810,10 +894,14 @@ static bool prepare_buffer(display_pipeline_t *pipeline)
             if (received) free(packet.payload);
         }
     }
+prepared_done:
     job->valid = prepared;
     // JPEG/PPA writes have completed before BUILDING can be cancelled.
     if (!prepared || !job_current(job)) {
-        if (prepared && job->mode == MODE_PAD) atomic_store(&s_pad_dirty, true);
+        if (prepared && job->mode == MODE_PAD) {
+            atomic_store(&s_pad_reinitialize, true);
+            atomic_store(&s_pad_dirty, true);
+        }
         if (!p4dp_discard_prepared(&pipeline->owner, index)) abort();
         memset(job, 0, sizeof(*job));
         return false;
@@ -829,8 +917,16 @@ static void display_task(void *argument)
     display_pipeline_t pipeline = {.last_boundary_us = esp_timer_get_time()};
     p4dp_init(&pipeline.owner, 0);
     atomic_store(&s_display_owner_task, xTaskGetCurrentTaskHandle());
+    int64_t last_host_poll_us = 0;
     for (;;) {
         drain_boundaries(&pipeline);
+        const int64_t poll_now_us = esp_timer_get_time();
+        if (poll_now_us - last_host_poll_us >= 50000) {
+            // INT_ST0/1 are read-clear registers. Only this owner samples them;
+            // the watchdog logs a coherent RAM snapshot without losing flags.
+            ESP_ERROR_CHECK(p4desk_lcd_host_errors_poll(s_board->panel));
+            last_host_poll_us = poll_now_us;
+        }
         submit_ready(&pipeline);
         bool prepared = prepare_buffer(&pipeline);
         // Drain first so a previous pending selection has actually started.
@@ -993,19 +1089,54 @@ static void log_diagnostics(int64_t now_us)
     const uint32_t internal = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
     const uint32_t psram = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT;
     ESP_LOGI("p4desk_diag",
-        "uptime_s=%" PRId64 " mode=%s internal_free=%zu internal_largest=%zu "
-        "psram_free=%zu psram_largest=%zu presented=%" PRIu32 " bad_jpeg=%" PRIu32 " "
+        "uptime_s=%" PRId64 " mode=%s internal_free=%zu internal_min=%zu "
+        "psram_free=%zu psram_min=%zu alloc_failures=%" PRIu32 " last_alloc_bytes=%" PRIu32
+        " last_alloc_caps=0x%" PRIx32 " presented=%" PRIu32 " bad_jpeg=%" PRIu32 " "
         "parser_errors=%" PRIu32 " control_queue=%u jpeg_received=%" PRIu32 " "
         "jpeg_dropped=%" PRIu32 " frame_ack_dropped=%" PRIu32,
         now_us / 1000000, mode == MODE_DISPLAY ? "display" : "pad",
-        heap_caps_get_free_size(internal), heap_caps_get_largest_free_block(internal),
-        heap_caps_get_free_size(psram), heap_caps_get_largest_free_block(psram),
+        heap_caps_get_free_size(internal), heap_caps_get_minimum_free_size(internal),
+        heap_caps_get_free_size(psram), heap_caps_get_minimum_free_size(psram),
+        atomic_load_explicit(&s_alloc_failures, memory_order_relaxed),
+        atomic_load_explicit(&s_last_alloc_bytes, memory_order_relaxed),
+        atomic_load_explicit(&s_last_alloc_caps, memory_order_relaxed),
         atomic_load_explicit(&s_presented_frames, memory_order_relaxed),
         atomic_load_explicit(&s_bad_jpeg, memory_order_relaxed),
         p4desk_usb_parser_errors(), (unsigned)uxQueueMessagesWaiting(s_control_queue),
         atomic_load_explicit(&s_jpeg_received, memory_order_relaxed),
         atomic_load_explicit(&s_jpeg_dropped, memory_order_relaxed),
         atomic_load_explicit(&s_frame_ack_dropped, memory_order_relaxed));
+    p4desk_lcd_cache_stats_t cache;
+    const esp_err_t cache_query = p4desk_lcd_cache_stats(s_board->panel, &cache);
+    p4desk_ppa_stats_t ppa;
+    p4desk_ppa_stats(s_ppa, &ppa);
+    p4desk_cache_sync_stats_t m2c;
+    p4desk_cache_sync_stats(&m2c);
+    ESP_LOGI("p4desk_m2c", "calls=%" PRIu32 " chunks=%" PRIu32 " errors=%" PRIu32 " max_chunk_us=%" PRIu32,
+        m2c.whole_calls, m2c.chunks, m2c.errors, m2c.max_chunk_us);
+    ESP_LOGI("p4desk_pad_copy", "partial=%" PRIu32 " full=%" PRIu32 " unchanged=%" PRIu32
+        " copied_bytes_window=%" PRIu32,
+        atomic_load(&s_pad_partial_copies), atomic_load(&s_pad_full_copies),
+        atomic_load(&s_pad_skipped_copies), atomic_exchange(&s_pad_copy_bytes_window, 0));
+    p4desk_lcd_host_error_stats_t host;
+    const esp_err_t host_query = p4desk_lcd_host_error_stats(s_board->panel, &host);
+    ESP_LOGI("p4desk_dsi_host",
+        "query=%d polls=%" PRIu32 " error_polls=%" PRIu32 " status0_or=0x%" PRIx32
+        " status1_or=0x%" PRIx32 " dpi_overflow_polls=%" PRIu32 " dpi_underflow_polls=%" PRIu32
+        " first_us=%" PRId64 " last_us=%" PRId64,
+        host_query, host.polls, host.error_polls, host.status0_or, host.status1_or,
+        host.dpi_overflow_polls, host.dpi_underflow_polls, host.first_error_us, host.last_error_us);
+    ESP_LOGI("p4desk_display_health",
+        "boundary_gap_max_us=%" PRIu32 " delayed_over_25ms=%" PRIu32 " boundary_queue_peak=%" PRIu32
+        " cache_query=%d cache_calls=%" PRIu32 " cache_errors=%" PRIu32 " cache_max_us=%" PRIu32
+        " cache_last_error=%" PRId32 " ppa_calls=%" PRIu32 " ppa_errors=%" PRIu32
+        " ppa_timeouts=%" PRIu32 " ppa_submit_max_us=%" PRIu32 " ppa_wait_max_us=%" PRIu32
+        " ppa_last_error=%" PRId32,
+        atomic_load_explicit(&s_lcd_boundary_gap_max_us, memory_order_relaxed),
+        atomic_load_explicit(&s_lcd_delayed_boundaries, memory_order_relaxed),
+        atomic_load_explicit(&s_lcd_boundary_queue_peak, memory_order_relaxed),
+        cache_query, cache.calls, cache.errors, cache.max_us, cache.last_error,
+        ppa.calls, ppa.errors, ppa.timeouts, ppa.submit_max_us, ppa.wait_max_us, ppa.last_error);
 }
 
 int32_t p4desk_battery_voltage_mv(void)
@@ -1048,10 +1179,12 @@ static void watchdog_task(void *argument)
 void p4desk_runtime_init(board_p4_t *board)
 {
     s_board = board;
+    ESP_ERROR_CHECK(heap_caps_register_failed_alloc_callback(allocation_failed));
     for (int index = 0; index < P4DESK_FB_COUNT; index++) {
         ESP_ERROR_CHECK(p4desk_lcd_frame_buffer_capacity(board->panel, board->framebuffers[index],
                                                         &s_lcd_capacity[index]));
         if (s_lcd_capacity[index] < P4DESK_WIDTH * 608 * sizeof(uint16_t)) abort();
+        ESP_ERROR_CHECK(p4desk_cache_sync_register_output(board->framebuffers[index], s_lcd_capacity[index]));
     }
     s_pad_lock = xSemaphoreCreateMutex();
     s_brightness_lock = xSemaphoreCreateMutex();
@@ -1060,11 +1193,19 @@ void p4desk_runtime_init(board_p4_t *board)
     s_jpeg_queue = xQueueCreate(JPEG_QUEUE_COUNT, sizeof(owned_packet_t));
     s_pad_pixels = heap_caps_calloc(1, P4DESK_FB_BYTES, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!s_pad_lock || !s_brightness_lock || !s_lcd_events || !s_control_queue || !s_jpeg_queue || !s_pad_pixels) abort();
+    _Static_assert(P4PAD_DAMAGE_BUFFER_COUNT == P4DESK_FB_COUNT, "Pad debts match LCD ownership");
+    if (!p4pad_damage_init(&s_pad_damage, P4DESK_WIDTH, P4DESK_HEIGHT)) abort();
+    // FreeRTOS pvPortMalloc uses INTERNAL|8BIT even with general PSRAM malloc.
+    // The callback's globals are ordinary internal BSS and its context is NULL.
+    if (!esp_ptr_internal(s_lcd_events) || !esp_ptr_internal(&s_lcd_events) ||
+        !esp_ptr_internal(&s_lcd_ownership_lost) || !esp_ptr_internal(&s_display_owner_task)) abort();
     const jpeg_decode_engine_cfg_t decoder = {.intr_priority = 0, .timeout_ms = 1000};
     ESP_ERROR_CHECK(jpeg_new_decoder_engine(&decoder, &s_decoder));
     const jpeg_decode_memory_alloc_cfg_t memory = {.buffer_direction = JPEG_DEC_ALLOC_OUTPUT_BUFFER};
     s_decoded = jpeg_alloc_decoder_mem(P4DESK_WIDTH * 608 * 2, &memory, &s_decoded_capacity);
     if (!s_decoded) abort();
+    ESP_ERROR_CHECK(p4desk_cache_sync_register_output(s_decoded, s_decoded_capacity));
+    ESP_ERROR_CHECK(p4desk_cache_sync_seal_outputs());
     esp_err_t ppa_ready = p4desk_ppa_create(&s_ppa);
     if (ppa_ready != ESP_OK)
         ESP_LOGW(TAG, "PPA client unavailable (%s); CPU fallback active", esp_err_to_name(ppa_ready));
