@@ -23,6 +23,47 @@ impl Scope {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum TrendAxis {
+    Samples,
+    Day,
+}
+impl TrendAxis {
+    pub(super) fn read(state: &crate::usage::State) -> Self {
+        if state.page == Page::Overview && state.period == Period::Day && state.detail.is_none() {
+            Self::Day
+        } else {
+            Self::Samples
+        }
+    }
+    fn fraction(self, point: &crate::usage::Point, index: usize, count: usize) -> Option<f32> {
+        match self {
+            Self::Day => minute_of_day(&point.date).map(|minute| minute as f32 / 1440.),
+            Self::Samples => Some(if count <= 1 {
+                0.5
+            } else {
+                index as f32 / (count - 1) as f32
+            }),
+        }
+    }
+}
+pub(super) fn minute_of_day(date: &str) -> Option<u16> {
+    let time = if date.len() == 5 {
+        date
+    } else if matches!(date.as_bytes().get(10), Some(b' ') | Some(b'T')) {
+        date.get(11..16)?
+    } else {
+        return None;
+    };
+    let b = time.as_bytes();
+    if b.len() != 5 || b[2] != b':' || ![b[0], b[1], b[3], b[4]].iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    let hour = (b[0] - b'0') as u16 * 10 + (b[1] - b'0') as u16;
+    let minute = (b[3] - b'0') as u16 * 10 + (b[4] - b'0') as u16;
+    (hour < 24 && minute < 60).then_some(hour * 60 + minute)
+}
+
 fn same_points(a: &[crate::usage::Point], b: &[crate::usage::Point]) -> bool {
     a.len() == b.len()
         && a.iter().zip(b).all(|(a, b)| {
@@ -200,16 +241,22 @@ fn plot_signature(
     selected: usize,
     style: PlotStyle,
 ) -> Option<Vec<u64>> {
-    let len = 14usize
-        .checked_add(points.len())?
-        .checked_add(previous.len())?;
+    let state = state.lock().unwrap();
+    let scope = Scope::read(&state.usage);
+    let axis = TrendAxis::read(&state.usage);
+    drop(state);
+    let point_words = if axis == TrendAxis::Day { 2 } else { 1 };
+    let len = 15usize.checked_add(
+        points
+            .len()
+            .checked_add(previous.len())?
+            .checked_mul(point_words)?,
+    )?;
     if len > 512 {
         return None;
     }
     let mut key = Vec::new();
     key.try_reserve_exact(len).ok()?;
-    let state = state.lock().unwrap();
-    let scope = Scope::read(&state.usage);
     key.extend_from_slice(&[
         scope.revision,
         scope.page as u64,
@@ -219,11 +266,20 @@ fn plot_signature(
         selected as u64,
         points.len() as u64,
         previous.len() as u64,
+        axis as u64,
     ]);
-    drop(state);
     key.extend_from_slice(&style.words());
-    key.extend(points.iter().map(|p| p.totals.tokens));
-    key.extend(previous.iter().map(|p| p.totals.tokens));
+    for point in points.iter().chain(previous) {
+        key.push(point.totals.tokens);
+        if axis == TrendAxis::Day {
+            // Moving a bucket with unchanged tokens changes its x coordinate.
+            key.push(
+                minute_of_day(&point.date)
+                    .map(u64::from)
+                    .unwrap_or(u64::MAX),
+            );
+        }
+    }
     Some(key)
 }
 
@@ -237,6 +293,7 @@ pub(super) struct InteractiveTrend {
 impl Widget for InteractiveTrend {
     fn create_render_object(&self) -> Box<dyn RenderBox> {
         let style = PlotStyle::current();
+        let axis = TrendAxis::read(&self.state.lock().unwrap().usage);
         Box::new(TrendBox {
             state: self.state.clone(),
             points: self.points.clone(),
@@ -245,6 +302,7 @@ impl Widget for InteractiveTrend {
             size: self.size,
             offset: Offset::ZERO,
             origin: None,
+            axis,
             signature: plot_signature(
                 &self.state,
                 &self.points,
@@ -264,6 +322,7 @@ struct TrendBox {
     size: Size,
     offset: Offset,
     origin: Option<tiny_flutter::Point>,
+    axis: TrendAxis,
     signature: Option<Vec<u64>>,
     style: PlotStyle,
 }
@@ -326,11 +385,10 @@ impl RenderBox for TrendBox {
             }
             TouchEvent::Up(p) => {
                 if self.origin.take().is_some() && self.hit_test(*p) && !self.points.is_empty() {
-                    let index = (((p.x - 2.) / (self.size.width - 4.).max(1.)).clamp(0., 1.)
-                        * (self.points.len() - 1) as f32)
-                        .round() as usize;
-                    edit(&self.state, |u| u.chart_selected = Some(index));
-                    return true;
+                    if let Some(index) = self.selection_at(p.x) {
+                        edit(&self.state, |u| u.chart_selected = Some(index));
+                        return true;
+                    }
                 }
                 false
             }
@@ -343,6 +401,33 @@ impl RenderBox for TrendBox {
     }
 }
 impl TrendBox {
+    fn x(&self, points: &[crate::usage::Point], index: usize) -> Option<f32> {
+        self.axis
+            .fraction(points.get(index)?, index, self.points.len())
+            .map(|f| 2. + f * (self.size.width - 4.))
+    }
+    fn selection_at(&self, x: f32) -> Option<usize> {
+        let mut nearest = None;
+        let mut distance = f32::INFINITY;
+        let mut latest = f32::NEG_INFINITY;
+        for index in 0..self.points.len() {
+            if let Some(px) = self.x(&self.points, index) {
+                latest = latest.max(px);
+                let d = (px - x).abs();
+                if d < distance {
+                    distance = d;
+                    nearest = Some(index);
+                }
+            }
+        }
+        // The future has no selectable bucket; allow a small hit margin at
+        // the last real marker without manufacturing a future reading.
+        if self.axis == TrendAxis::Day && x > latest + 12. {
+            None
+        } else {
+            nearest
+        }
+    }
     fn paint_plot(&self, c: &mut Canvas) {
         let w = self.size.width;
         let h = self.size.height;
@@ -362,31 +447,26 @@ impl TrendBox {
             .unwrap_or(0)
             .max(1) as f64;
         let n = self.points.len();
-        let x = |i: usize| {
-            if n <= 1 {
-                w * 0.5
-            } else {
-                2. + i as f32 / (n - 1) as f32 * (w - 4.)
-            }
-        };
         let y = |v: u64| 2. + (1. - v as f64 / max) as f32 * (h - 4.);
         if n > 1 {
             let coords = self
                 .points
                 .iter()
                 .enumerate()
-                .map(|(i, v)| (x(i), y(v.totals.tokens)))
+                .filter_map(|(i, v)| self.x(&self.points, i).map(|x| (x, y(v.totals.tokens))))
                 .collect::<Vec<_>>();
-            let mut area = trend_path(&coords);
-            area.line_to(x(n - 1), h);
-            area.line_to(x(0), h);
-            area.close();
-            if let Some(p) = area.finish() {
-                c.fill_path(
-                    &p,
-                    &tiny_gfx::Paint::new(self.style.fill.to_gfx()),
-                    tiny_gfx::FillRule::Winding,
-                );
+            if let (Some(first), Some(last)) = (coords.first(), coords.last()) {
+                let mut area = trend_path(&coords);
+                area.line_to(last.0, h);
+                area.line_to(first.0, h);
+                area.close();
+                if let Some(p) = area.finish() {
+                    c.fill_path(
+                        &p,
+                        &tiny_gfx::Paint::new(self.style.fill.to_gfx()),
+                        tiny_gfx::FillRule::Winding,
+                    );
+                }
             }
         }
         for (points, color, width) in [
@@ -396,8 +476,12 @@ impl TrendBox {
             let coords = points
                 .iter()
                 .enumerate()
-                .take(n)
-                .map(|(i, v)| (x(i), y(v.totals.tokens)))
+                .take(if self.axis == TrendAxis::Day {
+                    points.len()
+                } else {
+                    n
+                })
+                .filter_map(|(i, v)| self.x(points, i).map(|x| (x, y(v.totals.tokens))))
                 .collect::<Vec<_>>();
             if let Some(path) = trend_path(&coords).finish() {
                 c.stroke_path(
@@ -412,8 +496,10 @@ impl TrendBox {
                 );
             }
         }
-        if let Some(p) = self.points.get(self.selected) {
-            let px = x(self.selected);
+        if let (Some(p), Some(px)) = (
+            self.points.get(self.selected),
+            self.x(&self.points, self.selected),
+        ) {
             let py = y(p.totals.tokens);
             c.draw_rect(Rect::from_ltwh(px, 0., 1., h), self.style.marker);
             c.paint_circle(
@@ -482,6 +568,7 @@ mod tests {
             size,
             offset: Offset::ZERO,
             origin: None,
+            axis: TrendAxis::read(&state.lock().unwrap().usage),
         }
     }
     fn paint_plot(
@@ -510,6 +597,7 @@ mod tests {
     #[test]
     fn native_plot_replay_matches_original_aa_for_themes_data_selection_and_clips() {
         let state = state();
+        state.lock().unwrap().usage.period = Period::Month;
         for light in [false, true] {
             Folio::configure(light, 65);
             for n in [0usize, 1, 14, 24, 31, 240] {
@@ -542,6 +630,114 @@ mod tests {
         c.clear(Folio::bg());
         card.paint(&mut c, Offset::new(20., 18.));
         pixels
+    }
+    #[test]
+    fn day_axis_keeps_real_hours_fixed_as_samples_arrive_and_future_is_not_selectable() {
+        let state = state();
+        let early = plot(&state, 13, 12, false, Size::new(484., 71.));
+        let later = plot(&state, 24, 23, false, Size::new(484., 71.));
+        assert_eq!(early.x(&early.points, 0), Some(2.));
+        assert_eq!(early.x(&early.points, 6), Some(122.));
+        assert_eq!(early.x(&early.points, 12), Some(242.));
+        assert_eq!(early.x(&early.points, 12), later.x(&later.points, 12));
+        assert_eq!(later.x(&later.points, 23), Some(462.));
+        assert_eq!(early.selection_at(122.), Some(6));
+        assert_eq!(early.selection_at(242.), Some(12));
+        assert_eq!(early.selection_at(362.), None);
+        let midnight = plot(&state, 1, 0, false, Size::new(484., 71.));
+        assert_eq!(midnight.x(&midnight.points, 0), Some(2.));
+        assert_eq!(midnight.selection_at(242.), None);
+        state.lock().unwrap().usage.period = Period::Month;
+        let month = plot(&state, 13, 12, false, Size::new(484., 71.));
+        assert_eq!(month.x(&month.points, 6), Some(242.));
+        assert_eq!(month.x(&month.points, 12), Some(482.));
+    }
+    #[test]
+    fn todays_line_and_fill_stop_at_observed_hour_while_yesterday_remains_full_day() {
+        let state = state();
+        for light in [false, true] {
+            Folio::configure(light, 65);
+            let mut today = plot(&state, 13, 12, true, Size::new(484., 71.));
+            today.points = Arc::new(
+                points(13, 20)
+                    .into_iter()
+                    .map(|mut p| {
+                        p.totals.tokens = 100;
+                        p
+                    })
+                    .collect(),
+            );
+            today.previous = Arc::new(
+                points(24, 20)
+                    .into_iter()
+                    .map(|mut p| {
+                        p.totals.tokens = 600;
+                        p
+                    })
+                    .collect(),
+            );
+            today.signature = plot_signature(
+                &state,
+                &today.points,
+                &today.previous,
+                today.selected,
+                today.style,
+            );
+            let actual = paint_plot(&today, true, Color::BLACK, None);
+            assert_eq!(actual, paint_plot(&today, false, Color::BLACK, None));
+            let mut yesterday_only = plot(&state, 0, 0, false, today.size);
+            yesterday_only.previous = today.previous.clone();
+            yesterday_only.signature = plot_signature(
+                &state,
+                &yesterday_only.points,
+                &yesterday_only.previous,
+                0,
+                yesterday_only.style,
+            );
+            let previous = paint_plot(&yesterday_only, false, Color::BLACK, None);
+            // The current marker is at screen x=24+242. Beyond its AA radius,
+            // every future pixel must match the complete yesterday-only plot.
+            for y in 20..91 {
+                for x in 274..508 {
+                    assert_eq!(
+                        actual.data()[y * 600 + x],
+                        previous.data()[y * 600 + x],
+                        "future pixel {x},{y}"
+                    );
+                }
+            }
+            let mut empty = plot(&state, 0, 0, false, today.size);
+            empty.signature =
+                plot_signature(&state, &empty.points, &empty.previous, 0, empty.style);
+            let empty_pixels = paint_plot(&empty, false, Color::BLACK, None);
+            assert!(
+                (274..490)
+                    .any(|x| previous.data()[22 * 600 + x] != empty_pixels.data()[22 * 600 + x]),
+                "yesterday continues after noon"
+            );
+        }
+    }
+    #[test]
+    fn unchanged_tokens_at_a_new_hour_invalidate_cached_coordinates() {
+        let state = state();
+        Folio::configure(false, 65);
+        let initial = plot(&state, 2, 1, false, Size::new(484., 71.));
+        let before = paint_plot(&initial, true, Color::BLACK, None);
+        let mut changed = plot(&state, 2, 1, false, initial.size);
+        let mut points = changed.points.as_ref().clone();
+        points[1].date = "2026-10-07 12:00".into();
+        changed.points = Arc::new(points);
+        changed.signature = plot_signature(
+            &state,
+            &changed.points,
+            &changed.previous,
+            changed.selected,
+            changed.style,
+        );
+        assert_ne!(initial.signature, changed.signature);
+        let after = paint_plot(&changed, true, Color::BLACK, None);
+        assert_ne!(before, after);
+        assert_eq!(after, paint_plot(&changed, false, Color::BLACK, None));
     }
     #[test]
     fn live_card_refreshes_all_labels_data_and_selection_without_replacing_root() {

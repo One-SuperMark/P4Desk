@@ -700,8 +700,8 @@ pub fn fetch(t: &mut impl Transport, c: &Config, s: &Scope, now: i64) -> Result<
                     .map_err(|_| Error::Time)?
                     - Duration::days(1))
                 .to_string();
-                // Yesterday's headline covers all 24 hours. The UI may align
-                // the retained curve to today's elapsed hour for comparison.
+                // Yesterday's headline and comparison curve cover all 24
+                // hours; today's observed buckets share that fixed day axis.
                 match points(t, c, &y, now) {
                     Ok(p) => {
                         d.yesterday = Some(sum(p.iter().map(|p| &p.totals))?);

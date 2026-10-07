@@ -708,14 +708,24 @@ fn chart(state: Shared, d: &Arc<Data>, w: f32, h: f32) -> trend_view::LiveTrendC
     trend_view::LiveTrendCard::new(state, d.clone(), Size::new(w, h))
 }
 fn chart_snapshot(state: Shared, d: &Data, w: f32, h: f32) -> Container {
-    let selected = state.lock().unwrap().usage.chart_selected;
+    let (selected, axis) = {
+        let state = state.lock().unwrap();
+        (
+            state.usage.chart_selected,
+            trend_view::TrendAxis::read(&state.usage),
+        )
+    };
     let index = selected
         .unwrap_or(d.trend.len().saturating_sub(1))
         .min(d.trend.len().saturating_sub(1));
     let comparison = d
         .yesterday_trend
         .iter()
-        .take(d.trend.len())
+        .take(if axis == trend_view::TrendAxis::Day {
+            d.yesterday_trend.len()
+        } else {
+            d.trend.len()
+        })
         .cloned()
         .collect::<Vec<_>>();
     let has_previous = !comparison.is_empty();
@@ -744,13 +754,6 @@ fn chart_snapshot(state: Shared, d: &Data, w: f32, h: f32) -> Container {
     if has_previous {
         p = p.push(at(text("昨日", 14.0, Folio::muted()), w - 82.0, 16.0));
     }
-    if d.trend.is_empty() {
-        return panel(w, h).child(p.push(at(
-            text("暂无完整趋势记录", 18., Folio::muted()),
-            18.,
-            72.,
-        )));
-    }
     let peak = d
         .trend
         .iter()
@@ -759,7 +762,15 @@ fn chart_snapshot(state: Shared, d: &Data, w: f32, h: f32) -> Container {
         .max()
         .unwrap_or(0);
     p = p.push(at(
-        text(format!("峰值 {}", tokens(peak)), 14., Folio::muted()),
+        text(
+            if d.trend.is_empty() && comparison.is_empty() {
+                "暂无完整趋势记录".into()
+            } else {
+                format!("峰值 {}", tokens(peak))
+            },
+            14.,
+            Folio::muted(),
+        ),
         18.,
         42.,
     ));
@@ -774,21 +785,32 @@ fn chart_snapshot(state: Shared, d: &Data, w: f32, h: f32) -> Container {
         18.,
         64.,
     ));
-    p = p
-        .push(at(
-            text(axis_label(&d.trend[0].date), 14., Folio::muted()),
-            18.,
-            h - 45.,
-        ))
-        .push(at(
-            text(
-                axis_label(&d.trend.last().unwrap().date),
-                14.,
-                Folio::muted(),
-            ),
-            w - 70.,
-            h - 45.,
-        ));
+    if axis == trend_view::TrendAxis::Day {
+        for (i, label) in ["00:00", "06:00", "12:00", "18:00", "24:00"]
+            .into_iter()
+            .enumerate()
+        {
+            let label_width = Font::default_font().measure_text(label, 14.).width;
+            let x = match i {
+                0 => 18.,
+                4 => w - 18. - label_width,
+                _ => 20. + i as f32 / 4. * (w - 40.) - label_width / 2.,
+            };
+            p = p.push(at(text(label, 14., Folio::muted()), x, h - 45.));
+        }
+    } else if let (Some(first), Some(last)) = (d.trend.first(), d.trend.last()) {
+        p = p
+            .push(at(
+                text(axis_label(&first.date), 14., Folio::muted()),
+                18.,
+                h - 45.,
+            ))
+            .push(at(
+                text(axis_label(&last.date), 14., Folio::muted()),
+                w - 70.,
+                h - 45.,
+            ));
+    }
     if let Some(v) = d.trend.get(index) {
         p = p.push(at(
             text(
@@ -804,7 +826,16 @@ fn chart_snapshot(state: Shared, d: &Data, w: f32, h: f32) -> Container {
             18.,
             h - 23.,
         ));
-        if let Some(y) = d.yesterday_trend.get(index) {
+        let previous = if axis == trend_view::TrendAxis::Day {
+            trend_view::minute_of_day(&v.date).and_then(|minute| {
+                d.yesterday_trend
+                    .iter()
+                    .find(|p| trend_view::minute_of_day(&p.date) == Some(minute))
+            })
+        } else {
+            d.yesterday_trend.get(index)
+        };
+        if let Some(y) = previous {
             p = p.push(at(
                 text(
                     format!("昨日 {}", tokens(y.totals.tokens)),

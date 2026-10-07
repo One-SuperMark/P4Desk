@@ -316,7 +316,7 @@ fn users_summary_covers_returned_rows_and_has_an_explicit_scope_label() {
     assert_eq!(data.total_label, "当前范围用户汇总");
 }
 #[test]
-fn yesterday_has_all_hours_while_comparison_uses_only_elapsed_hours() {
+fn yesterday_retains_all_hours_including_after_todays_observed_hour() {
     let mut s = scope(Page::Overview, Period::Day);
     s.date = "2026-10-05".into();
     let points = api::normalize_points(
@@ -327,10 +327,8 @@ fn yesterday_has_all_hours_while_comparison_uses_only_elapsed_hours() {
     .unwrap();
     assert_eq!(points.len(), 24);
     assert_eq!(points.iter().map(|p| p.totals.tokens).sum::<u64>(), 75);
-    assert_eq!(
-        points.iter().take(13).map(|p| p.totals.tokens).sum::<u64>(),
-        50
-    );
+    assert_eq!(points[10].totals.tokens, 50);
+    assert_eq!(points[23].totals.tokens, 25);
     assert_eq!(points[23].date, "2026-10-05 23:00");
 }
 #[test]

@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-07",
+  "base_commit": "a6a9c84a5dcfad2e1ddb1eb624aa4df14d280189",
+  "scope": "用量监控 → 总览 → 今日的全站 Token 趋势",
+  "behavior": {
+    "axis": [
+      "00:00",
+      "06:00",
+      "12:00",
+      "18:00",
+      "24:00"
+    ],
+    "x_coordinates": "按真实本地小时／分钟定位，全天 1440 分钟；新增小时不拉伸已有点。",
+    "current": "蓝色曲线和填充只到采样已到达的小时；未来留空，不补零／延长曲线。",
+    "previous": "昨日完整 24 小时灰线独立绘制，不按今日点数截断。",
+    "boundary": "24:00 仅是轴边界，最后合法小时桶是 23:00，不制造 24:00 读数。",
+    "selection": "固定坐标匹配真实桶；未来空白区不产生读数，昨日提示按同一小时匹配。",
+    "cache": "缓存键包括轴类型和小时位置，时间变更但 Token 不变仍失效。",
+    "other_scopes": "本月／累计和账号／用户详情保留样本／日期范围。"
+  },
+  "tests": {
+    "release_trend_unit_passed": 7,
+    "release_integration_passed": 48,
+    "release_final_api_normalization_passed": 25,
+    "count_note": "25 项 API 测试在修改旧测试名称／断言后重跑，属于 48 项集成测试中的同一套件，不重复累加。",
+    "key_cases": [
+      "午夜单点在左端",
+      "12:00 在中线",
+      "23:00 在 23/24 处",
+      "下一小时旧点位置不变",
+      "未来区域无今日线／填充／伪读数",
+      "昨日独立全天绘制",
+      "时间改变触发缓存失效且缓存／直接绘图像素一致",
+      "本月仍按原范围",
+      "拖动不误选"
+    ],
+    "evidence": [
+      ".cache/day-trend/trend-tests.log",
+      ".cache/day-trend/integration-tests.log",
+      ".cache/day-trend/api-tests-final.log"
+    ]
+  },
+  "preview": {
+    "status": "reviewed",
+    "data": "synthetic_only",
+    "appearances": [
+      "dark",
+      "light"
+    ],
+    "evidence": ".cache/day-trend/previews/",
+    "chart": ".cache/day-trend/chart-dark.png"
+  },
+  "build": {
+    "status": "passed",
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "target": "riscv32imafc-esp-espidf",
+    "artifact": {
+      "bytes": 6505424,
+      "sha256": "4c556b45baa42615c7b8f54873b317f157ba5f99f2e05a6ca3b495bfb884ab84"
+    },
+    "source_hashes_match": true,
+    "evidence": [
+      ".cache/day-trend/build.log",
+      ".cache/day-trend/build-artifacts.json"
+    ]
+  },
+  "flash": {
+    "exit": 0,
+    "verified_regions": 3,
+    "nvs_tf_preserved": true,
+    "status": "passed",
+    "evidence": ".cache/day-trend/flash.log"
+  },
+  "device": {
+    "capture": {
+      "elapsed_seconds": 75.38,
+      "planned_seconds": 75,
+      "exit": 0,
+      "filter": "numeric health, UI and request diagnostics; no content or credentials"
+    },
+    "startup_reset_markers": 1,
+    "diagnostic_samples": 2,
+    "last_uptime_s": 60,
+    "heap_min_bytes": {
+      "internal_min": 68247,
+      "psram_min": 17825764
+    },
+    "allocation_failures": 0,
+    "panic_assert_messages": 0,
+    "display_health": {
+      "log_ms": 62392,
+      "boundary_gap_max_us": 16681,
+      "delayed_over_25ms": 0,
+      "boundary_queue_peak": 2,
+      "cache_query": 0,
+      "cache_calls": 79,
+      "cache_errors": 0,
+      "cache_max_us": 1526,
+      "cache_last_error": 0,
+      "ppa_calls": 3,
+      "ppa_errors": 0,
+      "ppa_timeouts": 0,
+      "ppa_submit_max_us": 2205,
+      "ppa_wait_max_us": 12745,
+      "ppa_last_error": 0
+    },
+    "requests": {
+      "logged_full_begin": 5,
+      "logged_headline_begin": 9,
+      "success": 13,
+      "failure": 1
+    },
+    "evidence": [
+      ".cache/day-trend/monitor.log",
+      ".cache/day-trend/stability-summary.json"
+    ],
+    "limit": "仅短时运行及数值诊断，不是长期压力测试、帧率或端到端延迟测量。"
+  },
+  "user_visual_acceptance": {
+    "status": "accepted",
+    "feedback": "横轴和今日／昨日曲线都正常"
+  }
+}

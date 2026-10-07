@@ -76,6 +76,9 @@ fn chart_selects_nearest_bucket_but_drag_does_not_become_a_tap() {
         app.step_with_builder(&mut b, |size| build_launcher_ui(state.clone(), size));
     }
     assert_eq!(state.lock().unwrap().usage.chart_selected, Some(0));
+    // 03:00 is near the left of a full 24-hour day, rather than at its right edge.
+    tap(&mut app, &mut b, &state, 108., 446.);
+    assert_eq!(state.lock().unwrap().usage.chart_selected, Some(3));
     tap(&mut app, &mut b, &state, 576., 446.);
     assert_eq!(state.lock().unwrap().usage.chart_selected, Some(3));
 }
