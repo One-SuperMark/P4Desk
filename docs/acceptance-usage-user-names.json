@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-08",
+  "scope": "Pad用量监控用户页的实际名称与无名编号回退",
+  "rules": [
+    "按notes、username顺序取非空名称，忽略邮箱",
+    "无名称时为用户#真实ID；列表、头像与详情一致",
+    "按真实ID合并，最多80个Unicode字符，移除控制字符",
+    "缓存200项、5分钟TTL、站点与密钥摘要隔离，补查每页25最多8页",
+    "资料失败保留统计与已有有效名称；旧快照兼容；离线TF名单打开详情仍保留名称"
+  ],
+  "tests": {
+    "host": "28 usage_monitor + 4 usage_ui + 16 usage_user_names",
+    "worker": "14 passed",
+    "logs": [
+      ".cache/usage-user-names-20261008/host-tests-final.log",
+      ".cache/usage-user-names-20261008/worker-tests-final.log"
+    ],
+    "passed": 62,
+    "failed": 0
+  },
+  "preview": {
+    "kind": "production UI with synthetic data, no real names or statistics",
+    "themes": [
+      "dark",
+      "light"
+    ],
+    "checked": [
+      "用户列表名称与无名编号、头像",
+      "用户详情名称、列宽与金额对齐"
+    ],
+    "path": ".cache/usage-user-names-20261008/previews"
+  },
+  "build": {
+    "status": "passed",
+    "sdk": "ESP-IDF 6.0.2",
+    "rust": "nightly-2026-09-27",
+    "log": ".cache/usage-user-names-20261008/build-delivery.log",
+    "artifacts": {
+      "flasher_args.json": {
+        "sha256": "b72ae642525cfde46dca189772e9f433b2758f5afbf541a8964cbcf44917120d",
+        "bytes": 911
+      },
+      "p4desk.bin": {
+        "sha256": "07ec8b58b87366ba1c09210488b1e4468c523c547f40d6e52959b638cdd4ad7d",
+        "bytes": 7019472
+      },
+      "p4desk.elf": {
+        "sha256": "b96229fb1eb70bd9a9d154b75e0bfc8a61a400a30076ff143287b79cbc4219f1",
+        "bytes": 27956432
+      },
+      "bootloader/bootloader.bin": {
+        "sha256": "fc9c3534b9f183cc10e6bdd47fd43be5753023f3251981d679805939c35d8fa8",
+        "bytes": 23888
+      },
+      "partition_table/partition-table.bin": {
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330",
+        "bytes": 3072
+      }
+    },
+    "source_sha256": {
+      "apps/app-launcher/src/usage/api.rs": "ece1672f0cdaf131d7b74e5cbfdf0ce0e93bd92c4b94039ffbd17f3d60bf15d8",
+      "apps/app-launcher/src/usage/mod.rs": "ec3c711cbdbab601cd770f1bd635eddee0fc86a57fb505fac162035adc1a7861",
+      "apps/app-launcher/src/usage/user_names.rs": "7e59b7f3d073f54ad413104d56acd941392067b4be5dcc8692876b0d7ad63acb",
+      "apps/app-launcher/src/usage/ui.rs": "fb7da09f4eb0e99beadf5765dc602fa8cbf67ca2ead2f1aeafe16bc43db5671e",
+      "firmware/components/rust_main/src/usage.rs": "bf32aad87202d7a52f22baa84a13739f08b8775ee35051cb842c024d756795a3",
+      "firmware/components/board_p4/board_p4.c": "a6f9e07f7f4a7a28ffd54df9d1e959f2f75ebad91749a7bf76e7a7155931c023",
+      "firmware/main/p4desk_runtime.c": "a67b03c5320394665adce99098dcec77d371ae0e02950ff5ef8be917b5e73fe9",
+      "firmware/main/display_scan_health.c": "83cafaa841de6014f9841b946120200bd90b1ca4371cfef86c70eee804add577",
+      "firmware/sdkconfig": "e1de4a34610f141de455b40c3e81635a2f6a59aa54b9e912016e39e60f7403de"
+    }
+  },
+  "flash": {
+    "status": "passed",
+    "exit": 0,
+    "log": ".cache/usage-user-names-20261008/flash.log",
+    "hash_checks": 3,
+    "retained_backup": "backups/2026-09-28/p4-before-p4desk.bin"
+  },
+  "device": {
+    "status": "startup_and_monitor_requests_passed",
+    "capture": {
+      "elapsed_seconds": 90.25,
+      "planned_seconds": 90,
+      "exit": 0,
+      "failure": null,
+      "filter": "numeric health, UI and request diagnostics; no content or credentials"
+    },
+    "log": ".cache/usage-user-names-20261008/delivery/monitor.log",
+    "rust_ui_started": true,
+    "monitor_successful_batches": 15,
+    "user_name_batch_observed": false,
+    "maximum_named_users_observed": 0,
+    "display_underrun_max": 0,
+    "cache_error_max": 0,
+    "ppa_error_max": 0,
+    "ppa_timeout_max": 0,
+    "panic_or_assert_observed": false,
+    "limit": "短时日志确认启动与真实用量请求正常；本窗口未观察到用户页请求，真实名称显示仍待人工确认。"
+  },
+  "user_acceptance": {
+    "status": "touch_unresponsive_reported_names_not_yet_accepted",
+    "real_names_and_fallback": null,
+    "detail_names": null,
+    "followup": "2026-10-08报告屏幕点击无反应，继续排查；见acceptance-touch-input.json"
+  },
+  "retained": "保留本轮之前未提交的页面精修和显示扫描稳定性调整；不提交或推送Git",
+  "font_scope": "沿用现有HarmonyOS字形资源；此次没有扩展任意中文生僻字字形。"
+}

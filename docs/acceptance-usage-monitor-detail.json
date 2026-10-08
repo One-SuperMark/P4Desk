@@ -1,0 +1,256 @@
+{
+  "date": "2026-10-08",
+  "base_commit": "5226b75fcd38ded0dbc6acfeae64162d7ddd784a",
+  "scope": "Pad 用量监控四页面与空状态的视觉细节精修",
+  "preserved": [
+    "TOTAL TOKENS 208px 高度与原数字/费用位置",
+    "今日 00:00–24:00 横轴及未来留空",
+    "统计范围和数据来源",
+    "5秒主数/趋势采样、60秒完整看板",
+    "不透明局部damage与唯一display owner",
+    "自动刷新静默与可关闭操作结果"
+  ],
+  "build": {
+    "status": "passed",
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "files": {
+      "p4desk.bin": {
+        "bytes": 7007632,
+        "sha256": "4099ad5511be954250d60f2074f57bc7d95437ec2da01222b077ee68a42c36af"
+      },
+      "p4desk.elf": {
+        "bytes": 27846096,
+        "sha256": "c58051bdccd339068871787bbaa44fb8cc40d601c6295d4be47df4fb6da65ea3"
+      },
+      "flasher_args.json": {
+        "bytes": 911,
+        "sha256": "b72ae642525cfde46dca189772e9f433b2758f5afbf541a8964cbcf44917120d"
+      },
+      "bootloader/bootloader.bin": {
+        "bytes": 23888,
+        "sha256": "fc9c3534b9f183cc10e6bdd47fd43be5753023f3251981d679805939c35d8fa8"
+      },
+      "partition_table/partition-table.bin": {
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      }
+    },
+    "source_hashes": {
+      "apps/app-launcher/src/usage/ui.rs": "c33a0def191c74fcf82ed3e6022f94e661f9880c61cc1760b5307bb0d7f075e2",
+      "apps/app-launcher/src/usage/visuals.rs": "b51fd1951456e388e36bb937af0d3debb087eb0d130d40d86f7c95010a61bded",
+      "apps/app-launcher/examples/usage-preview.rs": "a540d903b88c39abe0fd5b9fdab77f81621eaba8ff97159b9f9e26d2988acec3"
+    },
+    "source_hashes_match": true,
+    "log": ".cache/usage-detail/build-verified.log"
+  },
+  "tests": {
+    "status": "passed",
+    "release_unique_passed": 86,
+    "release_failed": 0,
+    "suites": {
+      "app_launcher_lib": 39,
+      "usage_cadence": 5,
+      "usage_headline_render": 6,
+      "usage_monitor": 25,
+      "usage_trend": 6,
+      "usage_ui": 4,
+      "usage_quota_render": 1
+    },
+    "evidence": [
+      ".cache/usage-detail/regression.log",
+      ".cache/usage-detail/quota-test.log"
+    ],
+    "risks_covered": [
+      "数字动画/跨位数与完整静态重绘相同、strided无绕回",
+      "模型点选/分页与图表拖动不误选",
+      "分钟蓝条同分钟live/新树逐像素相同、跨分钟只重建一次",
+      "24/34/48px平台标记在两offset/深浅外观内形可见且无越界",
+      "构成条零值/u64大值无溢出、圆角和分段无接缝"
+    ]
+  },
+  "preview": {
+    "status": "reviewed",
+    "data": "synthetic_only",
+    "appearances": [
+      "dark",
+      "light"
+    ],
+    "images": 20,
+    "path": ".cache/usage-detail/final",
+    "includes": [
+      "四页",
+      "连接",
+      "月/累计",
+      "账号/用户详情",
+      "单账号与两账号布局"
+    ]
+  },
+  "host_probe": {
+    "status": "passed",
+    "limit": "同一新版UI的显式重建与局部路径对照；不是旧版UI性能提升证明或P4帧率",
+    "result": {
+      "environment": "host release synthetic; not device FPS",
+      "explicit_rebuild": {
+        "advance_layout_us": 288,
+        "advance_layouts": 272,
+        "allocations": 13363,
+        "builder_us": 100,
+        "damage_pixels": 9649950,
+        "draw_us": 9746,
+        "frames": 272,
+        "full_region_frames": 10,
+        "layout_us": 193,
+        "max_total_us": 870,
+        "mount_us": 235,
+        "mounts": 10,
+        "output_us": 395,
+        "paint_us": 9399,
+        "path": "explicit_rebuild",
+        "peak_extra_bytes": 43868,
+        "requested_bytes": 1722274,
+        "samples": 10
+      },
+      "live": {
+        "advance_layout_us": 279,
+        "advance_layouts": 272,
+        "allocations": 4380,
+        "builder_us": 0,
+        "damage_pixels": 6898190,
+        "draw_us": 8718,
+        "frames": 272,
+        "full_region_frames": 0,
+        "layout_us": 145,
+        "max_total_us": 1085,
+        "mount_us": 0,
+        "mounts": 0,
+        "output_us": 316,
+        "paint_us": 8406,
+        "path": "live",
+        "peak_extra_bytes": 6677,
+        "requested_bytes": 1169407,
+        "samples": 10
+      },
+      "pixel_mismatches": 0
+    },
+    "log": ".cache/usage-detail/performance-final.log"
+  },
+  "resolved_attempts": [
+    {
+      "issue": "总览新增蓝条在显式5秒重建与保留树时有4像素差异",
+      "cause": "静态额度区以不同秒级now计算重置比例",
+      "resolution": "只将显示时间量化为分钟，与监控真实分钟重绘一致；服务端时间和精确数据函数不变",
+      "evidence": ".cache/usage-detail/performance-diagnostic.log"
+    },
+    {
+      "issue": "34px平台图标只绘制背景圆",
+      "cause": "Canvas.scale 下平移/裁剪影响内部路径",
+      "resolution": "按控件尺寸手工缩放局部几何，并增加生产CustomPaint边界回归"
+    }
+  ],
+  "flash": {
+    "status": "passed",
+    "exit": 0,
+    "verified_regions": 3,
+    "nvs_tf_preserved": true,
+    "log": ".cache/usage-detail/flash.log"
+  },
+  "device": {
+    "status": "observed",
+    "log": ".cache/usage-detail/monitor.log",
+    "limit": "仅120秒数值诊断，不是长期压力测试、FPS或端到端延迟测量；实屏方向、位置、点击和闪屏仍待人工反馈。",
+    "capture": {
+      "elapsed_seconds": 120.07,
+      "planned_seconds": 120,
+      "exit": 0,
+      "failure": null,
+      "filter": "numeric health, UI and request diagnostics; no content or credentials"
+    },
+    "diagnostic_samples": 3,
+    "last_uptime_s": 90,
+    "heap_min_bytes": {
+      "internal": 75407,
+      "psram": 17578232
+    },
+    "last_free_bytes": {
+      "internal": 79839,
+      "psram": 17606300
+    },
+    "allocation_failures": 0,
+    "panic_assert_lines": 0,
+    "display": {
+      "underruns": 0,
+      "health_last": {
+        "boundary_gap_max_us": 16689,
+        "delayed_over_25ms": 0,
+        "boundary_queue_peak": 2,
+        "cache_query": 0,
+        "cache_calls": 105,
+        "cache_errors": 0,
+        "cache_max_us": 1573,
+        "cache_last_error": 0,
+        "ppa_calls": 4,
+        "ppa_errors": 0,
+        "ppa_timeouts": 0,
+        "ppa_submit_max_us": 3238,
+        "ppa_wait_max_us": 12800,
+        "ppa_last_error": 0
+      },
+      "m2c_last": {
+        "calls": 4,
+        "chunks": 152,
+        "errors": 0,
+        "max_chunk_us": 86
+      },
+      "dsi_last": {
+        "query": 0,
+        "polls": 1370,
+        "error_polls": 1,
+        "status0_or": 1048576,
+        "status1_or": 0,
+        "dpi_overflow_polls": 0,
+        "dpi_underflow_polls": 0,
+        "first_us": 509484,
+        "last_us": 509484
+      },
+      "dsi_note": "启动约0.51秒有一次 status0=0x100000，观察窗口内次数与first/last时间未增加；不能声称全部DSI错误为零。"
+    },
+    "requests": {
+      "full_started": 3,
+      "headline_started": 19,
+      "success": 21,
+      "failure": 1,
+      "headline_intervals_ms": {
+        "min": 4988,
+        "max": 9995,
+        "mean": 5262.8
+      },
+      "failure_note": "唯一失败为上电约3.3秒Wi-Fi尚未就绪的Offline；联网后自动重试，后续21个请求成功。60秒完整批次占用单worker时，某次快速采样间隔约10秒，未排队追赶。"
+    },
+    "render_last": {
+      "frames": 27,
+      "draw_avg_us": 5537,
+      "output_avg_us": 2022,
+      "draw_max_us": 49093,
+      "total_max_us": 68434,
+      "render_cache_entries": 5,
+      "render_cache_bytes": 107312,
+      "cache_hits": 49,
+      "cache_misses": 7
+    }
+  },
+  "user_visual_acceptance": {
+    "status": "failed_display_alignment",
+    "layout": null,
+    "touch": null,
+    "position_orientation": "whole_screen_horizontal_wrap_reported",
+    "flicker": "display_fault_recurred",
+    "follow_up": "2026-10-08 用户照片显示运行中整屏横向绕回；新上电诊断90秒未见FIFO/欠载增长，但用户反馈仍偏移。另行修复共用显示扫描，不将此前短窗口视为稳定性通过。"
+  },
+  "git": {
+    "changes": "included_in_delivery_commit",
+    "branch": "codex/folio-ui",
+    "reason": "用户于 2026-10-08 授权提交并推送本轮累计改动",
+    "remote_verification": "推送后单独核对本地 HEAD 与远端分支 SHA；不作为实屏验收证据"
+  }
+}

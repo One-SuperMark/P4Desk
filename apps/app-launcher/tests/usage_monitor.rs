@@ -41,6 +41,8 @@ impl Transport for Mock {
             json!({"models":[{"model":"model-a","total_tokens":50,"actual_cost":0.5,"input_tokens":20,"output_tokens":10,"cache_read_tokens":20}]})
         } else if path.starts_with("/admin/dashboard/user-breakdown?") {
             json!({"users":[{"user_id":2,"email":"user@example.com","total_tokens":50,"actual_cost":0.5}]})
+        } else if path.starts_with("/admin/users?") {
+            json!({"total":1,"items":[{"id":2,"notes":"研发团队","username":"developer"}]})
         } else {
             panic!("unexpected API path")
         };
@@ -314,6 +316,47 @@ fn users_summary_covers_returned_rows_and_has_an_explicit_scope_label() {
     assert_eq!(data.totals.as_ref().unwrap().tokens, 50);
     assert_eq!(data.totals.as_ref().unwrap().cost, 0.5);
     assert_eq!(data.total_label, "当前范围用户汇总");
+    assert_eq!(data.users[0].display_name(), "研发团队");
+    assert!(!serde_json::to_string(&data.users).unwrap().contains("example.com"));
+}
+#[test]
+fn failed_user_profiles_keep_successful_usage_and_use_id_fallback() {
+    let mut transport = Mock { bad: Some("/admin/users?"), ..Default::default() };
+    let data = api::fetch(&mut transport, &c(), &scope(Page::Users, Period::Day), observed_ms()).unwrap();
+    assert_eq!(data.users[0].display_name(), "用户#2");
+    assert_eq!(data.totals.as_ref().unwrap().tokens, 50);
+    assert!(data.warning.as_deref().unwrap().contains("用户名称"));
+}
+#[test]
+fn cancelled_user_profile_request_does_not_complete_as_partial_usage() {
+    struct CancelProfiles(Mock);
+    impl Transport for CancelProfiles {
+        fn request(&mut self, c: &Config, path: &str, body: Option<&str>) -> Result<Vec<u8>, Error> {
+            if path.starts_with("/admin/users?") {
+                Err(Error::Cancelled)
+            } else {
+                self.0.request(c, path, body)
+            }
+        }
+    }
+    let result = api::fetch(&mut CancelProfiles(Mock::default()), &c(), &scope(Page::Users, Period::Day), observed_ms());
+    assert_eq!(result.unwrap_err(), Error::Cancelled);
+}
+#[test]
+fn user_detail_name_uses_latest_list_and_cannot_cross_configurations() {
+    let mut state = State::default();
+    state.config = Some(c());
+    let scope = scope(Page::Users, Period::Day);
+    let data = api::fetch(&mut Mock::default(), &c(), &scope, observed_ms()).unwrap();
+    state.remember_page(&scope, std::sync::Arc::new(data.clone()));
+    assert_eq!(state.user_display_name(2), "研发团队");
+    assert_eq!(state.user_display_name(987), "用户#987");
+    let mut nameless = data;
+    nameless.users[0].name = None;
+    state.remember_page(&scope, std::sync::Arc::new(nameless));
+    assert_eq!(state.user_display_name(2), "用户#2");
+    state.config = Some(Config::new("another.example", "test-key").unwrap());
+    assert_eq!(state.user_display_name(2), "用户#2");
 }
 #[test]
 fn yesterday_retains_all_hours_including_after_todays_observed_hour() {

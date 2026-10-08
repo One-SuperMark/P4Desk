@@ -103,6 +103,16 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 1.2.5
+  espressif/freetype:
+    component_hash: aa9f7657a69b2b1c1f49044017fc424081d4e0fe6e97834cb43883548d44e3ca
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.1'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 2.14.3~1
   espressif/tinyusb:
     component_hash: 16c8d774dab1f484d3e0c0f61105624d2424bbae864efd19818baf7b451b41e7
     dependencies:
@@ -143,8 +153,9 @@ direct_dependencies:
 - espressif/esp_lcd_touch
 - espressif/esp_lcd_touch_gt911
 - espressif/esp_wifi_remote
+- espressif/freetype
 - espressif/tinyusb
 - idf
-manifest_hash: 011ac86ffb3f17fa3a2c9b15b0b8a1ba255c144a229871129a9115425bd97f1c
+manifest_hash: 3ad1f7bff0ff8d577982578bb6827349b437521db96c46224436165716092371
 target: esp32p4
 version: 3.0.0

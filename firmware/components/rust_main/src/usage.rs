@@ -15,6 +15,7 @@ use std::sync::{
 };
 
 pub struct Service {
+    typeface_revision: usize,
     mailbox: Arc<(Mutex<Mailbox>, Condvar)>,
     generation: Arc<AtomicU32>,
     request_key: Option<(u64, Scope)>,
@@ -137,7 +138,7 @@ fn same_static_cards(a: &Data, b: &Data) -> bool {
         && a.users
             .iter()
             .zip(&b.users)
-            .all(|(a, b)| a.id == b.id && a.label == b.label && same_totals(&a.totals, &b.totals))
+            .all(|(a, b)| a.id == b.id && a.name == b.name && a.label == b.label && same_totals(&a.totals, &b.totals))
 }
 fn live_completion(state: &LauncherState, done: &Done) -> bool {
     let Work::Fetch(_, scope, _, _, FetchKind::Headline(base)) = &done.work else {
@@ -195,14 +196,33 @@ impl Service {
         let generation = Arc::new(AtomicU32::new(0));
         let shared = mailbox.clone();
         let epoch = generation.clone();
-        std::thread::Builder::new().name("p4desk-monitor".into()).stack_size(16*1024).spawn(move||{
+        let wake_mailbox = Arc::downgrade(&mailbox);
+        crate::typeface::register_waker(Arc::new(move || {
+            if let Some(mailbox) = wake_mailbox.upgrade() {
+                // Pair notifications with the same mutex as wait, preventing a
+                // request arriving between the predicate check and cv.wait.
+                let _guard = mailbox.0.lock().unwrap();
+                mailbox.1.notify_one();
+            }
+        }));
+        // FreeType work runs after networking on this worker. Host debug font
+        // parsing needs a larger stack than the optimized P4 build.
+        let stack_bytes = if cfg!(target_os = "espidf") { 32 * 1024 } else { 256 * 1024 };
+        std::thread::Builder::new().name("p4desk-monitor".into()).stack_size(stack_bytes).spawn(move||{
             let mut transport=Guarded{inner:transport,id:0,generation:epoch.clone()};
+            let mut user_names=app_launcher::usage::user_names::UserNameCache::default();
+            let worker_clock=std::time::Instant::now();
             let mut last_start = None::<std::time::Instant>;
             let mut starts = 0u32;
             loop {
                 let job={let(mut m,cv)= (shared.0.lock().unwrap(),&shared.1);
-                    while m.pending.is_none()&&!m.stop{m=cv.wait(m).unwrap();}
-                    if m.stop { transport.finish_batch(); break;} m.pending.take().unwrap()};
+                    while m.pending.is_none()&&!m.stop&&!crate::typeface::pending(){m=cv.wait(m).unwrap();}
+                    if m.stop { transport.finish_batch(); break;} m.pending.take()};
+                let Some(job) = job else {
+                    crate::typeface::drain_pending();
+                    std::thread::yield_now();
+                    continue;
+                };
                 transport.id=job.id;
                 let mut cached=None;
                 let began = std::time::Instant::now();
@@ -217,7 +237,7 @@ impl Service {
                 let result=match &job.work {
                     Work::Fetch(c,s,now,preflight,kind)=>{
                         let result=if let Some(e)=preflight { Err(*e) } else { match kind {
-                            FetchKind::Full => api::fetch(&mut transport,c,s,*now),
+                            FetchKind::Full => api::fetch_with_user_names(&mut transport,c,s,*now,&mut user_names,worker_clock.elapsed().as_millis().min(u64::MAX as u128) as u64),
                             FetchKind::Headline(base) => api::fetch_headline(&mut transport,c,s,*now,base),
                         }};
                         // Flash/TF persistence is bounded to full snapshots;
@@ -231,19 +251,31 @@ impl Service {
                         if epoch.load(Ordering::Acquire)!=job.id{return Err(Error::Cancelled)}
                         store.save_config(Some(c)).map_err(|_|Error::Storage)?;Ok(None)
                     }),
-                    Work::Forget=>store.save_config(None).map(|()|None).map_err(|_|Error::Storage),
+                    Work::Forget=>store.save_config(None).map(|()|{user_names.clear();None}).map_err(|_|Error::Storage),
                 };
                 // Reuse is confined to this batch; no socket or API-key header
                 // survives the worker's wait, even after cancellation/errors.
                 transport.finish_batch();
+                if matches!(&job.work, Work::Fetch(.., FetchKind::Full))
+                    && epoch.load(Ordering::Acquire) == job.id
+                {
+                    let data = result.as_ref().ok().and_then(|d| d.as_ref()).or(cached.as_ref());
+                    crate::typeface::prepare_and_warm(data);
+                }
                 crate::diagnostics::diagnostic!("p4desk_monitor: request=end ok={} duration_ms={} error={}",result.is_ok(),began.elapsed().as_millis(),result.as_ref().err().map(|e|format!("{e:?}")).unwrap_or("none".into()));
-                if let Ok(Some(d))=&result { crate::diagnostics::diagnostic!("p4desk_monitor: data models={} users={} accounts={} trend={} partial={}",d.models.len(),d.users.len(),d.accounts.len(),d.trend.len(),d.warning.is_some()); }
+                if let Ok(Some(d))=&result { crate::diagnostics::diagnostic!("p4desk_monitor: data models={} users={} named_users={} accounts={} trend={} partial={}",d.models.len(),d.users.len(),d.users.iter().filter(|u|u.name.is_some()).count(),d.accounts.len(),d.trend.len(),d.warning.is_some()); }
+                #[cfg(target_os = "espidf")]
+                if starts <= 24 || starts % 12 == 0 {
+                    let stack_free = unsafe { esp_idf_sys::uxTaskGetStackHighWaterMark(std::ptr::null_mut()) };
+                    crate::diagnostics::diagnostic!("p4desk_monitor: stack_free={}", stack_free);
+                }
                 if epoch.load(Ordering::Acquire)==job.id {
                     shared.0.lock().unwrap().done=Some(Done{id:job.id,work:job.work,result,cached});
                 }
             }
         })?;
         Ok(Self {
+            typeface_revision: tiny_flutter::graphics::font::typeface_revision(),
             mailbox,
             generation,
             request_key: None,
@@ -320,6 +352,13 @@ impl Service {
         }
     }
     pub fn poll(&mut self, state: &mut LauncherState) {
+        let typeface_revision = tiny_flutter::graphics::font::typeface_revision();
+        if self.typeface_revision != typeface_revision {
+            self.typeface_revision = typeface_revision;
+            // A successfully opened TF face replaces any previously visible
+            // missing glyphs, even if the HTTP data itself did not change.
+            state.changed();
+        }
         let now = state.monotonic_ms;
         state
             .usage
@@ -338,6 +377,10 @@ impl Service {
                 }
             }
             let fast_sample = matches!(&done.work, Work::Fetch(.., FetchKind::Headline(_)));
+            let cached_scope = match &done.work {
+                Work::Fetch(_, scope, ..) => Some(scope.clone()),
+                _ => None,
+            };
             let live_update = live_completion(state, &done);
             let open_after = matches!(done.work, Work::Save(..)) && done.result.is_ok();
             // Only explicit configuration work produces a one-shot result.
@@ -427,6 +470,12 @@ impl Service {
                     u.stale = u.data.is_some() || done.cached.is_some();
                     if u.data.is_none() {
                         u.data = done.cached.map(Arc::new);
+                        if let (Some(scope), Some(data)) = (cached_scope, u.data.clone()) {
+                            // The request scope and configuration were verified
+                            // above. Keep names available after opening a detail
+                            // from a restored offline TF list.
+                            u.remember_page(&scope, data);
+                        }
                     }
                     u.clamp_selection();
                     u.status = if configuration_dialog.is_some() {
@@ -679,6 +728,29 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(2));
         }
         panic!("background worker did not finish");
+    }
+    #[test]
+    fn offline_tf_user_list_keeps_name_when_opening_detail() {
+        let (mut service, mut state, store, fail, root) = setup("user-names-offline");
+        std::fs::create_dir_all(root.join("sd")).unwrap();
+        let config = Config::new("test.example", "test-key").unwrap();
+        state.usage.config = Some(config.clone());
+        state.usage.navigate(Page::Users, Period::Day, None);
+        let scope = api::scope(Period::Day, Page::Users, None, state.unix_ms, 480).unwrap();
+        let data = Data {
+            users: vec![usage::User { id: 17, name: Some("Saved name".into()), label: "用户#17".into(), totals: usage::Totals::default() }],
+            ..Data::default()
+        };
+        store.save_cache(&config, &scope, &data).unwrap();
+        fail.store(true, Ordering::Release);
+        service.poll(&mut state);
+        finish(&mut service, &mut state, |s| s.usage.data.is_some() && !s.usage.busy);
+        assert_eq!(state.usage.user_display_name(17), "Saved name");
+        assert_eq!(state.usage.cached_page_count(), 1);
+        state.usage.navigate(Page::Users, Period::Day, Some(17));
+        assert_eq!(state.usage.user_display_name(17), "Saved name");
+        drop(service);
+        let _ = std::fs::remove_dir_all(root);
     }
     #[test]
     fn live_completion_requires_exact_baseline_and_preserves_static_card_updates() {

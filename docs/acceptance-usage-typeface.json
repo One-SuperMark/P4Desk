@@ -1,0 +1,300 @@
+{
+  "date": "2026-10-08",
+  "request": "用量监控用户名称接入TF完整typeface，修复中文缺字框",
+  "cause": "user rows, avatar initials and detail names used UI subset; existing TF full OTF was not loaded",
+  "card_inventory": {
+    "source": "P4Desk file-list UI via connected USB",
+    "path": "/sdcard/fonts/NotoSansCJKsc-Regular.otf",
+    "size_display": "16.4 MB",
+    "font_uploaded_or_replaced": false
+  },
+  "implementation": {
+    "free_type": "espressif/freetype 2.14.3~1",
+    "file_stream": true,
+    "full_font_loaded_into_ram": false,
+    "free_type_psram_budget": 2097152,
+    "alpha_cache_bytes": 524288,
+    "alpha_cache_entries": 512,
+    "ui_executes_tf_io": false,
+    "background_worker": "reuse existing monitor worker",
+    "request_limit": 256,
+    "request_batch": 32,
+    "worker_stack_esp_bytes": 32768,
+    "prewarm": "first 5 names, up to 32 characters, 14 and 18 px",
+    "names_logged": false
+  },
+  "tests": {
+    "tiny_flutter_lib": {
+      "passed": 40,
+      "log": ".cache/usage-tf-typeface-font-tests.log"
+    },
+    "monitor_and_ui": {
+      "passed": 50,
+      "log": ".cache/usage-tf-typeface-ui-tests.log"
+    },
+    "firmware_runtime_lib": {
+      "passed": 57,
+      "log": ".cache/usage-tf-typeface-runtime-tests.log"
+    },
+    "production_c_hal": {
+      "passed": true,
+      "sanitizers": [
+        "ASan",
+        "UBSan"
+      ],
+      "log": ".cache/usage-tf-typeface-hal-tests.log"
+    }
+  },
+  "build": {
+    "status": "passed",
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "log": ".cache/usage-tf-typeface-build-frozen.log",
+    "source_sha256": {
+      "crates/tiny-flutter/src/graphics/font.rs": "310b2e4f128c57f6af4802320497e5f07d767a7d0fd9e8a97ecd197c4c29676f",
+      "apps/app-launcher/src/usage/ui.rs": "aee3b864a64fd09dad9a0c37c9ab44cb1dee1275ba3181bbfa2e46402c5b77e5",
+      "apps/app-launcher/src/usage/visuals.rs": "2344a4cd27353e99fdba20b5de066d66cbf26f98d54f519c415de696416d34c0",
+      "apps/app-launcher/src/files/ui.rs": "d76d2956e3c2990e2b623bfade58b7b1b9ce9dd1840df4d59a6b013789fef938",
+      "firmware/components/board_p4/typeface.c": "ea88433e86730d41291a113d1640969710d9d177cfab4ef8074cabf7583d4e73",
+      "firmware/components/board_p4/include/p4desk_typeface.h": "88d56a356660f4e84c5887cf2836d3838830c8a77da84fb438402038c8b83bb5",
+      "firmware/components/board_p4/CMakeLists.txt": "aa911945da944ab3ae2f9cf368f76b8945b64ed3f6e6941e50684b3d9a1dfdb4",
+      "firmware/components/board_p4/idf_component.yml": "9435860a2ce19811c999f74d9aecba36fe7796223be70f57a0cb4671217d76f6",
+      "firmware/components/rust_main/CMakeLists.txt": "1a5ae65345fc3c8b35b4f4d0efd80bdb9ca6d7679283154d2799768c525718ba",
+      "firmware/components/rust_main/src/typeface.rs": "43a67e45244dee501f537c7c1be16243095855b050f339bcc2fb51883fc922f2",
+      "firmware/components/rust_main/src/usage.rs": "d89f54bffe777901d02844eab2afec58311ccd9b176e5b972af4125f0a8228f3",
+      "firmware/components/rust_main/src/lib.rs": "a28ca460b885b74781bba6e22d1343dcd2d9f7040a42dd7b79099390b75cd397",
+      "firmware/dependencies.lock": "1c1784da8200262fc7cc814fbe9f627bb54065c536eaad0506659b6579266408",
+      "firmware/sdkconfig": "e1de4a34610f141de455b40c3e81635a2f6a59aa54b9e912016e39e60f7403de"
+    },
+    "artifacts": {
+      "flasher_args.json": {
+        "bytes": 911,
+        "sha256": "b72ae642525cfde46dca189772e9f433b2758f5afbf541a8964cbcf44917120d"
+      },
+      "p4desk.elf": {
+        "bytes": 32216412,
+        "sha256": "e70cc0125bc87c762c965220a178f15030121908225cea7200b882b5333c069d"
+      },
+      "bootloader/bootloader.bin": {
+        "bytes": 23888,
+        "sha256": "fc9c3534b9f183cc10e6bdd47fd43be5753023f3251981d679805939c35d8fa8"
+      },
+      "partition_table/partition-table.bin": {
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      },
+      "p4desk.bin": {
+        "bytes": 7477152,
+        "sha256": "eca90bafbc7304232973444309b9e51286662b2c8d5e18b85c05d94d0f3d9527"
+      }
+    }
+  },
+  "flash": {
+    "status": "passed",
+    "exit": 0,
+    "hash_checks": 3,
+    "stable_reset": true,
+    "app_bytes": 7477152,
+    "app_sha256": "eca90bafbc7304232973444309b9e51286662b2c8d5e18b85c05d94d0f3d9527",
+    "log": ".cache/usage-tf-typeface-20261008/flash.log",
+    "backup": "backups/2026-09-28/p4-before-p4desk.bin"
+  },
+  "device": {
+    "status": "passed_numeric_diagnostics",
+    "capture": ".cache/usage-tf-typeface-20261008/delivery/monitor.log",
+    "capture_metadata": ".cache/usage-tf-typeface-20261008/delivery/capture.json",
+    "seconds": 90.39,
+    "scenario": "after final stack reserve increase; idle monitor overview and automatic sampling",
+    "tf_ready": true,
+    "font_last": {
+      "memory_bytes": "1958105",
+      "peak_bytes": "1960379",
+      "alloc_failures": "0",
+      "metrics_ok": "4",
+      "render_ok": "2"
+    },
+    "font_peak_bytes": 1960379,
+    "font_allocation_failures": 0,
+    "stack_min_bytes": 11096,
+    "touch_last": {
+      "available": "1",
+      "read_started": "2866",
+      "read_finished": "2865",
+      "read_inflight": "1",
+      "last_finished_age_ms": "37",
+      "read_ok": "2865",
+      "read_errors": "0",
+      "last_error": "0",
+      "contact_frames": "0",
+      "fresh_frames": "0",
+      "pad_down": "0",
+      "pad_up": "0",
+      "pad_cancel": "0",
+      "queue_overflow": "0",
+      "queue_pops": "0",
+      "queue_count": "0",
+      "active": "0",
+      "blocked": "0",
+      "recovering": "0"
+    },
+    "memory_last": {
+      "uptime_s": "60",
+      "mode": "pad",
+      "internal_free": "75591",
+      "internal_min": "70691",
+      "psram_free": "15609812",
+      "psram_min": "15579812",
+      "alloc_failures": "0",
+      "last_alloc_bytes": "0",
+      "last_alloc_caps": "0x0",
+      "presented": "58",
+      "bad_jpeg": "0",
+      "parser_errors": "0",
+      "control_queue": "0",
+      "jpeg_received": "0",
+      "jpeg_dropped": "0",
+      "frame_ack_dropped": "0"
+    },
+    "display_last": {
+      "boundary_gap_max_us": "16641",
+      "delayed_over_25ms": "0",
+      "boundary_queue_peak": "2",
+      "cache_query": "0",
+      "cache_calls": "58",
+      "cache_errors": "0",
+      "cache_max_us": "1302",
+      "cache_last_error": "0",
+      "ppa_calls": "3",
+      "ppa_errors": "0",
+      "ppa_timeouts": "0",
+      "ppa_submit_max_us": "5911",
+      "ppa_wait_max_us": "13187",
+      "ppa_last_error": "0",
+      "resync_attempts": "0",
+      "resync_successes": "0",
+      "resync_failures": "0",
+      "resync_parked": "0"
+    },
+    "dsi_first": {
+      "query": "0",
+      "polls": "458",
+      "error_polls": "1",
+      "status0_or": "0x100000",
+      "status1_or": "0x0",
+      "dpi_overflow_polls": "0",
+      "dpi_underflow_polls": "0",
+      "first_us": "499101",
+      "last_us": "499101"
+    },
+    "dsi_last": {
+      "query": "0",
+      "polls": "913",
+      "error_polls": "1",
+      "status0_or": "0x100000",
+      "status1_or": "0x0",
+      "dpi_overflow_polls": "0",
+      "dpi_underflow_polls": "0",
+      "first_us": "499101",
+      "last_us": "499101"
+    },
+    "dsi_error_polls_added_between_samples": 0,
+    "dsi_note": "one host status record at startup; no additional error polls between 30 and 60 seconds",
+    "underruns_last": {
+      "underruns": "0",
+      "added": "0",
+      "first_us": "0",
+      "last_us": "0",
+      "last_age_ms": "-1"
+    },
+    "panic_or_watchdog_lines": 0,
+    "boot_records": 1,
+    "app_sha256": "eca90bafbc7304232973444309b9e51286662b2c8d5e18b85c05d94d0f3d9527"
+  },
+  "user_acceptance": {
+    "status": "pending",
+    "names_without_boxes": null,
+    "avatar_and_detail": null,
+    "input_and_display_stable": null
+  },
+  "intermediate_device": {
+    "capture": ".cache/usage-tf-typeface-20261008/pre-stack-reserve/monitor.log",
+    "seconds": 90.1,
+    "tf_ready": true,
+    "font_peak_bytes": 1963328,
+    "font_allocation_failures": 0,
+    "render_ok": 18,
+    "users": 6,
+    "named_users": 6,
+    "touch_last": {
+      "available": "1",
+      "read_started": "2834",
+      "read_finished": "2834",
+      "read_inflight": "0",
+      "last_finished_age_ms": "14",
+      "read_ok": "2834",
+      "read_errors": "0",
+      "last_error": "0",
+      "contact_frames": "232",
+      "fresh_frames": "271",
+      "pad_down": "13",
+      "pad_up": "13",
+      "pad_cancel": "0",
+      "queue_overflow": "0",
+      "queue_pops": "108",
+      "queue_count": "0",
+      "active": "0",
+      "blocked": "0",
+      "recovering": "0"
+    },
+    "memory_last": {
+      "uptime_s": "60",
+      "mode": "pad",
+      "internal_free": "75459",
+      "internal_min": "69343",
+      "psram_free": "15914192",
+      "psram_min": "15561100",
+      "alloc_failures": "0",
+      "last_alloc_bytes": "0",
+      "last_alloc_caps": "0x0",
+      "presented": "78",
+      "bad_jpeg": "0",
+      "parser_errors": "0",
+      "control_queue": "0",
+      "jpeg_received": "0",
+      "jpeg_dropped": "0",
+      "frame_ack_dropped": "0"
+    },
+    "display_last": {
+      "boundary_gap_max_us": "16614",
+      "delayed_over_25ms": "0",
+      "boundary_queue_peak": "2",
+      "cache_query": "0",
+      "cache_calls": "78",
+      "cache_errors": "0",
+      "cache_max_us": "1303",
+      "cache_last_error": "0",
+      "ppa_calls": "4",
+      "ppa_errors": "0",
+      "ppa_timeouts": "0",
+      "ppa_submit_max_us": "6010",
+      "ppa_wait_max_us": "12742",
+      "ppa_last_error": "0",
+      "resync_attempts": "0",
+      "resync_successes": "0",
+      "resync_failures": "0",
+      "resync_parked": "0"
+    },
+    "stack_min_bytes": 2904,
+    "action": "increase ESP monitor stack from 24 to 32 KiB for reserve",
+    "app_sha256": "b88053570368ea3aece1b235ff1b32fbe1663d0f589b37886295fbabeb7f5edb",
+    "worker_stack_bytes": 24576
+  },
+  "intermediate_flash": {
+    "status": "passed",
+    "exit": 0,
+    "hash_checks": 3,
+    "app_bytes": 7477152,
+    "log": ".cache/usage-tf-typeface-20261008/pre-stack-reserve/flash.log",
+    "backup": "backups/2026-09-28/p4-before-p4desk.bin"
+  }
+}

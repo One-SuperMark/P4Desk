@@ -12,7 +12,7 @@
 - `next_fb` / `next_index`：此次实际重新启动 DMA 使用的源缓冲。
 - `counter`：每次 full-transfer 都加一，包括重复扫描同一缓冲；面板初始化归零，无符号溢出时回绕。
 
-`completed_fb == next_fb` 时，缓冲仍被 DMA 读取，不能回收。仅在完成缓冲与下一缓冲不同、且显示 owner 的 pending/scanning 状态匹配事件时，才能回收旧缓冲。缓冲选择仍由唯一 display owner 调用原 `esp_lcd_panel_draw_bitmap` 完成；原 cache writeback 后才发布索引的顺序保留。
+`completed_fb == next_fb` 时，缓冲保持所有权，不能回收；正常扫描时它正在重复读取，主动重新同步期间则保留给恢复后的第一轮 DMA。仅在完成缓冲与下一缓冲不同、且显示 owner 的 pending/scanning 状态匹配事件时，才能回收旧缓冲。缓冲选择仍由唯一 display owner 调用原 `esp_lcd_panel_draw_bitmap` 完成；原 cache writeback 后才发布索引的顺序保留。
 
 事件代表源内存的 DMA 所有权边界，不代表玻璃上的光学显示完成。原 `on_refresh_done` / VSYNC 调用路径、顺序与中断行为保留，可继续用于显示统计。观察回调在原 DMA restart 之后、原非 VSYNC fallback refresh 回调之前执行。
 
@@ -20,7 +20,7 @@ callback/context 的注册与 ISR 快照使用同一 `portMUX`。回调在锁外
 
 ## 显示欠载诊断
 
-补丁 v5 保留 v3 的 DPI bridge underrun 饱和计数、首次／最近单调时间戳。ISR 只读取 IRAM 中的 `esp_timer_get_time` 并在短临界区更新固定大小数据，不打印、不分配、不复位；原中断清除、VSYNC 回调和 yield 路径保留。构建给实际编译生成驱动的 `esp_lcd` 目标增加私有 `esp_timer` 依赖。
+补丁 v6 保留 v3 的 DPI bridge underrun 饱和计数、首次／最近单调时间戳。ISR 只读取 IRAM 中的 `esp_timer_get_time` 并在短临界区更新固定大小数据，不打印、不分配、不复位；原中断清除、VSYNC 回调和 yield 路径保留。构建给实际编译生成驱动的 `esp_lcd` 目标增加私有 `esp_timer` 依赖。
 
 v4 对原有呈现 writeback 原位计时并检查返回值，失败时不发布新帧索引，不增加重复 cache 操作。`p4desk_lcd_cache_stats` 返回调用次数、错误次数、最大／累计调用耗时及最近错误码。耗时包含分块过程中的调度时间，不能解释成中断关闭时长。display owner 另记录 DMA 边界最大间隔、超过 25 ms 的间隔次数与边界队列峰值；PPA 记录 SDK prepare／cache／submit 的组合耗时及提交后的完成等待，不能解释成纯 cache 时间。
 
@@ -37,6 +37,23 @@ TRM PDF 第 2642 页（43.4.2.4）明确 Host `INT_ST0/1` 读后清零。唯一 
 TRM PDF 第 2661 页（Table 43.5-2）对这些 DPI FIFO 错误建议复位 Host 并重新发送，但本诊断 API 不复位、不修改中断掩码，不改变帧回收和所有权。发生报告后是否恢复由唯一 owner 的生命周期逻辑决定。Host 错误采样保持在 task，内部 RAM 中的统计不新增 ISR 的非 IRAM 调用。
 
 board C HAL 的 `board_p4_log_display_diagnostics()` 由 UI task 每 30 秒调用，内部再次限频，输出 `display underruns` 累计次数、本期新增、首次／最近发生时间及距最近事件的毫秒数。即使没有事件也输出零计数；零计数时 `last_age_ms=-1`。这个日志取代中断逐次打印，避免闪屏时日志风暴进一步占用 CPU；它只提供关联证据，不证明欠载就是当前闪屏原因，也不自动恢复显示。它不输出帧内容、凭据或缓冲地址。
+
+## 扫描重新同步与实际时序
+
+v6 新增 `p4desk_lcd_scan_resync(panel, timeout_ms, &result)`。调用 task 必须已经通过 `p4desk_lcd_host_errors_poll` 绑定为唯一 owner；其它 task、ISR、非 DPI handle 和 `1..1000` 毫秒范围外的超时均在请求停止前被拒绝。调用期间 owner 不得准备、写入或发布其它缓冲。
+
+停止请求和 ISR 承诺停止共用 `frame_observer_lock`。真实 full-transfer 完成后，硬件 DMA channel 已自然关闭，ISR 不再续传；它为当前源 A 投递 `A,A` 完成事件、增加原 counter，并在全部回调返回后标记 STOPPED。`cur_fb_index` 中可能已经发布的 B 保持不变。API 在 task 中保存显式 R/W 配置、关闭 Bridge 输出与 Host、复位 Bridge、恢复 Host 与 Bridge 配置，随后先重新从 A 启动 DMA；下一次正常完成才投递 `A,B`，由原 owner 状态机释放 A。不会清 counter、写入帧缓冲、改变其容量或玻璃 GPIO，也不复位共享 DW-GDMA controller 或 D-PHY。
+
+超时有两种明确结果：
+
+- `request_cancelled=true`：共同锁中的取消先于 ISR 的停止承诺，扫描仍正常运行，迟到完成仍按原流程续传。
+- `stopped=true && resumed=false`：ISR 已承诺停止，但回调尾部尚未在期限内返回。请求不能安全撤销，owner 必须保留全部缓冲所有权、停止正常提交；不得把超时理解成可回收、重新 init 或自动重试的许可。
+
+成功返回 `stopped && resumed`，owner 应立即排空所有真实完成事件，再恢复正常绘制。`result.counter/scanning_index/selected_index` 是停止边界的快照，索引不是内存地址，也不代表光学呈现。ISR 只更改停止状态、投递完成事件；复位和配置恢复都在 task。停止过程中 Bridge underrun 不计作新的带宽故障；同 owner 在 Host 保持关闭时只读清 `INT_ST0/1` 一次，把故意断流的报告留在 `recovery_status0/1`，不会加入正常错误增量。恢复后正常读取的报告继续被完整累计。
+
+`p4desk_lcd_scan_timing(panel, &snapshot)` 由同一个 bound owner 调用，返回当前 DPI clock source selector 对应的频率、live divider、实际 DPI Hz、HAL 已编程 PLL lane rate、Bridge H/V total 和可见尺寸、Host HLINE byte-clock 数与 V total、只读 FIFO 状态，以及 counter 和两个源索引。它不会访问 read-clear 错误寄存器，也不读取像素。对时间关系应使用整数交叉乘积核对，例如 `bridge_h_total × lane_rate_bps == host_hline × 8 × dpi_hz`；请求配置中的“52 MHz”不等于 live divider 后的实际像素频率。
+
+固定 SDK 的 HAL 对 Host 行长和 Bridge 实际行长分别四舍五入：当源为 240 MHz、请求 52 MHz、lane 为 1000 Mbit/s 时，live DPI 为 48 MHz。原输入 H total 1354 会得到 Bridge 1250、Host 3255 byte clocks，分别约 26.041667 与 26.040000 微秒。输入 H total 1352 则得到 1248 与 3250，行周期都为 26 微秒。这个计算为可验证的时序风险提供检查方向，不能单凭计算认定某次偏移的具体原因；面板实屏、长期运行以及恢复后的故障计数仍需独立验收。
 
 ## JPEG 解码容量
 

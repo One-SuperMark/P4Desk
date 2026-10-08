@@ -13,10 +13,10 @@
 extern "C" {
 #endif
 
-/** One complete DMA source read, followed by the actual next DMA selection. */
+/** One complete DMA source read, followed by the actual next selection/retention. */
 typedef struct {
     const void *completed_fb;  /**< Source whose full DMA transfer just completed. */
-    const void *next_fb;       /**< Source selected for the DMA transfer already restarted. */
+    const void *next_fb;       /**< Restarted source; same retained source during an intentional stop. */
     uint32_t counter;          /**< Full-transfer count, starting at 1 after panel init; wraps. */
     uint8_t completed_index;   /**< Index of completed_fb in the DPI framebuffer array. */
     uint8_t next_index;        /**< Index of next_fb in the DPI framebuffer array. */
@@ -28,7 +28,8 @@ typedef struct {
  * The event and its pointers describe DMA ownership, not optical presentation.
  * The event itself is valid only during this callback. Framebuffer allocations
  * remain valid until panel deletion. If completed_fb == next_fb, that buffer is
- * being read again and must not be overwritten. A single display owner must
+ * remains owned (being read again, or reserved during resync) and must not be
+ * overwritten. A single display owner must
  * still serialize rendering and selecting buffers.
  *
  * Keep this callback short and nonblocking. Return true when a higher priority
@@ -122,6 +123,56 @@ esp_err_t p4desk_lcd_host_errors_poll(esp_lcd_panel_handle_t panel);
 /** Task-context coherent RAM snapshot; does not read/clear hardware status. */
 esp_err_t p4desk_lcd_host_error_stats(esp_lcd_panel_handle_t panel,
                                     p4desk_lcd_host_error_stats_t *out);
+
+/** Result of a bounded scan resynchronization; no framebuffer addresses. */
+typedef struct {
+    uint32_t counter; /**< Last real DMA completion before restarting; never reset. */
+    uint32_t elapsed_us;
+    uint32_t recovery_status0, recovery_status1; /**< Intentional stopped-flow reports, archived separately. */
+    uint8_t scanning_index; /**< Retained source, restarted before any pending selection. */
+    uint8_t selected_index; /**< cur_fb_index, possibly a different PENDING source. */
+    bool stopped;
+    bool resumed;
+    bool request_cancelled;
+} p4desk_lcd_resync_result_t;
+
+/**
+ * @brief Resynchronize DMA, Bridge and Host without releasing buffer ownership.
+ *
+ * Only the task already bound by p4desk_lcd_host_errors_poll may call this API.
+ * timeout_ms must be 1..1000. A real full-transfer ISR stops further DMA reads,
+ * emits completed == next for the retained source, then acknowledges the stop.
+ * The task resets only the Bridge and Host, restores their configuration, and
+ * starts that same source. cur_fb_index and the completion counter are retained.
+ * Drain every queued completion immediately afterwards before submitting again.
+ *
+ * ESP_OK means stopped && resumed. ESP_ERR_TIMEOUT with request_cancelled means
+ * cancellation won the ISR lock before stop commitment; normal scanning remains
+ * active. If stopped && !resumed, the ISR committed the stop, but its callback
+ * has not completed by the deadline: retain ALL buffer ownership and fail closed.
+ * Never treat that timeout as permission to recycle/submit/reinitialize buffers.
+ * The request is not retried automatically. No allocation, framebuffer write,
+ * panel GPIO reset, optical-presentation claim, or global SDK modification occurs.
+ * Host INT_ST0/1 are read-clear once while the Host is held off; those intentional
+ * recovery reports are returned separately and do not count as normal errors.
+ */
+esp_err_t p4desk_lcd_scan_resync(esp_lcd_panel_handle_t panel,
+                               uint32_t timeout_ms,
+                               p4desk_lcd_resync_result_t *out);
+
+/** Live scan registers plus configured PLL rate, never pixel content/addresses. */
+typedef struct {
+    uint32_t source_hz, divider, dpi_hz, lane_bit_rate_kbps;
+    uint32_t bridge_h_total, bridge_v_total, bridge_h_active, bridge_v_active;
+    uint32_t host_hline_byte_clocks, host_v_total;
+    uint32_t bridge_fifo_depth, host_vid_status;
+    uint32_t counter;
+    uint8_t scanning_index, selected_index;
+} p4desk_lcd_scan_timing_t;
+
+/** Same bound-owner/task restriction; no read-clear Host report access. */
+esp_err_t p4desk_lcd_scan_timing(esp_lcd_panel_handle_t panel,
+                               p4desk_lcd_scan_timing_t *out);
 
 /**
  * @brief Get the reserved writable capacity of an exact DPI framebuffer.

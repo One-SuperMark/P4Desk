@@ -2,10 +2,12 @@
 #include "p4desk_hal.h"
 #include "touch_exit_notice.h"
 #include "pad_touch_queue.h"
+#include "pad_touch_recovery.h"
 #include "display_pixels.h"
 #include "display_ppa.h"
 #include "display_cache_sync.h"
 #include "display_pipeline.h"
+#include "display_scan_health.h"
 #include "pad_damage.h"
 #include "display_transition.h"
 #include "p4desk_lcd_frame_observer.h"
@@ -45,6 +47,11 @@ _Static_assert(ATOMIC_INT_LOCK_FREE == 2 && ATOMIC_BOOL_LOCK_FREE == 2 && ATOMIC
 #define HEARTBEAT_TIMEOUT_US 3000000LL
 #define DIAGNOSTICS_INTERVAL_US 30000000LL
 #define LCD_EVENT_QUEUE_COUNT 128
+#if CONFIG_P4DESK_LCD_RESYNC_SELF_TEST
+#define LCD_RESYNC_TEST_ENABLED 1
+#else
+#define LCD_RESYNC_TEST_ENABLED 0
+#endif
 
 typedef struct {
     p4p_header_t header;
@@ -94,10 +101,21 @@ static atomic_bool s_lcd_ownership_lost;
 static atomic_uint s_presented_frames, s_bad_jpeg;
 static atomic_uint s_jpeg_received, s_jpeg_dropped, s_frame_ack_dropped;
 static atomic_uint s_lcd_boundary_gap_max_us, s_lcd_delayed_boundaries, s_lcd_boundary_queue_peak;
+static atomic_uint s_lcd_resync_attempts, s_lcd_resync_successes, s_lcd_resync_failures;
+static atomic_bool s_lcd_resync_parked;
 static atomic_uint s_alloc_failures, s_last_alloc_bytes, s_last_alloc_caps;
 static atomic_uint s_pad_partial_copies, s_pad_full_copies, s_pad_skipped_copies;
 static atomic_uint s_pad_copy_bytes_window;
 static atomic_uint s_pad_copy_regions_window;
+// Numeric-only input health; no touch coordinates or contact IDs are logged.
+static atomic_uint s_touch_read_started, s_touch_read_finished;
+static atomic_bool s_touch_read_inflight;
+static atomic_uint s_touch_last_finished_ms;
+static atomic_uint s_touch_read_ok, s_touch_read_errors;
+static atomic_int s_touch_last_error;
+static atomic_uint s_touch_contact_frames, s_touch_fresh_frames;
+static atomic_uint s_touch_pad_down, s_touch_pad_up, s_touch_pad_cancel;
+static atomic_uint s_touch_queue_overflow, s_touch_queue_pops;
 static portMUX_TYPE s_state_lock = portMUX_INITIALIZER_UNLOCKED;
 static uint32_t s_mode = MODE_PAD, s_epoch = 1, s_session, s_jpeg_rotation_degrees;
 static bool s_connected, s_invalidated = true, s_time_valid;
@@ -107,6 +125,7 @@ static atomic_int s_battery_voltage_mv = -1;
 static atomic_uchar s_brightness = 75;
 static atomic_bool s_backlight_on = true;
 static bool s_pad_touch_active, s_pad_touch_blocked;
+static p4desk_pad_touch_recovery_t s_pad_touch_recovery;
 
 static void IRAM_ATTR allocation_failed(size_t bytes, uint32_t caps, const char *function)
 {
@@ -450,6 +469,7 @@ bool p4desk_poll_pad_touch(p4desk_pad_touch_event_t *event)
     portENTER_CRITICAL(&s_state_lock);
     bool ready = s_mode == MODE_PAD && p4desk_pad_touch_queue_pop(&s_pad_touch_queue, event);
     portEXIT_CRITICAL(&s_state_lock);
+    if (ready) atomic_fetch_add_explicit(&s_touch_queue_pops, 1, memory_order_relaxed);
     return ready;
 }
 
@@ -916,6 +936,37 @@ prepared_done:
     return true;
 }
 
+static bool resync_scan(display_pipeline_t *pipeline, uint32_t reasons)
+{
+    // This task is the only renderer/submitter. No BUILDING job is in flight
+    // here, and neither the scanning nor pending buffer is made writable.
+    atomic_fetch_add(&s_lcd_resync_attempts, 1);
+    p4desk_lcd_resync_result_t result = {0};
+    const esp_err_t err = p4desk_lcd_scan_resync(s_board->panel, 500, &result);
+    if (err == ESP_OK && result.resumed) {
+        // Includes the real stop boundary A->A. A pending B is deliberately
+        // kept until the next normal A->B completion; counters are not reset.
+        drain_boundaries(pipeline);
+        atomic_fetch_add(&s_lcd_resync_successes, 1);
+    } else {
+        atomic_fetch_add(&s_lcd_resync_failures, 1);
+        if (result.stopped && !result.resumed) {
+            // A committed stop cannot be treated as a cancelled request.
+            // Keep every buffer owned and stop publishing, rather than abort
+            // DMA, reuse a still-owned buffer, or reset application state.
+            atomic_store(&s_lcd_resync_parked, true);
+        }
+    }
+    ESP_LOGW("p4desk_scan_resync",
+        "reasons=0x%" PRIx32 " result=%d elapsed_us=%" PRIu32
+        " stopped=%d resumed=%d cancelled=%d scanning=%u selected=%u counter=%" PRIu32
+        " recovery_status0=0x%" PRIx32 " recovery_status1=0x%" PRIx32,
+        reasons, err, result.elapsed_us, result.stopped, result.resumed,
+        result.request_cancelled, result.scanning_index, result.selected_index, result.counter,
+        result.recovery_status0, result.recovery_status1);
+    return !atomic_load(&s_lcd_resync_parked);
+}
+
 static void display_task(void *argument)
 {
     (void)argument;
@@ -923,16 +974,64 @@ static void display_task(void *argument)
     display_pipeline_t pipeline = {.last_boundary_us = esp_timer_get_time()};
     p4dp_init(&pipeline.owner, 0);
     atomic_store(&s_display_owner_task, xTaskGetCurrentTaskHandle());
+    p4dsh_state_t scan_health;
+    p4dsh_init(&scan_health);
+    bool scan_timing_logged = false;
     int64_t last_host_poll_us = 0;
+#if CONFIG_P4DESK_LCD_RESYNC_SELF_TEST
+    bool resync_test_done = false;
+#endif
     for (;;) {
+        if (atomic_load(&s_lcd_resync_parked)) {
+            ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(20));
+            continue;
+        }
         drain_boundaries(&pipeline);
         const int64_t poll_now_us = esp_timer_get_time();
         if (poll_now_us - last_host_poll_us >= 50000) {
             // INT_ST0/1 are read-clear registers. Only this owner samples them;
             // the watchdog logs a coherent RAM snapshot without losing flags.
             ESP_ERROR_CHECK(p4desk_lcd_host_errors_poll(s_board->panel));
+            if (!scan_timing_logged) {
+                p4desk_lcd_scan_timing_t timing;
+                ESP_ERROR_CHECK(p4desk_lcd_scan_timing(s_board->panel, &timing));
+                const uint64_t bridge_period = (uint64_t)timing.bridge_h_total *
+                    timing.lane_bit_rate_kbps * 1000;
+                const uint64_t host_period = (uint64_t)timing.host_hline_byte_clocks *
+                    timing.dpi_hz * 8;
+                ESP_LOGI("p4desk_scan_timing",
+                    "source_hz=%" PRIu32 " divider=%" PRIu32 " dpi_hz=%" PRIu32
+                    " lane_kbps=%" PRIu32 " bridge_h=%" PRIu32 " bridge_v=%" PRIu32
+                    " host_h=%" PRIu32 " host_v=%" PRIu32 " active_w=%" PRIu32
+                    " active_h=%" PRIu32 " line_period_match=%d self_test=%d",
+                    timing.source_hz, timing.divider, timing.dpi_hz, timing.lane_bit_rate_kbps,
+                    timing.bridge_h_total, timing.bridge_v_total, timing.host_hline_byte_clocks,
+                    timing.host_v_total, timing.bridge_h_active, timing.bridge_v_active,
+                    bridge_period == host_period && timing.bridge_v_total == timing.host_v_total,
+                    LCD_RESYNC_TEST_ENABLED);
+                scan_timing_logged = true;
+            }
+            p4desk_lcd_host_error_stats_t host;
+            p4desk_lcd_underrun_stats_t bridge;
+            ESP_ERROR_CHECK(p4desk_lcd_host_error_stats(s_board->panel, &host));
+            ESP_ERROR_CHECK(p4desk_lcd_underrun_stats(s_board->panel, &bridge));
+            const p4dsh_snapshot_t snapshot = {
+                .bridge_underruns = bridge.count, .bridge_last_us = bridge.last_us,
+                .host_overflows = host.dpi_overflow_polls,
+                .host_underflows = host.dpi_underflow_polls,
+                .host_last_us = host.last_error_us, .host_last_status1 = host.last_status1,
+            };
+            const p4dsh_result_t decision = p4dsh_poll(&scan_health, &snapshot, poll_now_us);
+            if (decision.action == P4DSH_RECOVER && !resync_scan(&pipeline, decision.reasons))
+                continue;
             last_host_poll_us = poll_now_us;
         }
+#if CONFIG_P4DESK_LCD_RESYNC_SELF_TEST
+        if (!resync_test_done && poll_now_us >= 10000000) {
+            resync_test_done = true;
+            if (!resync_scan(&pipeline, UINT32_C(0x80000000))) continue;
+        }
+#endif
         submit_ready(&pipeline);
         bool prepared = prepare_buffer(&pipeline);
         // Drain first so a previous pending selection has actually started.
@@ -985,9 +1084,30 @@ static void touch_task(void *argument)
     for (;;) {
         esp_lcd_touch_point_data_t points[5] = {0};
         uint8_t count = 0;
-        if (s_board->touch && esp_lcd_touch_read_data(s_board->touch) == ESP_OK)
-            esp_lcd_touch_get_data(s_board->touch, points, &count, 5);
+        bool sample_ready = false;
+        esp_err_t touch_error = ESP_ERR_NOT_FOUND;
+        if (s_board->touch) {
+            atomic_store_explicit(&s_touch_read_inflight, true, memory_order_relaxed);
+            atomic_fetch_add_explicit(&s_touch_read_started, 1, memory_order_relaxed);
+            touch_error = board_p4_touch_read(s_board, &sample_ready);
+            if (touch_error == ESP_OK)
+                touch_error = esp_lcd_touch_get_data(s_board->touch, points, &count, 5);
+            if (touch_error == ESP_OK) {
+                atomic_fetch_add_explicit(&s_touch_read_ok, 1, memory_order_relaxed);
+            } else {
+                atomic_fetch_add_explicit(&s_touch_read_errors, 1, memory_order_relaxed);
+                atomic_store_explicit(&s_touch_last_error, touch_error, memory_order_relaxed);
+            }
+            atomic_store_explicit(&s_touch_last_finished_ms,
+                                  (uint32_t)(esp_timer_get_time() / 1000), memory_order_relaxed);
+            atomic_fetch_add_explicit(&s_touch_read_finished, 1, memory_order_relaxed);
+            atomic_store_explicit(&s_touch_read_inflight, false, memory_order_relaxed);
+        }
+        if (touch_error != ESP_OK) count = 0;
+        if (touch_error == ESP_OK && sample_ready)
+            atomic_fetch_add_explicit(&s_touch_fresh_frames, 1, memory_order_relaxed);
         if (count > 5) count = 5;
+        if (count) atomic_fetch_add_explicit(&s_touch_contact_frames, 1, memory_order_relaxed);
         for (uint8_t n = 0; n < count; n++) {
             if (points[n].x >= P4DESK_WIDTH) points[n].x = P4DESK_WIDTH - 1;
             if (points[n].y >= P4DESK_HEIGHT) points[n].y = P4DESK_HEIGHT - 1;
@@ -1009,6 +1129,9 @@ static void touch_task(void *argument)
             raw.points[n].id = points[n].track_id;
         }
         portENTER_CRITICAL(&s_state_lock);
+        const bool input_allowed = p4desk_pad_touch_sample_allowed(&s_pad_touch_recovery,
+            touch_error == ESP_OK, sample_ready, count);
+        if (!input_allowed) raw.count = 0;
         raw.session = s_session;
         s_raw_touch = raw;
         s_raw_touch_valid = true;
@@ -1017,14 +1140,14 @@ static void touch_task(void *argument)
         state_snapshot(&mode, &epoch, &session);
         if (mode == MODE_DISPLAY) {
             bool transitioning = display_transition_active(epoch);
-            if (transitioning || session != old_session) display_touch_blocked = true;
-            if (!transitioning && !count) display_touch_blocked = false;
+            if (transitioning || session != old_session || !input_allowed) display_touch_blocked = true;
+            if (!transitioning && input_allowed && !count) display_touch_blocked = false;
             uint8_t reported_count = display_touch_blocked ? 0 : count;
             if (reported_count || old_count || session != old_session)
                 send_touch(points, reported_count, session, sequence++);
             old_count = reported_count;
             old_session = session;
-            if (count >= 3) {
+            if (input_allowed && count >= 3) {
                 if (!three_since) three_since = esp_timer_get_time();
                 if (esp_timer_get_time() - three_since >= 1000000) {
                     send_touch(points, 0, session, sequence++);
@@ -1044,7 +1167,10 @@ static void touch_task(void *argument)
             if (s_mode == MODE_PAD) {
                 bool was_active = s_pad_touch_active;
                 int32_t old_x = s_pad_touch_x, old_y = s_pad_touch_y;
-                if (!count) {
+                if (!input_allowed) {
+                    s_pad_touch_active = false;
+                    s_pad_touch_blocked = true;
+                } else if (!count) {
                     s_pad_touch_active = false;
                     s_pad_touch_blocked = false;
                 } else if (!s_pad_touch_blocked) {
@@ -1064,13 +1190,24 @@ static void touch_task(void *argument)
                 uint32_t kind = 0;
                 if (!was_active && s_pad_touch_active) kind = P4DESK_PAD_TOUCH_DOWN;
                 else if (was_active && !s_pad_touch_active)
-                    kind = count ? P4DESK_PAD_TOUCH_CANCEL : P4DESK_PAD_TOUCH_UP;
+                    kind = !input_allowed || count ? P4DESK_PAD_TOUCH_CANCEL : P4DESK_PAD_TOUCH_UP;
                 else if (was_active && (old_x != s_pad_touch_x || old_y != s_pad_touch_y))
                     kind = P4DESK_PAD_TOUCH_MOVE;
-                if (kind && !p4desk_pad_touch_queue_push(&s_pad_touch_queue,
-                    (p4desk_pad_touch_event_t){.kind = kind, .x = s_pad_touch_x, .y = s_pad_touch_y})) {
-                    s_pad_touch_active = false;
-                    s_pad_touch_blocked = true;
+                if (kind) {
+                    if (!p4desk_pad_touch_queue_push(&s_pad_touch_queue,
+                        (p4desk_pad_touch_event_t){.kind = kind, .x = s_pad_touch_x, .y = s_pad_touch_y})) {
+                        // Queue overflow itself inserts one CANCEL event.
+                        atomic_fetch_add_explicit(&s_touch_queue_overflow, 1, memory_order_relaxed);
+                        atomic_fetch_add_explicit(&s_touch_pad_cancel, 1, memory_order_relaxed);
+                        s_pad_touch_active = false;
+                        s_pad_touch_blocked = true;
+                    } else if (kind == P4DESK_PAD_TOUCH_DOWN) {
+                        atomic_fetch_add_explicit(&s_touch_pad_down, 1, memory_order_relaxed);
+                    } else if (kind == P4DESK_PAD_TOUCH_UP) {
+                        atomic_fetch_add_explicit(&s_touch_pad_up, 1, memory_order_relaxed);
+                    } else if (kind == P4DESK_PAD_TOUCH_CANCEL) {
+                        atomic_fetch_add_explicit(&s_touch_pad_cancel, 1, memory_order_relaxed);
+                    }
                 }
             }
             portEXIT_CRITICAL(&s_state_lock);
@@ -1092,6 +1229,41 @@ static void log_diagnostics(int64_t now_us)
     // locks; all counters shared with display/USB tasks are 32-bit atomics.
     uint32_t mode;
     state_snapshot(&mode, NULL, NULL);
+    uint32_t touch_queue_count;
+    bool touch_active, touch_blocked, touch_recovering;
+    portENTER_CRITICAL(&s_state_lock);
+    touch_queue_count = s_pad_touch_queue.count;
+    touch_active = s_pad_touch_active;
+    touch_blocked = s_pad_touch_blocked;
+    touch_recovering = s_pad_touch_recovery.waiting_release;
+    portEXIT_CRITICAL(&s_state_lock);
+    // Modulo-32-bit milliseconds keep the input counters lock-free on P4.
+    const uint32_t touch_last_finished_ms =
+        atomic_load_explicit(&s_touch_last_finished_ms, memory_order_relaxed);
+    const uint32_t touch_finished_age_ms = (uint32_t)(esp_timer_get_time() / 1000)
+        - touch_last_finished_ms;
+    ESP_LOGI("p4desk_touch_health",
+        "available=%d read_started=%" PRIu32 " read_finished=%" PRIu32 " read_inflight=%d"
+        " last_finished_age_ms=%" PRIu32 " read_ok=%" PRIu32 " read_errors=%" PRIu32
+        " last_error=%" PRId32 " contact_frames=%" PRIu32 " fresh_frames=%" PRIu32 " pad_down=%" PRIu32
+        " pad_up=%" PRIu32 " pad_cancel=%" PRIu32 " queue_overflow=%" PRIu32
+        " queue_pops=%" PRIu32 " queue_count=%" PRIu32 " active=%d blocked=%d recovering=%d",
+        s_board->touch != NULL,
+        atomic_load_explicit(&s_touch_read_started, memory_order_relaxed),
+        atomic_load_explicit(&s_touch_read_finished, memory_order_relaxed),
+        atomic_load_explicit(&s_touch_read_inflight, memory_order_relaxed),
+        touch_finished_age_ms,
+        atomic_load_explicit(&s_touch_read_ok, memory_order_relaxed),
+        atomic_load_explicit(&s_touch_read_errors, memory_order_relaxed),
+        atomic_load_explicit(&s_touch_last_error, memory_order_relaxed),
+        atomic_load_explicit(&s_touch_contact_frames, memory_order_relaxed),
+        atomic_load_explicit(&s_touch_fresh_frames, memory_order_relaxed),
+        atomic_load_explicit(&s_touch_pad_down, memory_order_relaxed),
+        atomic_load_explicit(&s_touch_pad_up, memory_order_relaxed),
+        atomic_load_explicit(&s_touch_pad_cancel, memory_order_relaxed),
+        atomic_load_explicit(&s_touch_queue_overflow, memory_order_relaxed),
+        atomic_load_explicit(&s_touch_queue_pops, memory_order_relaxed),
+        touch_queue_count, touch_active, touch_blocked, touch_recovering);
     const uint32_t internal = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
     const uint32_t psram = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT;
     ESP_LOGI("p4desk_diag",
@@ -1138,12 +1310,15 @@ static void log_diagnostics(int64_t now_us)
         " cache_query=%d cache_calls=%" PRIu32 " cache_errors=%" PRIu32 " cache_max_us=%" PRIu32
         " cache_last_error=%" PRId32 " ppa_calls=%" PRIu32 " ppa_errors=%" PRIu32
         " ppa_timeouts=%" PRIu32 " ppa_submit_max_us=%" PRIu32 " ppa_wait_max_us=%" PRIu32
-        " ppa_last_error=%" PRId32,
+        " ppa_last_error=%" PRId32 " resync_attempts=%" PRIu32
+        " resync_successes=%" PRIu32 " resync_failures=%" PRIu32 " resync_parked=%d",
         atomic_load_explicit(&s_lcd_boundary_gap_max_us, memory_order_relaxed),
         atomic_load_explicit(&s_lcd_delayed_boundaries, memory_order_relaxed),
         atomic_load_explicit(&s_lcd_boundary_queue_peak, memory_order_relaxed),
         cache_query, cache.calls, cache.errors, cache.max_us, cache.last_error,
-        ppa.calls, ppa.errors, ppa.timeouts, ppa.submit_max_us, ppa.wait_max_us, ppa.last_error);
+        ppa.calls, ppa.errors, ppa.timeouts, ppa.submit_max_us, ppa.wait_max_us, ppa.last_error,
+        atomic_load(&s_lcd_resync_attempts), atomic_load(&s_lcd_resync_successes),
+        atomic_load(&s_lcd_resync_failures), atomic_load(&s_lcd_resync_parked));
 }
 
 int32_t p4desk_battery_voltage_mv(void)

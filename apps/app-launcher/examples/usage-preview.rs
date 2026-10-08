@@ -12,6 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for (page, period, detail) in [
             (Page::Overview, Period::Day, None),
             (Page::Accounts, Period::Day, None),
+            (Page::Accounts, Period::Month, None),
             (Page::Models, Period::Day, None),
             (Page::Users, Period::Day, None),
             (Page::Connection, Period::Day, None),
@@ -85,6 +86,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             for id in 1..=7 {
                 d.users.push(User {
                     id,
+                    name: [
+                        Some("Workspace"), Some("Alice"), None, Some("测试账号"),
+                        Some("Bob"), None, Some("Design team"),
+                    ][id as usize - 1].map(str::to_owned),
                     label: format!("u{id}********"),
                     totals: Totals {
                         tokens: 5_400_000 / id as u64,
@@ -93,7 +98,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 });
             }
-            for id in 1..=if page == Page::Accounts { 1 } else { 3 } {
+            for id in 1..=if page == Page::Accounts && period == Period::Day {
+                1
+            } else {
+                3
+            } {
                 d.accounts.push(Account {
                     id,
                     label: format!("p{id}********"),
@@ -138,6 +147,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 d.total_label = "全站统计".into();
             }
             if detail.is_some() {
+                if page == Page::Users {
+                    s.usage.config = Some(Config::new("monitor.example", "synthetic-key")?);
+                    let scope = api::scope(period, Page::Users, None, s.unix_ms, 480).unwrap();
+                    s.usage.remember_page(&scope, Arc::new(d.clone()));
+                }
                 d.accounts.clear();
                 d.users.clear();
                 d.yesterday = None;

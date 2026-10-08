@@ -56,7 +56,7 @@ impl<T: Transport + ?Sized> Transport for Box<T> {
         (**self).finish_batch()
     }
 }
-fn request(
+pub(crate) fn request(
     t: &mut impl Transport,
     c: &Config,
     path: &str,
@@ -93,7 +93,7 @@ fn string(v: &Value, key: &str, max: usize) -> String {
         .take(max)
         .collect()
 }
-fn array<'a>(v: &'a Value, key: &str, max: usize) -> Result<&'a Vec<Value>, Error> {
+pub(crate) fn array<'a>(v: &'a Value, key: &str, max: usize) -> Result<&'a Vec<Value>, Error> {
     let a = v[key].as_array().ok_or(Error::Format)?;
     if a.len() > max {
         Err(Error::TooLarge)
@@ -625,6 +625,42 @@ fn today_account_totals(
 }
 
 pub fn fetch(t: &mut impl Transport, c: &Config, s: &Scope, now: i64) -> Result<Data, Error> {
+    fetch_with_user_names(
+        t, c, s, now, &mut user_names::UserNameCache::default(), 0,
+    )
+}
+
+/// The device worker reuses a small name cache; headline samples never perform
+/// profile requests. Missing profile permissions do not discard usage totals.
+pub fn fetch_with_user_names(
+    t: &mut impl Transport,
+    c: &Config,
+    s: &Scope,
+    now: i64,
+    names: &mut user_names::UserNameCache,
+    monotonic_ms: u64,
+) -> Result<Data, Error> {
+    let mut data = fetch_data(t, c, s, now)?;
+    if s.page == Page::Users && s.detail.is_none() && !data.users.is_empty() {
+        match names.enrich(t, c, &mut data, monotonic_ms) {
+            Err(Error::Cancelled) => return Err(Error::Cancelled),
+            Err(Error::TooLarge) => {
+                let message = "部分用户名称未加载，已保留用量与已有名称";
+                match &mut data.warning {
+                    Some(warning) => {
+                        warning.push_str(" · ");
+                        warning.push_str(message);
+                    }
+                    None => data.warning = Some(message.into()),
+                }
+            }
+            result => warn(&mut data, "用户名称", result),
+        }
+    }
+    Ok(data)
+}
+
+fn fetch_data(t: &mut impl Transport, c: &Config, s: &Scope, now: i64) -> Result<Data, Error> {
     let mut d = Data {
         sampled_ms: now,
         total_label: "全站统计".into(),
@@ -777,7 +813,8 @@ pub fn fetch(t: &mut impl Transport, c: &Config, s: &Scope, now: i64) -> Result<
                 }
                 d.users.push(User {
                     id,
-                    label: masked(&string(r, "email", 80), id),
+                    name: user_names::clean_name(r),
+                    label: format!("用户#{id}"),
                     totals: totals(r)?,
                 });
             }

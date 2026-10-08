@@ -24,6 +24,24 @@
 
 Mac 默认使用随包的 HarmonyOS Sans SC Regular。升级时迁移指向旧 P4Desk 应用 Resources 的 Noto 默认路径；用户在外部目录选择的字体保留，包括文件名恰好为 `NotoSansSC-Regular.otf` 的自选字体。
 
+## TF 完整字体与动态名称
+
+2026-10-08：用量监控的用户名称、头像首字和详情标题改用 `Font::dynamic_font()`。此前它们走系统字形子集，没有接入 TF 字体，子集以外的中文会画成缺字框。
+
+动态名称逐字使用当前便签字形包、文件字形包、TF 完整字体，再回退到内置 UI 子集和拉丁字体。系统标签仍以内置 UI 为优先，便签与文件仍保留各自字形包的优先级。文字测量、截断和绘制使用同一解析路径。
+
+设备使用固定 `espressif/freetype 2.14.3~1` 的文件流读取完整 TTF／OTF，依次尝试：
+
+1. `/sdcard/fonts/HarmonyOS_Sans_SC_Regular.ttf`
+2. `/sdcard/fonts/NotoSansCJKsc-Regular.otf`
+3. `/sdcard/typeface/HarmonyOS_Sans_SC_Regular.ttf`
+
+本次已从实际 TF 目录确认第二项存在，约 16.4 MB。字体通过 Unicode cmap 查找字形，不把整份文件或全部轮廓展开进内存。FreeType 仅保留一个字体文件句柄，自定义分配器使用 PSRAM，预算 2 MiB（包含分配头和 realloc 短时重叠）；Rust alpha8 缓存限制为 512 KiB／512 项。
+
+首次打开字体和首屏五个用户的字形预热在现有监控后台线程完成。UI 缓存未命中时只投递有界请求（最多 256 项、每批 32 项），后台完成后通知文字布局重测和 UI 重绘，不在 UI 线程执行 FreeType／TF 读取，也不新建字体线程。未支持字符及暂时读取失败可回退，不会永久缓存成缺字；同一请求有短暂重试间隔。
+
+文件缺失、格式不支持、TF 读取异常或预算不足不会影响基础界面启动。Emoji 彩色字体不在此次加载范围，原字体未收录的字符仍会显示占位字形。字体读取状态、内存及成功次数仅记录数值，不记录用户名称、字符或正文。测试、构建、刷机及实屏确认分别记录在 `acceptance-usage-typeface.json`。
+
 ## 生成与检查
 
 ```sh

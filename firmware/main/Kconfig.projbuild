@@ -1,0 +1,11 @@
+menu "P4Desk display diagnostics"
+
+config P4DESK_LCD_RESYNC_SELF_TEST
+    bool "Exercise one owner-controlled DSI resynchronization after startup"
+    default n
+    help
+        Development verification only. The display owner exercises the same
+        bounded recovery path once after ten seconds, without changing any
+        application data or framebuffer ownership. Leave disabled for delivery.
+
+endmenu

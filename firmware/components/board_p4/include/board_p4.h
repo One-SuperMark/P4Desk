@@ -27,6 +27,12 @@ typedef struct {
 } board_p4_t;
 
 esp_err_t board_p4_init(board_p4_t *board);
+/**
+ * Read one GT911 poll, including errors ignored by the managed driver's ACK
+ * path. sample_ready is true only for a newly ready, successfully read frame;
+ * old cached zero contacts on a not-ready poll are not a release indication.
+ */
+esp_err_t board_p4_touch_read(board_p4_t *board, bool *sample_ready);
 esp_err_t board_p4_brightness(uint8_t percent);
 uint64_t board_p4_sd_free_bytes(void);
 // Call from one task at the UI performance cadence; internally limited to 30s.

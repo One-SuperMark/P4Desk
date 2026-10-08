@@ -30,6 +30,7 @@ Flash 的设置和便签删除记录写入独立 `p4settings` SPIFFS 分区（0x
 - TF 字形只加载索引，alpha8 图像按需读取。缓存限制为 512 KiB／512 项；整个字形包上限 8 MiB。
 - 系统标签通过 `Font::default_font()` 使用内置字形，旧 TF 字库不会覆盖它；便签标题／正文和快捷按钮标签通过 `Font::content_font()` 优先使用本代同步字形，再逐字回退到系统子集和拉丁字体。测量与绘制使用同一解析路径，支持显式换行、中文自动换行与滚动视口裁剪。
 - 字形生成与逐字节复现使用 `scripts/generate-ui-fonts.py`；固定来源、字重、字号和哈希见 `assets/fonts/SOURCES.json`、`assets/generated/ui-font.json`。
+- 网络动态名称另支持 TF 完整 TTF／OTF 的按需 FreeType 文件流。它不是便签／文件 P4F1 包，不受同步包覆盖字符集限制。FreeType PSRAM 预算 2 MiB，额外 alpha8 缓存 512 KiB／512 项，UI 未命中的请求由已有监控 worker 处理；路径、回退及失败行为见 [Pad 字体](pad-typeface.md)。
 
 Snapshot UTF-8 JSON 总量不超过 60 KiB，最多 32 条便签、48 个按钮。逐字段限制和 USB 包长度见 [协议 v1](protocol-v1.md)。
 

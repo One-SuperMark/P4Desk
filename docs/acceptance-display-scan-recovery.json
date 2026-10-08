@@ -1,0 +1,302 @@
+{
+  "date": "2026-10-08",
+  "base_commit": "5226b75fcd38ded0dbc6acfeae64162d7ddd784a",
+  "scope": "共用DPI扫描时序与保留所有权的异常恢复；保留未提交的监控UI精修",
+  "reported_failure": {
+    "whole_screen_horizontal_wrap": true,
+    "fresh_poweron_capture_seconds": 90.03,
+    "fifo_underrun_in_that_window": false,
+    "user_after_initial_capture": "仍然偏移",
+    "limit": "没有捕捉首次异常；不能把缺内存、启动D-PHY报告或行时序差异宣称为唯一已证实原因"
+  },
+  "changes": {
+    "hfp": 158,
+    "visible_size": [
+      1024,
+      600
+    ],
+    "dma_transfer_rows": 600,
+    "framebuffer_capacity_rows": 608,
+    "scan_owner": "single",
+    "resync_stop": "full-completion A→A",
+    "resume": "same A, then actual A→pending B",
+    "counter_reset": false,
+    "global_sdk_modified": false,
+    "retry_min_interval_ms": 3000,
+    "retry_limit_per_rolling_60s": 3,
+    "automatic_reset_of_app_state": false,
+    "startup_self_test": false,
+    "xip": false
+  },
+  "build": {
+    "status": "passed",
+    "source_hashes_match": true,
+    "log": ".cache/display-wrap-20261008/build-final.log",
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "xip": false,
+    "self_test": false,
+    "files": {
+      "p4desk.bin": {
+        "bytes": 7013056,
+        "sha256": "126b87726e08717466fe46a70adbd3260b5ef168937730bf888914e1a77fd7d6"
+      },
+      "p4desk.elf": {
+        "bytes": 27878824,
+        "sha256": "3a1f838dd93f52d918a54b8bf3007a7045a76404f279c992b7c5d127a9567061"
+      },
+      "flasher_args.json": {
+        "bytes": 911,
+        "sha256": "b72ae642525cfde46dca189772e9f433b2758f5afbf541a8964cbcf44917120d"
+      },
+      "bootloader/bootloader.bin": {
+        "bytes": 23888,
+        "sha256": "fc9c3534b9f183cc10e6bdd47fd43be5753023f3251981d679805939c35d8fa8"
+      },
+      "partition_table/partition-table.bin": {
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      }
+    },
+    "source_hashes": {
+      "firmware/components/board_p4/board_p4.c": "a6f9e07f7f4a7a28ffd54df9d1e959f2f75ebad91749a7bf76e7a7155931c023",
+      "firmware/main/p4desk_runtime.c": "a67b03c5320394665adce99098dcec77d371ae0e02950ff5ef8be917b5e73fe9",
+      "firmware/main/display_scan_health.c": "83cafaa841de6014f9841b946120200bd90b1ca4371cfef86c70eee804add577",
+      "firmware/main/display_scan_health.h": "cf1211b435c8c39aac2dea526224cb1cc5ee07b302a1812d9bba76c2e3a30547",
+      "firmware/sdkconfig.defaults": "d54f29e391be69d9083f7207e9361d00ca1504f80e0bdca895ed58584ffa92a9",
+      "firmware/main/Kconfig.projbuild": "7901febe5f8ed12ab9405d15b329e16bb699f172b5d49f407320ac16f99dceea",
+      "firmware/components/lcd_frame_observer/tools/generate_patch.py": "501f6fe1a2c66208f18f165352a522225bf9877f795b2dbfe8dc4e49058d44d0",
+      "firmware/components/lcd_frame_observer/include/p4desk_lcd_frame_observer.h": "d034adeb8da5ad4f0e4934bb7c3e68d1c0c0ef3886c8c33495d2b85aa3c81949",
+      "apps/app-launcher/src/usage/ui.rs": "c33a0def191c74fcf82ed3e6022f94e661f9880c61cc1760b5307bb0d7f075e2",
+      "apps/app-launcher/src/usage/visuals.rs": "b51fd1951456e388e36bb937af0d3debb087eb0d130d40d86f7c95010a61bded"
+    },
+    "dpi_patch_matches_source": true,
+    "patch_version": 6
+  },
+  "tests": {
+    "observer_actual_c_cases": 15,
+    "scan_health_asan_ubsan_cases": 11,
+    "scan_health_irregular_polls": 50000,
+    "pipeline_asan_ubsan": "passed",
+    "pad_damage_asan_ubsan": "passed",
+    "cache_sync_asan_ubsan": "passed",
+    "observer_log": ".cache/display-wrap-20261008/observer-tests.log"
+  },
+  "temporary_xip_self_test": {
+    "configuration": "XIP enabled temporarily; differs from final delivery",
+    "capture": {
+      "elapsed_seconds": 90.2,
+      "planned_seconds": 90,
+      "exit": 0,
+      "failure": null,
+      "filter": "numeric health, UI and request diagnostics; no content or credentials"
+    },
+    "log": ".cache/display-wrap-20261008/selftest/monitor.log",
+    "diagnostic_samples": 2,
+    "last_uptime_s": 60,
+    "heap_min_bytes": {
+      "internal": 78027,
+      "psram": 10677084
+    },
+    "allocation_failures": 0,
+    "last_free_bytes": {
+      "internal": 78867,
+      "psram": 10689336
+    },
+    "panic_or_assert_lines": 0,
+    "scan_timing": {
+      "source_hz": 240000000,
+      "divider": 5,
+      "dpi_hz": 48000000,
+      "lane_kbps": 1000000,
+      "bridge_h": 1248,
+      "bridge_v": 636,
+      "host_h": 3250,
+      "host_v": 636,
+      "active_w": 1024,
+      "active_h": 600,
+      "line_period_match": 1,
+      "self_test": 1
+    },
+    "display_health": {
+      "boundary_gap_max_us": 16638,
+      "delayed_over_25ms": 0,
+      "boundary_queue_peak": 1,
+      "cache_query": 0,
+      "cache_calls": 77,
+      "cache_errors": 0,
+      "cache_max_us": 573,
+      "cache_last_error": 0,
+      "ppa_calls": 4,
+      "ppa_errors": 0,
+      "ppa_timeouts": 0,
+      "ppa_submit_max_us": 1062,
+      "ppa_wait_max_us": 13133,
+      "ppa_last_error": 0,
+      "resync_attempts": 1,
+      "resync_successes": 1,
+      "resync_failures": 0,
+      "resync_parked": 0
+    },
+    "dsi_host": {
+      "query": 0,
+      "polls": 914,
+      "error_polls": 1,
+      "status0_or": 1048576,
+      "status1_or": 0,
+      "dpi_overflow_polls": 0,
+      "dpi_underflow_polls": 0,
+      "first_us": 448100,
+      "last_us": 448100
+    },
+    "bridge": {
+      "underruns": 0,
+      "added": 0,
+      "first_us": 0,
+      "last_us": 0,
+      "last_age_ms": -1
+    },
+    "scan_resyncs": [
+      {
+        "reasons": 2147483648,
+        "result": 0,
+        "elapsed_us": 16736,
+        "stopped": 1,
+        "resumed": 1,
+        "cancelled": 0,
+        "scanning": 1,
+        "selected": 1,
+        "counter": 591,
+        "recovery_status0": 1048576,
+        "recovery_status1": 0
+      }
+    ],
+    "session_saves_ok": 2,
+    "request_successes": 15,
+    "request_failures": 1,
+    "render_last": {
+      "frames": 27,
+      "draw_avg_us": 2512,
+      "output_avg_us": 951,
+      "draw_max_us": 26206,
+      "total_max_us": 37073,
+      "render_cache_entries": 5,
+      "render_cache_bytes": 107360,
+      "cache_hits": 29,
+      "cache_misses": 7
+    }
+  },
+  "flash": {
+    "status": "passed",
+    "verified_regions": 3,
+    "nvs_tf_preserved": true,
+    "log": ".cache/display-wrap-20261008/flash-final.log"
+  },
+  "final_device": {
+    "capture": {
+      "elapsed_seconds": 180.45,
+      "planned_seconds": 180,
+      "exit": 0,
+      "failure": null,
+      "filter": "numeric health, UI and request diagnostics; no content or credentials"
+    },
+    "log": ".cache/display-wrap-20261008/final/monitor.log",
+    "diagnostic_samples": 5,
+    "last_uptime_s": 150,
+    "heap_min_bytes": {
+      "internal": 67619,
+      "psram": 17570320
+    },
+    "allocation_failures": 0,
+    "last_free_bytes": {
+      "internal": 72375,
+      "psram": 17616572
+    },
+    "panic_or_assert_lines": 0,
+    "scan_timing": {
+      "source_hz": 240000000,
+      "divider": 5,
+      "dpi_hz": 48000000,
+      "lane_kbps": 1000000,
+      "bridge_h": 1248,
+      "bridge_v": 636,
+      "host_h": 3250,
+      "host_v": 636,
+      "active_w": 1024,
+      "active_h": 600,
+      "line_period_match": 1,
+      "self_test": 0
+    },
+    "display_health": {
+      "boundary_gap_max_us": 16657,
+      "delayed_over_25ms": 0,
+      "boundary_queue_peak": 2,
+      "cache_query": 0,
+      "cache_calls": 160,
+      "cache_errors": 0,
+      "cache_max_us": 1639,
+      "cache_last_error": 0,
+      "ppa_calls": 4,
+      "ppa_errors": 0,
+      "ppa_timeouts": 0,
+      "ppa_submit_max_us": 6233,
+      "ppa_wait_max_us": 12707,
+      "ppa_last_error": 0,
+      "resync_attempts": 0,
+      "resync_successes": 0,
+      "resync_failures": 0,
+      "resync_parked": 0
+    },
+    "dsi_host": {
+      "query": 0,
+      "polls": 2290,
+      "error_polls": 1,
+      "status0_or": 1048576,
+      "status1_or": 0,
+      "dpi_overflow_polls": 0,
+      "dpi_underflow_polls": 0,
+      "first_us": 444259,
+      "last_us": 444259
+    },
+    "bridge": {
+      "underruns": 0,
+      "added": 0,
+      "first_us": 0,
+      "last_us": 0,
+      "last_age_ms": -1
+    },
+    "scan_resyncs": [],
+    "session_saves_ok": 3,
+    "request_successes": 34,
+    "request_failures": 1,
+    "render_last": {
+      "frames": 55,
+      "draw_avg_us": 34935,
+      "output_avg_us": 14149,
+      "draw_max_us": 53877,
+      "total_max_us": 91088,
+      "render_cache_entries": 5,
+      "render_cache_bytes": 107360,
+      "cache_hits": 691,
+      "cache_misses": 8
+    }
+  },
+  "limits": [
+    "观察窗口与用户实屏验收分开；未完成24小时长测或USB副屏重新压测",
+    "普通启动ST0=0x100000单独记录，不称全部DSI错误为零",
+    "最终关闭XIP；大图预览原有内存峰值缺口属于独立待补强项，未据监控日志宣称所有应用无OOM"
+  ],
+  "user_visual_acceptance": {
+    "status": "position_restored_confirmed",
+    "position": "restored",
+    "touch": null,
+    "long_term": false,
+    "feedback": "2026-10-08 用户反馈“已经恢复了”；本次仅确认画面恢复，未额外确认触摸或长期运行。"
+  },
+  "git": {
+    "changes": "included_in_delivery_commit",
+    "branch": "codex/folio-ui",
+    "reason": "用户于 2026-10-08 授权提交并推送本轮累计改动",
+    "remote_verification": "推送后单独核对本地 HEAD 与远端分支 SHA；不作为实屏验收证据"
+  }
+}

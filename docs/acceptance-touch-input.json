@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-08",
+  "request": "修复刷入用户名版后屏幕点击没有反应",
+  "before": {
+    "capture": ".cache/touch-unresponsive-20261008/before/monitor.log",
+    "fresh_boot_observed": true,
+    "available": true,
+    "ui_and_monitor_running": true,
+    "limitation": "读取诊断口时出现新启动，原故障现场已丢失，不能归因或认定复现。"
+  },
+  "source_findings": [
+    "IDF6.0.2 generic panel I2C IO uses timeout=-1",
+    "managed GT911 ACKs status=not-ready; a newly arrived release may be discarded",
+    "managed GT911 zero-contact ACK failure may be ignored"
+  ],
+  "changes": [
+    "project GT911 IO finite wait and frame-budget parameters",
+    "not-ready status does not ACK; actual ready release ACK retained",
+    "sticky ignored I/O errors and fresh-frame flag",
+    "read failure CANCEL and wait for genuine empty frame, shared Pad/raw/USB input guard",
+    "bounded numeric health diagnostics without coordinates"
+  ],
+  "tests": {
+    "production_io": {
+      "passed_groups": 5,
+      "sanitizers": [
+        "ASan",
+        "UBSan"
+      ],
+      "log": ".cache/touch-unresponsive-20261008/io-tests.log"
+    },
+    "queue_and_recovery": {
+      "passed": true,
+      "log": ".cache/touch-unresponsive-20261008/touch-tests.log"
+    }
+  },
+  "build": {
+    "status": "passed",
+    "sdk": "ESP-IDF 6.0.2",
+    "rust": "nightly-2026-09-27",
+    "log": ".cache/touch-unresponsive-20261008/build-final.log",
+    "source_sha256": {
+      "firmware/components/board_p4/touch_io.c": "b2b9de1869af9fd5a0eb58eb27acea7ba768e40f777dbed8d4dcd05c16430fa9",
+      "firmware/components/board_p4/include/touch_io.h": "e5a7c7db520c849fc5526b3fe269bf864b3cd48de80d9eb0d7b3374a38f3d75b",
+      "firmware/components/board_p4/board_p4.c": "ac365ef9a656b8d79f4fdf9bc4a5599eafd2eae2617cb245aad57d7a015a8a44",
+      "firmware/components/board_p4/include/board_p4.h": "a9cee5f350bf4ef1aae3acce1b420bc589bfd730ab90267a67defdd9a1980f5f",
+      "firmware/main/p4desk_runtime.c": "531c1f7e640683ea13d8a89fcc6fca2fd51d7c125955bab7b30530b9b4c8ea32",
+      "firmware/main/pad_touch_recovery.h": "ca11fc0b004d869e454cfba681199adeba99e8722ed1c667b4e902d78a43c8d3",
+      "firmware/components/rust_main/src/usage.rs": "bf32aad87202d7a52f22baa84a13739f08b8775ee35051cb842c024d756795a3",
+      "apps/app-launcher/src/usage/api.rs": "ece1672f0cdaf131d7b74e5cbfdf0ce0e93bd92c4b94039ffbd17f3d60bf15d8",
+      "apps/app-launcher/src/usage/user_names.rs": "7e59b7f3d073f54ad413104d56acd941392067b4be5dcc8692876b0d7ad63acb",
+      "firmware/sdkconfig": "e1de4a34610f141de455b40c3e81635a2f6a59aa54b9e912016e39e60f7403de"
+    },
+    "artifacts": {
+      "flasher_args.json": {
+        "sha256": "b72ae642525cfde46dca189772e9f433b2758f5afbf541a8964cbcf44917120d",
+        "bytes": 911
+      },
+      "p4desk.bin": {
+        "sha256": "68feff547ff4bbc431cecfed0ab0ae35e48f239d92919a82d9076f1d88676e67",
+        "bytes": 7020512
+      },
+      "p4desk.elf": {
+        "sha256": "a1e1ec704e46a426b7b8a53bc5417070bd8c8a0beaef844b590f90c74f17fcde",
+        "bytes": 27969288
+      },
+      "bootloader/bootloader.bin": {
+        "sha256": "fc9c3534b9f183cc10e6bdd47fd43be5753023f3251981d679805939c35d8fa8",
+        "bytes": 23888
+      },
+      "partition_table/partition-table.bin": {
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330",
+        "bytes": 3072
+      }
+    }
+  },
+  "flash": {
+    "status": "passed",
+    "exit": 0,
+    "log": ".cache/touch-unresponsive-20261008/flash.log",
+    "hash_checks": 3,
+    "backup": "backups/2026-09-28/p4-before-p4desk.bin"
+  },
+  "device": {
+    "status": "input_delivery_observed_visual_acceptance_pending",
+    "capture": ".cache/touch-unresponsive-20261008/delivery/monitor.log",
+    "capture_seconds": 90.28,
+    "hardware_touch_available": true,
+    "last_touch_health_uptime_seconds": 60,
+    "touch_health": {
+      "read_started": 2853,
+      "read_finished": 2853,
+      "read_inflight": 0,
+      "read_ok": 2853,
+      "read_errors": 0,
+      "contact_frames": 28,
+      "fresh_frames": 40,
+      "pad_down": 4,
+      "pad_up": 4,
+      "pad_cancel": 0,
+      "queue_overflow": 0,
+      "queue_pops": 8,
+      "queue_count": 0,
+      "active": 0,
+      "blocked": 0,
+      "recovering": 0
+    },
+    "ui_presented_frames_at_30_and_60_seconds": [
+      45,
+      72
+    ],
+    "allocation_failures_at_60_seconds": 0,
+    "limitation": "Numeric logs confirm physical contacts traversed sampling, queue and UI consumption. Visual button action and drag acceptance still await user confirmation."
+  },
+  "user_acceptance": {
+    "status": "pending",
+    "clicks_restored": null,
+    "drag_and_release": null
+  },
+  "cause": "Related I/O timeout, not-ready ACK and ignored ACK failure risks corrected; original runtime cause remains unconfirmed because initial diagnostic capture observed a new boot."
+}

@@ -3,6 +3,7 @@ pub mod api;
 pub mod headline;
 pub mod trend;
 pub mod ui;
+pub mod user_names;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::VecDeque;
@@ -130,8 +131,21 @@ pub struct Model {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct User {
     pub id: i64,
+    /// Actual display name from the user profile. Older snapshots omit it.
+    #[serde(default)]
+    pub name: Option<String>,
     pub label: String,
     pub totals: Totals,
+}
+impl User {
+    pub fn display_name(&self) -> String {
+        self.name
+            .as_deref()
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned)
+            .unwrap_or_else(|| format!("用户#{}", self.id))
+    }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Window {
@@ -415,6 +429,32 @@ impl State {
     }
     pub fn cached_page_count(&self) -> usize {
         self.page_snapshots.len()
+    }
+    /// Resolve a detail title from the current list or a snapshot belonging to
+    /// this exact configuration. Names follow stable IDs across ranking changes.
+    pub fn user_display_name(&self, id: i64) -> String {
+        if let Some(user) = self
+            .data
+            .as_ref()
+            .and_then(|d| d.users.iter().find(|u| u.id == id))
+        {
+            return user.display_name();
+        }
+        if let Some(config) = &self.config {
+            let digest = config_digest(config);
+            for snapshot in self
+                .page_snapshots
+                .iter()
+                .rev()
+                .filter(|p| p.config_digest == digest)
+            {
+                if let Some(user) = snapshot.data.users.iter().find(|u| u.id == id) {
+                    // An explicitly nameless newer profile supersedes old names.
+                    return user.display_name();
+                }
+            }
+        }
+        format!("用户#{id}")
     }
     pub fn clear_page_cache(&mut self) {
         self.page_snapshots.clear();

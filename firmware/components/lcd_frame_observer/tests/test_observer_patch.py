@@ -98,6 +98,7 @@ typedef int esp_err_t;
 #define ESP_ERR_INVALID_STATE 2
 #define MIPI_DSI_BRG_LL_EVENT_UNDERRUN 1
 #define MIPI_DSI_BRG_LL_EVENT_VSYNC 2
+enum { P4DESK_SCAN_RUNNING, P4DESK_SCAN_REQUESTED, P4DESK_SCAN_STOPPING, P4DESK_SCAN_STOPPED };
 #define ESP_RETURN_ON_FALSE(condition, code, ...) do { if (!(condition)) return (code); } while(0)
 #define __containerof(pointer, type, field) ((type *)((char *)(pointer) - offsetof(type, field)))
 typedef struct { int (*draw_bitmap)(void), (*draw_bitmap_2d)(void); } esp_lcd_panel_t;
@@ -109,6 +110,7 @@ typedef struct {
     esp_lcd_panel_t base;
     fake_bus_t *bus;
     int frame_observer_lock;
+    uint8_t scan_stop_state;
     p4desk_lcd_underrun_stats_t underrun_stats;
     bool (*on_refresh_done)(esp_lcd_panel_t *, void *, void *);
     void *user_ctx;
@@ -165,6 +167,10 @@ int main(void)
     now_us = 400; mipi_dsi_bridge_isr_handler(&panel);
     assert(panel.underrun_stats.count == UINT32_MAX && panel.underrun_stats.first_us == 0);
     assert(panel.underrun_stats.last_us == 400 && lock_depth == 0);
+    panel.scan_stop_state = P4DESK_SCAN_STOPPING;
+    now_us = 500; mipi_dsi_bridge_isr_handler(&panel);
+    assert(panel.underrun_stats.last_us == 400); // intentional stopped stream
+    panel.scan_stop_state = P4DESK_SCAN_RUNNING;
     assert(p4desk_lcd_underrun_stats(&panel.base, &stats) == ESP_ERR_INVALID_STATE);
     assert(stats.count == 0 && stats.first_us == 0 && stats.last_us == 0);
     in_isr = false;
@@ -175,7 +181,7 @@ int main(void)
     panel.base.draw_bitmap_2d = wrong_method;
     stats.count = 99;
     assert(p4desk_lcd_underrun_stats(&panel.base, &stats) == ESP_ERR_INVALID_ARG && stats.count == 0);
-    assert(lock_depth == 0 && cleared == 7);
+    assert(lock_depth == 0 && cleared == 8);
     return 0;
 }
 '''
@@ -614,6 +620,7 @@ typedef void *dw_gdma_channel_handle_t;
 typedef void *dw_gdma_link_list_handle_t;
 typedef struct { int unused; } dw_gdma_trans_done_event_data_t;
 typedef struct { bool is_valid, is_last; } dw_gdma_block_markers_t;
+enum { P4DESK_SCAN_RUNNING, P4DESK_SCAN_REQUESTED, P4DESK_SCAN_STOPPING, P4DESK_SCAN_STOPPED };
 typedef struct {
     const void *completed_fb, *next_fb;
     uint32_t counter;
@@ -624,6 +631,7 @@ typedef struct {
     esp_lcd_panel_t base;
     int frame_observer_lock;
     uint8_t scanning_fb_index, cur_fb_index;
+    uint8_t scan_stop_state;
     uint32_t frame_observer_counter;
     p4desk_lcd_frame_observer_cb_t frame_observer_callback;
     void *frame_observer_context;
@@ -652,8 +660,9 @@ static void dw_gdma_channel_enable_ctrl(void *channel, bool enabled)
 static bool observer(esp_lcd_panel_t *panel, const p4desk_lcd_frame_event_t *event, void *context)
 {
     assert(panel == &running_panel->base && context == &context_value);
-    assert(lock_depth == 0 && restarts == observed + 1);
-    assert(selected_list == running_panel->link_lists[event->next_index]);
+    assert(lock_depth == 0);
+    if (running_panel->scan_stop_state != P4DESK_SCAN_STOPPING)
+        assert(selected_list == running_panel->link_lists[event->next_index]);
     assert(event->completed_fb == running_panel->fbs[event->completed_index]);
     assert(event->next_fb == running_panel->fbs[event->next_index]);
     last = *event; ++observed;
@@ -697,6 +706,21 @@ int main(void)
     assert(!result && refreshes == 0);
 #endif
     assert(lock_depth == 0 && observed == 5 && restarts == 6);
+    // Pending source 2 must not be selected when stopping source 0. The real
+    // completion increments the counter and emits A,A, keeping ownership A.
+    panel.frame_observer_callback = observer;
+    refresh_wakes = false;
+    panel.cur_fb_index = 2;
+    panel.scan_stop_state = P4DESK_SCAN_REQUESTED;
+    assert(!mipi_dsi_dma_trans_done_cb(NULL, NULL, &panel));
+    assert(panel.scan_stop_state == P4DESK_SCAN_STOPPED);
+    assert(last.completed_index == 0 && last.next_index == 0 && last.counter == 2);
+    assert(panel.scanning_fb_index == 0 && panel.cur_fb_index == 2 && restarts == 6);
+    // Task restart uses A, retaining B; the next normal completion changes A->B.
+    panel.scan_stop_state = P4DESK_SCAN_RUNNING;
+    assert(!mipi_dsi_dma_trans_done_cb(NULL, NULL, &panel));
+    assert(last.completed_index == 0 && last.next_index == 2 && last.counter == 3);
+    assert(restarts == 7 && observed == 7);
     return 0;
 }
 '''
@@ -784,6 +808,299 @@ int main(void)
                                      str(source), "-o", str(executable)], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             subprocess.run([str(executable)], check=True, capture_output=True, text=True)
+
+    def test_actual_resync_preserves_pending_source_and_bounds_cancel_races(self) -> None:
+        compiler = shutil.which("cc")
+        if not compiler:
+            self.skipTest("host C compiler unavailable")
+        callback = function_source(self.patched_text, "bool mipi_dsi_dma_trans_done_cb(",
+                                   "void mipi_dsi_bridge_isr_handler")
+        owner_check = function_source(self.patched_text, "static esp_err_t p4desk_scan_owner_check(",
+                                      "esp_err_t p4desk_lcd_scan_timing(")
+        resync = function_source(self.patched_text, "esp_err_t p4desk_lcd_scan_resync(",
+                                 "// Project-local extension.")
+        header = (COMPONENT / "include/p4desk_lcd_frame_observer.h").read_text()
+        result_start = header.index("typedef struct {", header.index("/** Result of a bounded scan resynchronization"))
+        result_end = header.index("} p4desk_lcd_resync_result_t;", result_start) + len("} p4desk_lcd_resync_result_t;")
+        host_members = "\n".join(f"    reg_t {name};" for name in patch.HOST_RESYNC_REGS + ["int_st0", "int_st1", "pwr_up"])
+        bridge_members = "\n".join(f"    reg_t {name};" for name in patch.BRIDGE_RESYNC_REGS + ["int_ena", "en"])
+        fixture = r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+typedef int esp_err_t;
+#define ESP_OK 0
+#define ESP_ERR_INVALID_ARG 1
+#define ESP_ERR_INVALID_STATE 2
+#define ESP_ERR_TIMEOUT 3
+#define ESP_ERR_NOT_SUPPORTED 4
+#define HAL_CONFIG(x) 300
+#define MIPI_DSI_BRG_LL_EVENT_VSYNC 1
+#define ESP_RETURN_ON_FALSE(c, e, ...) do { if (!(c)) return (e); } while(0)
+#define ESP_RETURN_ON_ERROR(c, ...) do { int e = (c); if(e) return e; } while(0)
+#define __containerof(p, t, f) ((t *)((char *)(p) - offsetof(t, f)))
+enum { P4DESK_SCAN_RUNNING, P4DESK_SCAN_REQUESTED, P4DESK_SCAN_STOPPING, P4DESK_SCAN_STOPPED };
+typedef union { uint32_t val, dpi_en, shutdownz; } reg_t;
+@REG_TYPES@
+typedef struct { fake_host_t *host; fake_bridge_t *bridge; } mipi_dsi_hal_context_t;
+typedef struct { mipi_dsi_hal_context_t hal; } fake_bus_t;
+typedef void *TaskHandle_t;
+typedef struct { int (*draw_bitmap)(void), (*draw_bitmap_2d)(void); } esp_lcd_panel_t;
+typedef esp_lcd_panel_t *esp_lcd_panel_handle_t;
+typedef void *dw_gdma_channel_handle_t;
+typedef void *dw_gdma_link_list_handle_t;
+typedef struct { int unused; } dw_gdma_trans_done_event_data_t;
+typedef struct { bool is_valid, is_last; } dw_gdma_block_markers_t;
+typedef struct {
+    const void *completed_fb, *next_fb; uint32_t counter;
+    uint8_t completed_index, next_index;
+} p4desk_lcd_frame_event_t;
+typedef bool (*p4desk_lcd_frame_observer_cb_t)(esp_lcd_panel_t *, const p4desk_lcd_frame_event_t *, void *);
+@RESULT_TYPE@
+typedef struct {
+    esp_lcd_panel_t base; fake_bus_t *bus;
+    int frame_observer_lock;
+    uint8_t scanning_fb_index, cur_fb_index, scan_stop_state;
+    uint32_t frame_observer_counter;
+    TaskHandle_t host_error_owner;
+    p4desk_lcd_frame_observer_cb_t frame_observer_callback;
+    void *frame_observer_context;
+    uint8_t *fbs[3];
+    dw_gdma_link_list_handle_t link_lists[3];
+    dw_gdma_channel_handle_t dma_chan;
+} esp_lcd_dpi_panel_t;
+static esp_lcd_dpi_panel_t *running_panel;
+static int lock_depth, restarts, observed, power_downs, power_ups, bridge_resets, context;
+static bool in_isr;
+static int64_t now_us;
+static void *selected_list;
+static p4desk_lcd_frame_event_t last;
+static TaskHandle_t caller = (void *)1;
+enum { COMPLETE_AFTER_DELAY, NEVER_COMPLETE, COMMIT_WITHOUT_CALLBACK_TAIL };
+static int delay_mode;
+#define portENTER_CRITICAL(lock) do { (void)(lock); assert(!in_isr && !lock_depth); ++lock_depth; } while(0)
+#define portEXIT_CRITICAL(lock) do { (void)(lock); assert(!in_isr && lock_depth == 1); --lock_depth; } while(0)
+#define portENTER_CRITICAL_ISR(lock) do { (void)(lock); assert(in_isr && !lock_depth); ++lock_depth; } while(0)
+#define portEXIT_CRITICAL_ISR(lock) do { (void)(lock); assert(in_isr && lock_depth == 1); --lock_depth; } while(0)
+static bool xPortInIsrContext(void) { return in_isr; }
+static TaskHandle_t xTaskGetCurrentTaskHandle(void) { return caller; }
+static int64_t esp_timer_get_time(void) { return now_us; }
+static int dpi_panel_draw_bitmap(void) { return 0; }
+static int dpi_panel_draw_bitmap_2d(void) { return 0; }
+static void *dw_gdma_link_list_get_item(void *list, int index) { assert(index == 0); return list; }
+static void dw_gdma_lli_set_block_markers(void *item, dw_gdma_block_markers_t markers)
+{ assert(item && markers.is_valid && markers.is_last && !lock_depth); }
+static int dw_gdma_channel_use_link_list(void *channel, void *list)
+{ assert(channel == running_panel->dma_chan); selected_list = list; return ESP_OK; }
+static int dw_gdma_channel_enable_ctrl(void *channel, bool enabled)
+{ assert(channel == running_panel->dma_chan && enabled); ++restarts; return ESP_OK; }
+static bool observer(esp_lcd_panel_t *panel, const p4desk_lcd_frame_event_t *event, void *arg)
+{
+    assert(panel == &running_panel->base && arg == &context && !lock_depth);
+    last = *event; ++observed; return false;
+}
+static void mipi_dsi_brg_ll_enable_dpi_output(fake_bridge_t *dev, bool enabled)
+{ dev->dpi_misc_config.val = (dev->dpi_misc_config.val & ~1U) | enabled; }
+static void mipi_dsi_brg_ll_update_dpi_config(fake_bridge_t *dev) { (void)dev; }
+static void mipi_dsi_brg_ll_enable(fake_bridge_t *dev, bool enabled) { dev->en.val = enabled; }
+static void mipi_dsi_brg_ll_clear_interrupt_status(fake_bridge_t *dev, uint32_t mask)
+{ (void)dev; assert(mask == UINT32_MAX); }
+static void mipi_dsi_host_ll_power_on_off(fake_host_t *dev, bool enabled)
+{
+    if (enabled) ++power_ups; else ++power_downs;
+    dev->pwr_up.val = enabled;
+}
+static void mipi_dsi_brg_ll_reset(fake_bridge_t *dev)
+{
+    // Model reset destroying config: every saved R/W field must be restored.
+    assert(!in_isr && !lock_depth); ++bridge_resets;
+    memset(dev, 0, sizeof(*dev));
+}
+bool mipi_dsi_dma_trans_done_cb(void *, const dw_gdma_trans_done_event_data_t *, void *);
+static void vTaskDelay(int ticks)
+{
+    assert(ticks == 1 && !in_isr && !lock_depth);
+    now_us += 1000;
+    if (delay_mode == COMPLETE_AFTER_DELAY && running_panel->scan_stop_state == P4DESK_SCAN_REQUESTED) {
+        in_isr = true; mipi_dsi_dma_trans_done_cb(running_panel->dma_chan, NULL, running_panel); in_isr = false;
+    } else if (delay_mode == COMMIT_WITHOUT_CALLBACK_TAIL) {
+        // Model deadline racing the ISR after its commitment lock, before its
+        // observer has returned: timeout cannot cancel or restart hardware.
+        running_panel->scan_stop_state = P4DESK_SCAN_STOPPING;
+    }
+}
+'''
+        fixture = fixture.replace("@REG_TYPES@", f"typedef struct {{\n{host_members}\n}} fake_host_t;\ntypedef struct {{\n{bridge_members}\n}} fake_bridge_t;")
+        fixture = fixture.replace("@RESULT_TYPE@", header[result_start:result_end])
+        checks = r'''
+int main(void)
+{
+    uint8_t storage[3];
+    fake_host_t host = {.pwr_up.val = 1, .vid_hline_time.val = 3250, .int_st0.val = 0x40, .int_st1.val = 0x80000};
+    fake_bridge_t bridge = {.dpi_misc_config.val = 1, .dpi_h_cfg0.val = 1248, .pixel_type.val = 2, .int_ena.val = 3};
+    fake_bus_t bus = {.hal = {.host = &host, .bridge = &bridge}};
+    esp_lcd_dpi_panel_t panel = {
+        .base = {.draw_bitmap = dpi_panel_draw_bitmap, .draw_bitmap_2d = dpi_panel_draw_bitmap_2d},
+        .bus = &bus, .host_error_owner = (void *)1,
+        .scanning_fb_index = 0, .cur_fb_index = 2, .frame_observer_counter = 40,
+        .frame_observer_callback = observer, .frame_observer_context = &context,
+        .fbs = {&storage[0], &storage[1], &storage[2]},
+        .link_lists = {&storage[0], &storage[1], &storage[2]}, .dma_chan = &context,
+    };
+    running_panel = &panel;
+    p4desk_lcd_resync_result_t result;
+    assert(p4desk_lcd_scan_resync(&panel.base, 0, &result) == ESP_ERR_INVALID_ARG);
+    assert(p4desk_lcd_scan_resync(&panel.base, 1001, &result) == ESP_ERR_INVALID_ARG);
+    in_isr = true;
+    assert(p4desk_lcd_scan_resync(&panel.base, 100, &result) == ESP_ERR_INVALID_STATE);
+    in_isr = false; caller = (void *)2;
+    assert(p4desk_lcd_scan_resync(&panel.base, 100, &result) == ESP_ERR_INVALID_STATE);
+    caller = (void *)1;
+    // Full stop/restore/resume: A,A is delivered, pending B remains selected,
+    // but resumed DMA reads A. Configuration and completion counter survive.
+    delay_mode = COMPLETE_AFTER_DELAY;
+    assert(p4desk_lcd_scan_resync(&panel.base, 100, &result) == ESP_OK);
+    assert(result.stopped && result.resumed && !result.request_cancelled);
+    assert(result.counter == 41 && result.scanning_index == 0 && result.selected_index == 2);
+    assert(last.completed_index == 0 && last.next_index == 0 && last.counter == 41);
+    assert(selected_list == panel.link_lists[0] && panel.cur_fb_index == 2 && panel.scanning_fb_index == 0);
+    assert(host.vid_hline_time.val == 3250 && bridge.dpi_h_cfg0.val == 1248 && bridge.pixel_type.val == 2);
+    assert(bridge.int_ena.val == 3 && bridge.dpi_misc_config.dpi_en && host.pwr_up.shutdownz);
+    assert(result.recovery_status0 == 0x40 && result.recovery_status1 == 0x80000);
+    assert(power_downs == 1 && power_ups == 1 && bridge_resets == 1 && restarts == 1 && observed == 1);
+    in_isr = true; mipi_dsi_dma_trans_done_cb(panel.dma_chan, NULL, &panel); in_isr = false;
+    assert(last.completed_index == 0 && last.next_index == 2 && last.counter == 42);
+    // Cancellation wins before ISR commitment. No hardware is stopped/reset.
+    delay_mode = NEVER_COMPLETE;
+    assert(p4desk_lcd_scan_resync(&panel.base, 3, &result) == ESP_ERR_TIMEOUT);
+    assert(result.request_cancelled && !result.stopped && !result.resumed && result.elapsed_us == 3000);
+    assert(panel.scan_stop_state == P4DESK_SCAN_RUNNING && bridge_resets == 1 && restarts == 2);
+    // A late real completion after cancellation is allowed to restart normally.
+    in_isr = true; mipi_dsi_dma_trans_done_cb(panel.dma_chan, NULL, &panel); in_isr = false;
+    assert(panel.scan_stop_state == P4DESK_SCAN_RUNNING && restarts == 3);
+    // Once the ISR commits stopping, deadline must fail closed. Caller keeps
+    // ownership; no unsafe cancellation, reinitialization, or DMA abort occurs.
+    delay_mode = COMMIT_WITHOUT_CALLBACK_TAIL;
+    assert(p4desk_lcd_scan_resync(&panel.base, 3, &result) == ESP_ERR_TIMEOUT);
+    assert(result.stopped && !result.resumed && !result.request_cancelled);
+    assert(panel.scan_stop_state == P4DESK_SCAN_STOPPING && bridge_resets == 1 && restarts == 3);
+    assert(p4desk_lcd_scan_resync(&panel.base, 3, &result) == ESP_ERR_INVALID_STATE);
+    assert(lock_depth == 0);
+    return 0;
+}
+'''
+        with tempfile.TemporaryDirectory(prefix="p4desk-dpi-resync-") as directory:
+            source = Path(directory) / "probe.c"
+            executable = Path(directory) / "probe"
+            source.write_text(fixture + callback + "\n" + owner_check + "\n" + resync + checks)
+            result = subprocess.run([compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
+                                     "-Wno-unused-parameter", str(source), "-o", str(executable)],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            result = subprocess.run([str(executable)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_actual_timing_snapshot_uses_live_clock_and_matches_cross_product(self) -> None:
+        compiler = shutil.which("cc")
+        if not compiler:
+            self.skipTest("host C compiler unavailable")
+        timing = function_source(self.patched_text, "esp_err_t p4desk_lcd_scan_timing(",
+                                 "esp_err_t p4desk_lcd_scan_resync(")
+        header = (COMPONENT / "include/p4desk_lcd_frame_observer.h").read_text()
+        start = header.index("typedef struct {", header.index("/** Live scan registers"))
+        end = header.index("} p4desk_lcd_scan_timing_t;", start) + len("} p4desk_lcd_scan_timing_t;")
+        fixture = r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+typedef int esp_err_t;
+#define ESP_OK 0
+#define ESP_ERR_INVALID_ARG 1
+#define ESP_ERR_INVALID_STATE 2
+#define ESP_RETURN_ON_FALSE(c, e, ...) do { if (!(c)) return (e); } while(0)
+#define ESP_RETURN_ON_ERROR(c, ...) do { int e=(c); if(e) return e; } while(0)
+enum { MIPI_DSI_DPI_CLK_SRC_XTAL, MIPI_DSI_DPI_CLK_SRC_PLL_F240M,
+       MIPI_DSI_DPI_CLK_SRC_PLL_F160M, MIPI_DSI_DPI_CLK_SRC_APLL,
+       ESP_CLK_TREE_SRC_FREQ_PRECISION_CACHED };
+typedef int mipi_dsi_dpi_clock_source_t;
+typedef struct {
+    struct { uint32_t htotal, hdisp; } dpi_h_cfg0;
+    struct { uint32_t vtotal, vdisp; } dpi_v_cfg0;
+    uint32_t depth;
+} bridge_t;
+typedef struct {
+    struct { uint32_t vid_hline_time; } vid_hline_time;
+    struct { uint32_t vsa_lines; } vid_vsa_lines;
+    struct { uint32_t vbp_lines; } vid_vbp_lines;
+    struct { uint32_t vfp_lines; } vid_vfp_lines;
+    struct { uint32_t v_active_lines; } vid_vactive_lines;
+    struct { uint32_t val; } vid_pkt_status;
+} host_t;
+typedef struct { bridge_t *bridge; host_t *host; float lane_bit_rate_mbps; } mipi_dsi_hal_context_t;
+typedef struct { mipi_dsi_hal_context_t hal; } bus_t;
+typedef struct {
+    bus_t *bus; int frame_observer_lock;
+    uint32_t frame_observer_counter; uint8_t scanning_fb_index, cur_fb_index;
+} esp_lcd_dpi_panel_t;
+typedef esp_lcd_dpi_panel_t *esp_lcd_panel_handle_t;
+@TYPE@
+static struct { struct { uint32_t reg_mipi_dsi_dpiclk_src_sel, reg_mipi_dsi_dpiclk_div_num; } peri_clk_ctrl03; } HP_SYS_CLKRST;
+static bool owner = true;
+static int lock_depth;
+#define portENTER_CRITICAL(lock) do { (void)(lock); assert(!lock_depth); ++lock_depth; } while(0)
+#define portEXIT_CRITICAL(lock) do { (void)(lock); assert(lock_depth == 1); --lock_depth; } while(0)
+static int p4desk_scan_owner_check(esp_lcd_panel_handle_t panel, esp_lcd_dpi_panel_t **out)
+{ if(!panel) return ESP_ERR_INVALID_ARG; if(!owner) return ESP_ERR_INVALID_STATE; *out=panel; return ESP_OK; }
+static int esp_clk_tree_src_get_freq_hz(int source, int precision, uint32_t *frequency)
+{ assert(source == MIPI_DSI_DPI_CLK_SRC_PLL_F240M && precision == ESP_CLK_TREE_SRC_FREQ_PRECISION_CACHED); *frequency=240000000; return ESP_OK; }
+static uint32_t mipi_dsi_brg_ll_get_fifo_depth(bridge_t *bridge) { return bridge->depth; }
+'''
+        checks = r'''
+int main(void)
+{
+    bridge_t bridge = {.dpi_h_cfg0 = {1250, 1024}, .dpi_v_cfg0 = {636, 600}, .depth = 512};
+    host_t host = {.vid_hline_time = {3255}, .vid_vsa_lines = {1}, .vid_vbp_lines = {23},
+                   .vid_vfp_lines = {12}, .vid_vactive_lines = {600}, .vid_pkt_status = {0x22}};
+    bus_t bus = {.hal = {.bridge = &bridge, .host = &host, .lane_bit_rate_mbps = 1000.0f}};
+    esp_lcd_dpi_panel_t panel = {.bus = &bus, .frame_observer_counter = 42, .scanning_fb_index = 0, .cur_fb_index = 2};
+    HP_SYS_CLKRST.peri_clk_ctrl03.reg_mipi_dsi_dpiclk_src_sel = 1;
+    HP_SYS_CLKRST.peri_clk_ctrl03.reg_mipi_dsi_dpiclk_div_num = 4;
+    p4desk_lcd_scan_timing_t snapshot;
+    assert(p4desk_lcd_scan_timing(&panel, &snapshot) == ESP_OK);
+    assert(snapshot.source_hz == 240000000 && snapshot.divider == 5 && snapshot.dpi_hz == 48000000);
+    assert(snapshot.lane_bit_rate_kbps == 1000000 && snapshot.bridge_h_total == 1250);
+    assert(snapshot.bridge_v_total == 636 && snapshot.bridge_h_active == 1024 && snapshot.bridge_v_active == 600);
+    assert(snapshot.host_hline_byte_clocks == 3255 && snapshot.host_v_total == 636);
+    assert(snapshot.counter == 42 && snapshot.scanning_index == 0 && snapshot.selected_index == 2);
+    assert(snapshot.bridge_fifo_depth == 512 && snapshot.host_vid_status == 0x22);
+    uint64_t brg = (uint64_t)snapshot.bridge_h_total * snapshot.lane_bit_rate_kbps * 1000;
+    uint64_t hst = (uint64_t)snapshot.host_hline_byte_clocks * 8 * snapshot.dpi_hz;
+    assert(brg != hst); // independently rounded original line periods
+    bridge.dpi_h_cfg0.htotal = 1248; host.vid_hline_time.vid_hline_time = 3250;
+    assert(p4desk_lcd_scan_timing(&panel, &snapshot) == ESP_OK);
+    brg = (uint64_t)snapshot.bridge_h_total * snapshot.lane_bit_rate_kbps * 1000;
+    hst = (uint64_t)snapshot.host_hline_byte_clocks * 8 * snapshot.dpi_hz;
+    assert(brg == hst); // matched line periods
+    owner = false;
+    assert(p4desk_lcd_scan_timing(&panel, &snapshot) == ESP_ERR_INVALID_STATE && snapshot.counter == 0);
+    assert(p4desk_lcd_scan_timing(&panel, NULL) == ESP_ERR_INVALID_ARG);
+    assert(panel.frame_observer_counter == 42 && panel.cur_fb_index == 2 && lock_depth == 0);
+    return 0;
+}
+'''
+        fixture = fixture.replace("@TYPE@", header[start:end])
+        with tempfile.TemporaryDirectory(prefix="p4desk-dpi-timing-") as directory:
+            source = Path(directory) / "probe.c"
+            executable = Path(directory) / "probe"
+            source.write_text(fixture + timing + checks)
+            result = subprocess.run([compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
+                                     str(source), "-o", str(executable)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            result = subprocess.run([str(executable)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_component_cmake_defers_exactly_one_source_replacement(self) -> None:
         cmake = shutil.which("cmake")

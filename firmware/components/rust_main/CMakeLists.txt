@@ -1,6 +1,6 @@
 # Based on esp-rs/esp-idf-template's official CMake mixed Rust/C template.
 # The generated template is licensed MIT-0; see firmware/THIRD-PARTY.md.
-set(RUST_DEPS pthread vfs fatfs spiffs esp_timer esp_driver_usb_serial_jtag lwip)
+set(RUST_DEPS pthread vfs fatfs spiffs esp_timer esp_driver_usb_serial_jtag lwip board_p4)
 idf_component_register(SRCS "placeholder.c" INCLUDE_DIRS "include"
     PRIV_REQUIRES ${RUST_DEPS})
 include(ExternalProject)

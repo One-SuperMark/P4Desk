@@ -72,6 +72,12 @@ GT911 在 `touch_task` 中先限制坐标到有效像素范围，再按当前 18
 
 `./scripts/test-pad-touch.sh` 检查 Pad 事件 FIFO 的短点击、运动历史、环形回绕、溢出取消和模式重置，使用 ASan／UBSan；C／Rust 的 12 字节事件 ABI 在固件构建时检查。
 
+GT911 使用项目内专用 I²C IO：每次调用传入最多 50 ms 等待参数，状态读取开启 150 ms 批次预算，后续操作按剩余时间收紧参数；不再传入无限等待。IDF 内部可能将该参数分别用于多个等待阶段，因此它不是严格的墙钟最大耗时。没有新帧（状态 bit7=0）时不发送清状态 ACK，避免读到空状态后新到达的松手帧被清除；有效触点帧和零触点松手帧仍正常 ACK。
+
+包装补报上游驱动忽略的 ACK 错误。读取失败取消当前手势，不能将失败当作 UP 执行按钮；等待控制器的有效零触点帧后才恢复输入。`p4desk_touch_health` 每 30 秒输出读取、真实帧、DOWN／UP／CANCEL、队列消费与恢复状态计数，不记录坐标或触点 ID。`./scripts/test-touch-io.sh` 直接编译生产 IO 包装，覆盖无帧 ACK 竞态、错误传播、超时参数与设备释放；`test-pad-touch.sh` 另验证取消和真实松手后的再次点击。
+
+2026-10-08 的点击无响应排查、修正、构建和实机证据见 [触摸输入验收](acceptance-touch-input.json)。读取诊断口时出现新启动，之前故障现场已丢失；修正针对源码确认的隐患，具体故障触发原因和触摸恢复仍需实机确认。
+
 `./scripts/test-display-pipeline.sh` 检查三缓冲状态及模式切换。`python3 -m unittest discover -s firmware/components/lcd_frame_observer/tests -v` 检查固定 SDK 扩展、实际 DMA 回调、容量查询和扫描几何；可通过 `IDF_PATH` 指向本机6.0.2。缺 SDK 的局部测试会明确跳过，不视为固件构建成功。
 
 ### JPEG 颜色范围

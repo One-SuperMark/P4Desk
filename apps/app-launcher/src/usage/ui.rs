@@ -11,11 +11,16 @@ mod headline_view;
 mod live_metrics;
 #[path = "trend_view.rs"]
 mod trend_view;
+#[path = "visuals.rs"]
+mod visuals;
 fn at(w: impl Widget + 'static, x: f32, y: f32) -> Positioned {
     Positioned::new(w).left(x).top(y)
 }
 fn text(s: impl Into<String>, size: f32, color: Color) -> Text {
     Text::new(s).font_size(size).color(color)
+}
+fn user_text(s: impl Into<String>, size: f32, color: Color) -> Text {
+    text(s, size, color).font(Font::dynamic_font().clone())
 }
 fn short(s: &str, n: usize) -> String {
     if s.chars().count() > n {
@@ -28,21 +33,24 @@ fn short(s: &str, n: usize) -> String {
     }
 }
 fn fit(s: &str, size: f32, width: f32) -> String {
-    let font = Font::default_font();
-    if font.measure_text(s, size).width <= width {
-        return s.into();
-    }
+    fit_with_font(s, size, width, Font::default_font())
+}
+fn fit_with_font(s: &str, size: f32, width: f32, font: &Font) -> String {
     let mut result = String::new();
-    let mut used = font.measure_text("…", size).width;
+    let mut used = 0.;
     for ch in s.chars() {
-        let next = font.glyph(ch, size).advance;
+        let next = font.advance(ch, size);
         if used + next > width {
-            break;
+            let ellipsis = font.advance('…', size);
+            while !result.is_empty() && used + ellipsis > width {
+                used -= font.advance(result.pop().unwrap(), size);
+            }
+            result.push('…');
+            return result;
         }
         used += next;
         result.push(ch);
     }
-    result.push('…');
     result
 }
 fn grouped(n: u64) -> String {
@@ -56,6 +64,90 @@ fn grouped(n: u64) -> String {
     }
     out
 }
+// Place amounts by their measured width, not by the length of a mixed label.
+fn right_text(
+    s: impl Into<String>,
+    size: f32,
+    color: Color,
+    right: f32,
+    y: f32,
+    width: f32,
+) -> Positioned {
+    let label = fit(&s.into(), size, width);
+    let measured = Font::default_font().measure_text(&label, size).width;
+    at(text(label, size, color), right - measured, y)
+}
+fn money(value: f64) -> String {
+    if value > 0.0 && value < 1.0 {
+        format!("${value:.4}")
+    } else {
+        format!("${value:.2}")
+    }
+}
+fn inset() -> Color {
+    Folio::pick(Color::from_hex(0x23272a), Color::from_hex(0xf2f5f8))
+}
+fn selected_fill() -> Color {
+    Folio::pick(Color::from_hex(0x26363b), Color::from_hex(0xe6f0f3))
+}
+fn badge(label: &str, color: Color) -> Container {
+    let width = Font::default_font().measure_text(label, 14.).width + 20.;
+    Container::new()
+        .width(width)
+        .height(26.)
+        .color(color.with_opacity(0.13))
+        .border_radius(7.)
+        .child(Center::new(text(label, 14., color)))
+}
+fn quota_color(remaining: Option<f64>) -> Color {
+    match remaining {
+        Some(v) if v <= 10. => Folio::red(),
+        Some(v) if v <= 25. => Folio::orange(),
+        Some(_) => Folio::green(),
+        None => Folio::muted(),
+    }
+}
+fn adaptive_number(label: String, maximum: f32, width: f32) -> Text {
+    let font = Font::default_font();
+    let mut size = maximum;
+    while size > 14. && font.measure_text(&label, size).width > width {
+        size -= 2.;
+    }
+    text(label, size, Folio::ink())
+}
+fn empty_card(w: f32, h: f32, page: Page, title: &str, hint: &str) -> Container {
+    panel(w, h).child(
+        Stack::new()
+            .push(at(
+                Container::new()
+                    .width(48.)
+                    .height(48.)
+                    .color(inset())
+                    .border_radius(14.)
+                    .child(Center::new(
+                        CustomPaint::new(NavGlyph(page, Folio::muted())).size(Size::new(24., 24.)),
+                    )),
+                w / 2. - 24.,
+                h / 2. - 66.,
+            ))
+            .push(at(
+                Container::new()
+                    .width(w - 48.)
+                    .height(28.)
+                    .child(Center::new(text(title, 22., Folio::ink()))),
+                24.,
+                h / 2.,
+            ))
+            .push(at(
+                Container::new()
+                    .width(w - 48.)
+                    .height(22.)
+                    .child(Center::new(text(hint, 14., Folio::muted()))),
+                24.,
+                h / 2. + 40.,
+            )),
+    )
+}
 fn edit(s: &Shared, f: impl FnOnce(&mut State)) {
     let mut s = s.lock().unwrap();
     f(&mut s.usage);
@@ -68,7 +160,7 @@ fn button(
     on: bool,
     f: impl Fn() + Send + Sync + 'static,
 ) -> ElevatedButton {
-    let fill = if on { Folio::accent() } else { Folio::raised() };
+    let fill = if on { Folio::accent() } else { inset() };
     ElevatedButton::new(text(label, 18.0, Folio::on_fill(fill)))
         .style(
             Folio::control_style(w, h, fill)
@@ -85,7 +177,7 @@ fn panel(w: f32, h: f32) -> Container {
         .border_radius(18.0)
 }
 fn control_group(w: f32, h: f32) -> Container {
-    panel(w, h).border_radius(12.0)
+    panel(w, h).color(inset()).border_radius(12.0)
 }
 fn rule(w: f32) -> Container {
     Container::new()
@@ -112,15 +204,6 @@ fn bar(w: f32, h: f32, ratio: f64, color: Color) -> Stack {
         );
     }
     s
-}
-fn rank_color(i: usize) -> Color {
-    match i % 5 {
-        0 => Folio::blue(),
-        1 => Folio::accent_ink(),
-        2 => Folio::pick(Color::from_hex(0xb09de0), Color::from_hex(0x7950b2)),
-        3 => Folio::orange(),
-        _ => Folio::green(),
-    }
 }
 fn metric(label: &str, value: String, w: f32) -> Container {
     Container::new().width(w).height(58.0).child(
@@ -239,12 +322,12 @@ fn navigation(state: Shared, page: Page) -> Stack {
         .into_iter()
         .enumerate()
     {
-        let fill = if page == p {
-            Folio::accent()
+        let fill = if page == p { Folio::accent() } else { inset() };
+        let col = if page == p {
+            Folio::on_fill(fill)
         } else {
-            Folio::surface()
+            Folio::muted()
         };
-        let col = Folio::on_fill(fill);
         let st = state.clone();
         let child = Stack::new()
             .push(at(
@@ -299,7 +382,15 @@ pub fn build(state: Shared, size: Size) -> Stack {
     let st = state.clone();
     root = root.push(at(
         ElevatedButton::new(
-            CustomPaint::new(NavGlyph(Page::Connection, Folio::ink())).size(Size::new(24.0, 24.0)),
+            CustomPaint::new(NavGlyph(
+                Page::Connection,
+                if page == Page::Connection {
+                    Folio::on_fill(Folio::accent())
+                } else {
+                    Folio::muted()
+                },
+            ))
+            .size(Size::new(24.0, 24.0)),
         )
         .style(
             Folio::control_style(
@@ -422,15 +513,21 @@ pub fn build(state: Shared, size: Size) -> Stack {
         }
     } else {
         root = root.push(at(
-            panel(size.width, h).child(Center::new(text(
+            empty_card(
+                size.width,
+                h,
+                page,
                 if busy {
                     "正在获取用量…"
                 } else {
-                    "暂无数据，请刷新"
+                    "暂无数据"
                 },
-                24.,
-                Folio::muted(),
-            ))),
+                if busy {
+                    "首次加载后会自动更新"
+                } else {
+                    "检查 Wi-Fi 与连接设置，或点击刷新"
+                },
+            ),
             0.,
             58.,
         ));
@@ -476,20 +573,29 @@ fn overview(
     let lw = (w - 16.) * 0.60;
     let rw = w - lw - 16.;
     let title = if let Some(id) = detail {
-        format!(
-            "{} #{id} · {} TOKENS",
-            if state.lock().unwrap().usage.page == Page::Users {
-                "用户"
+        let label = {
+            let locked = state.lock().unwrap();
+            if locked.usage.page == Page::Users {
+                locked.usage.user_display_name(id)
             } else {
-                "账号"
-            },
+                format!("账号 #{id}")
+            }
+        };
+        format!(
+            "{} · {} TOKENS",
+            fit_with_font(&label, 14., lw - 170., Font::dynamic_font()),
             period.label()
         )
     } else {
         "TOTAL TOKENS".into()
     };
+    let title = if detail.is_some() {
+        user_text(title, 14., Folio::muted())
+    } else {
+        text(title, 14., Folio::muted())
+    };
     let hero = Stack::new()
-        .push(at(text(title, 14., Folio::muted()), 22., 22.))
+        .push(at(title, 22., 22.))
         .push(at(
             headline_view::HeadlineView::new(
                 state.clone(),
@@ -516,20 +622,25 @@ fn overview(
                 .push(at(text("查看全部  ›", 14., Folio::muted()), rw - 114., 17.))
                 .push(at(
                     text(
-                        format!("{}  {}", platform(&a.platform), short(&a.plan_label, 14)),
+                        fit(
+                            &format!("{}  {}", platform(&a.platform), a.plan_label),
+                            16.,
+                            rw - 74.,
+                        ),
                         16.,
                         Folio::ink(),
                     ),
-                    18.,
-                    44.,
+                    52.,
+                    45.,
                 ))
+                .push(at(visuals::provider(&a.platform, 24.), 18., 44.))
                 .push(at(
-                    compact_quota(&a.five, "Session · 5h", rw - 36.),
+                    compact_quota(&a.five, "Session · 5h", rw - 36., now, 300),
                     18.,
                     76.,
                 ))
                 .push(at(
-                    compact_quota(&a.seven, "Weekly · 7d", rw - 36.),
+                    compact_quota(&a.seven, "Weekly · 7d", rw - 36., now, 10080),
                     18.,
                     127.,
                 ))
@@ -586,52 +697,63 @@ fn platform(s: &str) -> &str {
         _ => s,
     }
 }
-fn compact_quota(window: &Option<Window>, label: &str, w: f32) -> Stack {
-    let ratio = window.as_ref().map(|v| v.remaining() / 100.);
-    Stack::new()
+fn compact_quota(window: &Option<Window>, label: &str, w: f32, now: i64, minutes: u32) -> Stack {
+    let remaining = window.as_ref().map(Window::remaining);
+    let mut row = Stack::new()
         .push(text(label, 14., Folio::muted()))
-        .push(at(
-            text(
-                ratio
-                    .map(|v| format!("{:.0}% 剩余", v * 100.))
-                    .unwrap_or("—".into()),
-                14.,
-                Folio::ink(),
-            ),
-            w - 90.,
+        .push(right_text(
+            remaining
+                .map(|v| format!("{v:.0}% 剩余"))
+                .unwrap_or("未提供".into()),
+            14.,
+            quota_color(remaining),
+            w,
             0.,
+            100.,
         ))
         .push(at(
             bar(
                 w,
-                6.,
-                ratio.unwrap_or(0.),
-                if ratio.is_some_and(|v| v < 0.1) {
-                    Folio::orange()
-                } else {
-                    Folio::green()
-                },
+                5.,
+                remaining.unwrap_or(0.) / 100.,
+                quota_color(remaining),
             ),
             0.,
             25.,
-        ))
-}
-fn model_ranking(state: Shared, d: &Data, w: f32, h: f32, detail: bool) -> Container {
-    let mut p = Stack::new().push(at(text("模型 TOP", 18., Folio::ink()), 18., 10.));
-    if !detail {
-        p = p.push(at(text("查看全部  ›", 14., Folio::muted()), w - 114., 13.));
+        ));
+    if let Some(time) = window
+        .as_ref()
+        // Static quota chrome follows the monitor's minute wall-clock rebuild,
+        // rather than the independent five-second headline sampling cadence.
+        .and_then(|v| v.remaining_time_ratio(now.div_euclid(60_000) * 60_000, minutes))
+    {
+        row = row.push(at(
+            bar(w, 2., time, Folio::blue().with_opacity(0.65)),
+            0.,
+            34.,
+        ));
     }
-    let sum = d
-        .models
-        .iter()
-        .map(|m| m.totals.tokens as f64)
-        .sum::<f64>()
-        .max(1.);
+    row
+}
+
+fn model_ranking(state: Shared, d: &Data, w: f32, h: f32, detail: bool) -> Container {
+    let mut card = Stack::new().push(at(text("模型 TOP", 18., Folio::ink()), 18., 10.));
+    if !detail {
+        card = card.push(right_text(
+            "查看全部  ›",
+            14.,
+            Folio::muted(),
+            w - 18.,
+            13.,
+            106.,
+        ));
+    }
+    let sum = d.models.iter().map(|m| m.totals.tokens as f64).sum::<f64>();
     if d.models.is_empty() {
-        p = p.push(at(
+        card = card.push(at(
             text("当前范围暂无模型用量", 16., Folio::muted()),
             18.,
-            65.,
+            72.,
         ));
     }
     let first = if detail {
@@ -641,13 +763,13 @@ fn model_ranking(state: Shared, d: &Data, w: f32, h: f32, detail: bool) -> Conta
     };
     if detail && d.models.len() > 3 {
         let pages = d.models.len().div_ceil(3);
-        for (forward, x) in [(false, w - 88.0), (true, w - 44.0)] {
+        for (forward, x) in [(false, w - 88.), (true, w - 44.)] {
             let st = state.clone();
-            p = p.push(at(
+            card = card.push(at(
                 button(
                     if forward { "›" } else { "‹" },
-                    34.0,
-                    30.0,
+                    34.,
+                    30.,
                     false,
                     move || {
                         edit(&st, |u| {
@@ -661,48 +783,67 @@ fn model_ranking(state: Shared, d: &Data, w: f32, h: f32, detail: bool) -> Conta
                     },
                 ),
                 x,
-                4.0,
+                4.,
             ));
         }
     }
     for (local, m) in d.models.iter().skip(first).take(3).enumerate() {
-        let i = first + local;
+        let index = first + local;
         let st = state.clone();
-        let ratio = m.totals.tokens as f64 / sum;
-        let child = Stack::new()
+        let ratio = if sum > 0. {
+            m.totals.tokens as f64 / sum
+        } else {
+            0.
+        };
+        let color = visuals::identity_color(&m.name);
+        let row = Stack::new()
             .push(at(
-                text(fit(&m.name, 16.0, w - 166.0), 16., Folio::ink()),
+                Container::new()
+                    .width(5.)
+                    .height(5.)
+                    .color(color)
+                    .border_radius(2.5),
                 0.,
-                0.,
+                9.,
             ))
             .push(at(
-                text(
-                    format!("{}  {:.0}%", tokens(m.totals.tokens), ratio * 100.),
-                    14.,
-                    Folio::muted(),
-                ),
-                w - 144.,
+                text(fit(&m.name, 16., w - 163.), 16., Folio::ink()),
+                13.,
                 0.,
             ))
-            .push(at(bar(w - 36., 4., ratio, rank_color(i)), 0., 24.));
-        p = p.push(at(
-            GestureDetector::new(Container::new().width(w - 36.).height(41.).child(child)).on_tap(
+            .push(right_text(
+                tokens(m.totals.tokens),
+                14.,
+                Folio::ink(),
+                w - 90.,
+                1.,
+                76.,
+            ))
+            .push(right_text(
+                format!("{:.0}%", ratio * 100.),
+                14.,
+                Folio::muted(),
+                w - 36.,
+                1.,
+                48.,
+            ))
+            .push(at(bar(w - 36., 4., ratio, color), 0., 26.));
+        card = card.push(at(
+            GestureDetector::new(Container::new().width(w - 36.).height(41.).child(row)).on_tap(
                 move || {
                     edit(&st, |u| {
-                        if detail {
-                            u.model_selected = Some(i)
-                        } else {
+                        if !detail {
                             u.navigate(Page::Models, u.period, None);
-                            u.model_selected = Some(i);
                         }
-                    })
+                        u.model_selected = Some(index);
+                    });
                 },
             ),
             18.,
             42. + local as f32 * 44.,
         ));
     }
-    panel(w, h).child(p)
+    panel(w, h).child(card)
 }
 fn chart(state: Shared, d: &Arc<Data>, w: f32, h: f32) -> trend_view::LiveTrendCard {
     trend_view::LiveTrendCard::new(state, d.clone(), Size::new(w, h))
@@ -748,11 +889,30 @@ fn chart_snapshot(state: Shared, d: &Data, w: f32, h: f32) -> Container {
             14.0,
             Folio::blue(),
         ),
-        w - 148.0,
+        w - 130.0,
         16.0,
     ));
+    p = p.push(at(
+        Container::new()
+            .width(10.)
+            .height(3.)
+            .color(Folio::blue())
+            .border_radius(1.5),
+        w - 148.,
+        26.,
+    ));
     if has_previous {
-        p = p.push(at(text("昨日", 14.0, Folio::muted()), w - 82.0, 16.0));
+        p = p
+            .push(at(
+                Container::new()
+                    .width(10.)
+                    .height(3.)
+                    .color(Folio::muted())
+                    .border_radius(1.5),
+                w - 80.,
+                26.,
+            ))
+            .push(at(text("昨日", 14., Folio::muted()), w - 62., 16.));
     }
     let peak = d
         .trend
@@ -814,11 +974,15 @@ fn chart_snapshot(state: Shared, d: &Data, w: f32, h: f32) -> Container {
     if let Some(v) = d.trend.get(index) {
         p = p.push(at(
             text(
-                format!(
-                    "{}   {} Token   ${:.4}",
-                    axis_label(&v.date),
-                    tokens(v.totals.tokens),
-                    v.totals.cost
+                fit(
+                    &format!(
+                        "{}   {} Token   {}",
+                        axis_label(&v.date),
+                        tokens(v.totals.tokens),
+                        money(v.totals.cost)
+                    ),
+                    14.,
+                    w - if has_previous { 164. } else { 36. },
                 ),
                 14.,
                 Folio::ink(),
@@ -836,14 +1000,13 @@ fn chart_snapshot(state: Shared, d: &Data, w: f32, h: f32) -> Container {
             d.yesterday_trend.get(index)
         };
         if let Some(y) = previous {
-            p = p.push(at(
-                text(
-                    format!("昨日 {}", tokens(y.totals.tokens)),
-                    14.,
-                    Folio::muted(),
-                ),
-                w - 126.,
+            p = p.push(right_text(
+                format!("昨日 {}", tokens(y.totals.tokens)),
+                14.,
+                Folio::muted(),
+                w - 18.,
                 h - 23.,
+                132.,
             ));
         }
     }
@@ -860,8 +1023,8 @@ fn axis_label(date: &str) -> String {
 }
 fn quota_window(window: &Option<Window>, label: &str, w: f32, now: i64, minutes: u32) -> Stack {
     let remaining = window.as_ref().map(Window::remaining);
-    let mut p = Stack::new()
-        .push(text(label, 16., Folio::muted()))
+    let mut row = Stack::new()
+        .push(text(label, 14., Folio::muted()))
         .push(at(
             text(
                 remaining.map(|v| format!("{v:.0}%")).unwrap_or("—".into()),
@@ -869,51 +1032,79 @@ fn quota_window(window: &Option<Window>, label: &str, w: f32, now: i64, minutes:
                 Folio::ink(),
             ),
             0.,
-            27.,
+            26.,
         ))
-        .push(at(text("剩余额度", 14., Folio::muted()), 96., 42.))
+        .push(at(
+            text(
+                if remaining.is_some() {
+                    "剩余额度"
+                } else {
+                    "未提供"
+                },
+                14.,
+                Folio::muted(),
+            ),
+            96.,
+            43.,
+        ))
         .push(at(
             bar(
                 w,
-                8.,
+                7.,
                 remaining.unwrap_or(0.) / 100.,
-                if remaining.is_some_and(|v| v < 10.) {
-                    Folio::orange()
-                } else {
-                    Folio::green()
-                },
+                quota_color(remaining),
             ),
             0.,
-            76.,
-        ));
-    let time = window
-        .as_ref()
-        .and_then(|v| v.remaining_time_ratio(now, minutes));
-    p = p.push(at(
-        text(
-            window
-                .as_ref()
-                .map(|v| v.caption(now))
-                .unwrap_or("重置时间未知".into()),
-            14.,
-            Folio::muted(),
-        ),
-        0.,
-        99.,
-    ));
-    if let Some(time) = time {
-        p = p.push(at(
-            bar(w, 3., time, Folio::blue().with_opacity(0.70)),
+            75.,
+        ))
+        .push(at(
+            text(
+                fit(
+                    &window
+                        .as_ref()
+                        .map(|v| v.caption(now))
+                        .unwrap_or("重置时间未知".into()),
+                    14.,
+                    w - 48.,
+                ),
+                14.,
+                Folio::muted(),
+            ),
             0.,
-            127.,
+            95.,
         ));
+    if let Some(time) = window
+        .as_ref()
+        .and_then(|v| v.remaining_time_ratio(now, minutes))
+    {
+        row = row
+            .push(right_text(
+                format!("{:.0}%", time * 100.),
+                14.,
+                Folio::muted(),
+                w,
+                95.,
+                46.,
+            ))
+            .push(at(
+                bar(w, 2., time, Folio::blue().with_opacity(0.65)),
+                0.,
+                122.,
+            ));
     }
-    p
+    row
 }
+
 fn account_list(state: Shared, d: &Data, w: f32, h: f32, index: usize, now: i64) -> Stack {
     let mut root = Stack::new();
     if d.accounts.is_empty() {
-        return root.push(panel(w, h).child(Center::new(text("暂无账号", 24.0, Folio::muted()))));
+        return root.push(empty_card(
+            w,
+            h,
+            Page::Accounts,
+            "暂无账号",
+            "当前范围没有可显示的账号额度",
+        ));
     }
     let visible = d
         .accounts
@@ -922,72 +1113,105 @@ fn account_list(state: Shared, d: &Data, w: f32, h: f32, index: usize, now: i64)
         .take(2)
         .collect::<Vec<_>>();
     let single = visible.len() == 1;
-    let cw = if single { w } else { (w - 16.0) / 2.0 };
+    let cw = if single { w } else { (w - 16.) / 2. };
     for (i, a) in visible.into_iter().enumerate() {
         let st = state.clone();
         let id = a.id;
+        let plan = fit(&a.plan_label, 14., 128.);
+        let plan_w = Font::default_font().measure_text(&plan, 14.).width + 20.;
         let mut card = Stack::new()
+            .push(at(visuals::provider(&a.platform, 34.), 22., 21.))
             .push(at(
-                text(platform(&a.platform), 26.0, Folio::ink()),
-                22.0,
-                17.0,
+                text(
+                    fit(platform(&a.platform), 24., cw - plan_w - 110.),
+                    24.,
+                    Folio::ink(),
+                ),
+                68.,
+                17.,
             ))
             .push(at(
-                text(short(&a.plan_label, 15), 16.0, Folio::blue()),
-                cw - 180.0,
-                24.0,
+                badge(&plan, Folio::accent_ink()),
+                cw - 22. - plan_w,
+                21.,
             ))
             .push(at(
-                text(fit(&a.label, 16.0, cw - 44.0), 16.0, Folio::muted()),
-                22.0,
-                56.0,
+                text(fit(&a.label, 14., cw - 92.), 14., Folio::muted()),
+                68.,
+                51.,
             ))
-            .push(at(rule(cw - 44.0), 22.0, 89.0));
+            .push(at(rule(cw - 44.), 22., 82.));
         if single {
-            let qw = (cw - 70.0) / 2.0;
-            card = card
-                .push(at(
-                    quota_window(&a.five, "Session · 5 小时", qw, now, 300),
-                    22.0,
-                    118.0,
-                ))
-                .push(at(
-                    quota_window(&a.seven, "Weekly · 7 天", qw, now, 10080),
-                    cw / 2.0 + 13.0,
-                    118.0,
-                ))
-                .push(at(
-                    text(
-                        "绿色：剩余额度    蓝色：距离重置的时间",
-                        14.0,
-                        Folio::muted(),
-                    ),
-                    22.0,
-                    291.0,
-                ))
-                .push(at(
-                    text("查看账号模型用量  ›", 18.0, Folio::ink()),
-                    22.0,
-                    h - 49.0,
+            let qw = (cw - 60.) / 2.;
+            for (x, window, label, minutes) in [
+                (22., &a.five, "Session · 5 小时", 300),
+                (cw / 2. + 8., &a.seven, "Weekly · 7 天", 10080),
+            ] {
+                card = card.push(at(
+                    Container::new()
+                        .width(qw)
+                        .height(194.)
+                        .color(inset())
+                        .border_radius(12.)
+                        .child(Stack::new().push(at(
+                            quota_window(window, label, qw - 36., now, minutes),
+                            18.,
+                            22.,
+                        ))),
+                    x,
+                    104.,
                 ));
+            }
+            card = card.push(at(
+                text(
+                    "绿色：剩余额度    蓝色：距离重置的时间",
+                    14.,
+                    Folio::muted(),
+                ),
+                22.,
+                320.,
+            ));
         } else {
             card = card
                 .push(at(
-                    quota_window(&a.five, "Session · 5 小时", cw - 44.0, now, 300),
-                    22.0,
-                    107.0,
+                    quota_window(&a.five, "Session · 5 小时", cw - 44., now, 300),
+                    22.,
+                    104.,
                 ))
+                .push(at(rule(cw - 44.), 22., 244.))
                 .push(at(
-                    quota_window(&a.seven, "Weekly · 7 天", cw - 44.0, now, 10080),
-                    22.0,
-                    253.0,
+                    quota_window(&a.seven, "Weekly · 7 天", cw - 44., now, 10080),
+                    22.,
+                    256.,
+                ));
+        }
+        let updated = a
+            .usage_updated_ms
+            .map(|ms| {
+                let tm = chrono::DateTime::from_timestamp_millis(ms.saturating_add(
+                    state.lock().unwrap().settings.timezone_minutes as i64 * 60_000,
+                ));
+                tm.map(|v| format!("更新于 {}", v.format("%H:%M")))
+                    .unwrap_or("额度尚未更新".into())
+            })
+            .unwrap_or("额度尚未更新".into());
+        if single {
+            card = card
+                .push(at(text(updated, 14., Folio::muted()), 22., h - 42.))
+                .push(right_text(
+                    "查看模型与趋势  ›",
+                    16.,
+                    Folio::accent_ink(),
+                    cw - 22.,
+                    h - 44.,
+                    216.,
                 ));
         }
         root = root.push(at(
             GestureDetector::new(panel(cw, h).child(card))
                 .on_tap(move || edit(&st, |u| u.navigate(Page::Accounts, u.period, Some(id)))),
-            i as f32 * (cw + 16.0),
-            0.0,
+            i as f32 * (cw + 16.),
+            0.,
         ));
     }
     root
@@ -995,9 +1219,8 @@ fn account_list(state: Shared, d: &Data, w: f32, h: f32, index: usize, now: i64)
 
 fn composition(m: &Model, w: f32) -> Stack {
     let sum = m.input as f64 + m.cache as f64 + m.output as f64;
-    let mut p = Stack::new();
-    let mut x = 0.;
-    for (i, (n, v, color)) in [
+    let mut rows = Stack::new().push(visuals::composition_bar(m.input, m.cache, m.output, w));
+    for (i, (label, value, color)) in [
         ("输入", m.input, Folio::blue()),
         ("缓存读取", m.cache, Folio::green()),
         ("输出", m.output, Folio::orange()),
@@ -1005,42 +1228,51 @@ fn composition(m: &Model, w: f32) -> Stack {
     .into_iter()
     .enumerate()
     {
-        let width = if sum > 0. {
-            w * v as f32 / sum as f32
-        } else {
-            0.
-        };
-        if width > 0. {
-            p = p.push(at(
-                Container::new().width(width).height(6.).color(color),
-                x,
-                0.,
-            ));
-        }
-        x += width;
-        let y = 22. + i as f32 * 30.;
-        p = p
+        let y = 24. + i as f32 * 30.;
+        rows = rows
             .push(at(
                 Container::new()
-                    .width(4.)
-                    .height(16.)
+                    .width(6.)
+                    .height(6.)
                     .color(color)
-                    .border_radius(2.),
+                    .border_radius(3.),
                 0.,
-                y + 3.,
+                y + 8.,
             ))
-            .push(at(text(n, 14., Folio::muted()), 12., y))
-            .push(at(text(tokens(v), 16., Folio::ink()), w - 110., y));
+            .push(at(text(label, 14., Folio::muted()), 14., y))
+            .push(right_text(
+                tokens(value),
+                16.,
+                Folio::ink(),
+                w - 62.,
+                y - 1.,
+                w - 152.,
+            ))
+            .push(right_text(
+                if sum > 0. {
+                    format!("{:.0}%", value as f64 / sum * 100.)
+                } else {
+                    "—".into()
+                },
+                14.,
+                Folio::muted(),
+                w,
+                y,
+                52.,
+            ));
     }
-    p
+    rows
 }
+
 fn model_list(state: Shared, d: &Data, w: f32, h: f32, index: usize) -> Stack {
     if d.models.is_empty() {
-        return Stack::new().push(panel(w, h).child(Center::new(text(
-            "当前范围暂无模型用量",
-            24.,
-            Folio::muted(),
-        ))));
+        return Stack::new().push(empty_card(
+            w,
+            h,
+            Page::Models,
+            "暂无模型用量",
+            "切换时间范围或等待下一次更新",
+        ));
     }
     let lw = (w - 16.) * 0.49;
     let rw = w - lw - 16.;
@@ -1052,53 +1284,86 @@ fn model_list(state: Shared, d: &Data, w: f32, h: f32, index: usize) -> Stack {
         .model_selected
         .unwrap_or(first)
         .min(d.models.len() - 1);
-    let max = d.models[0].totals.tokens.max(1) as f64;
+    let max = d
+        .models
+        .iter()
+        .map(|m| m.totals.tokens)
+        .max()
+        .unwrap_or(1)
+        .max(1) as f64;
     let mut list = Stack::new()
         .push(at(text("模型排名", 18., Folio::ink()), 18., 13.))
-        .push(at(
-            text(format!("{} 个模型", d.models.len()), 14., Folio::muted()),
-            lw - 104.,
+        .push(right_text(
+            format!("{} 个模型", d.models.len()),
+            14.,
+            Folio::muted(),
+            lw - 18.,
             17.,
+            120.,
         ));
     for (i, m) in d.models.iter().skip(first).take(5).enumerate() {
         let n = first + i;
         let st = state.clone();
+        let color = visuals::identity_color(&m.name);
         let fill = if n == selected {
-            Folio::raised()
+            selected_fill()
         } else {
             Folio::surface()
         };
-        let child = Stack::new()
-            .push(at(
-                text(format!("{:02}", n + 1), 14., Folio::muted()),
-                12.,
-                10.,
-            ))
-            .push(at(
-                text(fit(&m.name, 18.0, lw - 70.0), 18., Folio::ink()),
-                42.,
-                5.,
-            ))
+        let mut child = Stack::new()
             .push(at(
                 text(
-                    format!("{}   ${:.2}", tokens(m.totals.tokens), m.totals.cost),
+                    format!("{:02}", n + 1),
                     14.,
-                    Folio::muted(),
+                    if n == selected { color } else { Folio::muted() },
                 ),
-                42.,
-                30.,
+                12.,
+                13.,
             ))
             .push(at(
-                bar(lw - 82., 3., m.totals.tokens as f64 / max, rank_color(n)),
+                text(fit(&m.name, 18., lw - 186.), 18., Folio::ink()),
                 42.,
-                53.,
+                6.,
+            ))
+            .push(right_text(
+                tokens(m.totals.tokens),
+                16.,
+                Folio::ink(),
+                lw - 34.,
+                7.,
+                102.,
+            ))
+            .push(at(text("Token", 14., Folio::muted()), 42., 31.))
+            .push(right_text(
+                money(m.totals.cost),
+                14.,
+                Folio::muted(),
+                lw - 34.,
+                32.,
+                112.,
+            ))
+            .push(at(
+                bar(lw - 82., 3., m.totals.tokens as f64 / max, color),
+                42.,
+                55.,
             ));
+        if n == selected {
+            child = child.push(at(
+                Container::new()
+                    .width(3.)
+                    .height(28.)
+                    .color(color)
+                    .border_radius(1.5),
+                0.,
+                16.,
+            ));
+        }
         list = list.push(at(
             ElevatedButton::new(child)
                 .style(
                     Folio::control_style(lw - 20., 62., fill)
                         .padding(EdgeInsets::ZERO)
-                        .border_radius(12.),
+                        .border_radius(9.),
                 )
                 .on_pressed(move || edit(&st, |u| u.model_selected = Some(n))),
             10.,
@@ -1107,58 +1372,66 @@ fn model_list(state: Shared, d: &Data, w: f32, h: f32, index: usize) -> Stack {
     }
     let m = &d.models[selected];
     let base = m.input as f64 + m.cache as f64;
-    let ratio = if base > 0. {
+    let hit = if base > 0. {
         format!("{:.1}%", m.cache as f64 / base * 100.)
     } else {
         "—".into()
     };
+    let name_color = visuals::identity_color(&m.name);
     let mut detail = Stack::new()
-        .push(at(text("模型详情", 16., Folio::muted()), 22., 16.))
+        .push(at(text("模型详情", 14., Folio::muted()), 22., 17.))
+        .push(at(visuals::avatar(&m.name, 30., name_color), 22., 46.))
         .push(at(
-            text(fit(&m.name, 22.0, rw - 44.0), 22., Folio::ink()),
-            22.,
-            45.,
+            text(fit(&m.name, 22., rw - 86.), 22., Folio::ink()),
+            64.,
+            46.,
         ))
         .push(at(
-            text(tokens(m.totals.tokens), 40., Folio::ink()),
+            adaptive_number(grouped(m.totals.tokens), 36., rw - 44.),
             22.,
-            84.,
+            92.,
         ))
         .push(at(
             text(
-                format!("{} Token", grouped(m.totals.tokens)),
+                format!("TOTAL TOKENS   ≈ {}", tokens(m.totals.tokens)),
                 14.,
                 Folio::muted(),
             ),
             22.,
-            137.,
-        ))
-        .push(at(rule(rw - 44.), 22., 169.))
-        .push(at(
-            metric(
-                "用户扣费",
-                format!("${:.4}", m.totals.cost),
-                (rw - 44.) / 2.,
-            ),
-            22.,
-            187.,
-        ))
-        .push(at(
-            metric("缓存命中率", ratio, (rw - 44.) / 2.),
-            rw / 2. + 8.,
-            187.,
-        ))
-        .push(at(composition(m, rw - 44.), 22., 263.));
+            142.,
+        ));
+    let mw = (rw - 56.) / 2.;
+    for (x, label, value) in [
+        (22., "用户扣费", money(m.totals.cost)),
+        (34. + mw, "缓存命中率", hit),
+    ] {
+        detail = detail.push(at(
+            Container::new()
+                .width(mw)
+                .height(77.)
+                .color(inset())
+                .border_radius(10.)
+                .child(Stack::new().push(at(metric(label, value, mw - 28.), 14., 10.))),
+            x,
+            177.,
+        ));
+    }
+    detail = detail
+        .push(at(text("Token 构成", 14., Folio::muted()), 22., 266.))
+        .push(at(composition(m, rw - 44.), 22., 290.));
     if let Some(t) = &d.totals {
         let share = if t.tokens > 0 {
             m.totals.tokens as f64 / t.tokens as f64 * 100.
         } else {
             0.
         };
-        detail = detail.push(at(
-            text(format!("当前范围占比 {share:.1}%"), 14., Folio::blue()),
-            rw - 192.,
-            18.,
+        detail = detail.push(right_text(
+            format!("范围占比 {share:.1}%"),
+            14.,
+            Folio::accent_ink(),
+            rw - 22.,
+            17.,
+            180.,
         ));
     }
     Stack::new()
@@ -1167,11 +1440,13 @@ fn model_list(state: Shared, d: &Data, w: f32, h: f32, index: usize) -> Stack {
 }
 fn user_list(state: Shared, d: &Data, w: f32, h: f32, index: usize, period: Period) -> Stack {
     if d.users.is_empty() {
-        return Stack::new().push(panel(w, h).child(Center::new(text(
-            "当前范围暂无用户用量",
-            24.,
-            Folio::muted(),
-        ))));
+        return Stack::new().push(empty_card(
+            w,
+            h,
+            Page::Users,
+            "暂无用户用量",
+            "当前时间范围没有可显示的用户记录",
+        ));
     }
     let lw = 244.;
     let rw = w - lw - 16.;
@@ -1179,100 +1454,127 @@ fn user_list(state: Shared, d: &Data, w: f32, h: f32, index: usize, period: Peri
         .push(at(
             text(
                 format!("{} · 用户用量", period.label()),
-                18.,
+                16.,
                 Folio::muted(),
             ),
             22.,
             20.,
         ))
         .push(at(
-            text(
+            adaptive_number(
                 d.totals
                     .as_ref()
                     .map(|t| tokens(t.tokens))
                     .unwrap_or("—".into()),
                 36.,
-                Folio::ink(),
+                lw - 44.,
             ),
             22.,
-            63.,
+            64.,
         ))
         .push(at(
-            text(fit(&d.total_label, 14.0, lw - 44.0), 14., Folio::muted()),
+            text(fit(&d.total_label, 14., lw - 44.), 14., Folio::muted()),
             22.,
             118.,
         ))
-        .push(at(rule(lw - 44.), 22., 155.))
+        .push(at(rule(lw - 44.), 22., 156.))
         .push(at(
-            metric("活跃用户", format!("{} 位", d.users.len()), lw - 44.),
+            metric(
+                if d.users.len() >= 200 {
+                    "返回用户（前 200）"
+                } else {
+                    "活跃用户"
+                },
+                format!("{} 位", d.users.len()),
+                lw - 44.,
+            ),
             22.,
-            180.,
+            181.,
         ))
         .push(at(
             metric(
                 "用户扣费",
                 d.totals
                     .as_ref()
-                    .map(|t| format!("${:.2}", t.cost))
+                    .map(|t| money(t.cost))
                     .unwrap_or("—".into()),
                 lw - 44.,
             ),
             22.,
-            263.,
+            267.,
         ))
         .push(at(
-            text("点击用户查看模型与趋势", 14., Folio::muted()),
+            text("点击查看模型与趋势", 14., Folio::muted()),
             22.,
             h - 38.,
         ));
     let mut list = Stack::new()
         .push(at(text("用户排名", 18., Folio::ink()), 18., 13.))
-        .push(at(
-            text("Token / 扣费", 14., Folio::muted()),
-            rw - 162.,
+        .push(right_text(
+            "Token / 用户扣费",
+            14.,
+            Folio::muted(),
+            rw - 18.,
             17.,
+            164.,
         ));
-    let max = d.users[0].totals.tokens.max(1) as f64;
+    let max = d
+        .users
+        .iter()
+        .map(|u| u.totals.tokens)
+        .max()
+        .unwrap_or(1)
+        .max(1) as f64;
     for (i, u) in d.users.iter().skip(index * 5).take(5).enumerate() {
         let n = index * 5 + i;
         let st = state.clone();
         let id = u.id;
+        let display_name = u.display_name();
+        let color = visuals::identity_color(&format!("user:{id}"));
         let child = Stack::new()
             .push(at(
                 text(format!("{:02}", n + 1), 14., Folio::muted()),
-                12.,
-                14.,
+                10.,
+                15.,
             ))
+            .push(at(visuals::user_avatar(&display_name, 32., color), 40., 10.))
             .push(at(
-                text(fit(&u.label, 18.0, rw - 322.0), 18., Folio::ink()),
-                48.,
-                6.,
-            ))
-            .push(at(
-                text(
-                    format!("{}   ${:.2}   ›", tokens(u.totals.tokens), u.totals.cost),
+                user_text(
+                    fit_with_font(&display_name, 18., rw - 270., Font::dynamic_font()),
                     18.,
                     Folio::ink(),
                 ),
-                rw - 256.,
+                84.,
+                15.,
+            ))
+            .push(right_text(
+                tokens(u.totals.tokens),
+                18.,
+                Folio::ink(),
+                rw - 56.,
                 6.,
+                140.,
             ))
-            .push(at(
-                text(format!("用户 #{id}"), 14., Folio::muted()),
-                48.,
-                32.,
+            .push(right_text(
+                money(u.totals.cost),
+                14.,
+                Folio::muted(),
+                rw - 56.,
+                34.,
+                140.,
             ))
+            .push(at(text("›", 24., Folio::muted()), rw - 40., 12.))
             .push(at(
-                bar(rw - 78., 4., u.totals.tokens as f64 / max, rank_color(n)),
-                48.,
-                55.,
+                bar(rw - 118., 3., u.totals.tokens as f64 / max, color),
+                84.,
+                56.,
             ));
         list = list.push(at(
             ElevatedButton::new(child)
                 .style(
                     Folio::control_style(rw - 20., 64., Folio::surface())
                         .padding(EdgeInsets::ZERO)
-                        .border_radius(12.),
+                        .border_radius(9.),
                 )
                 .on_pressed(move || edit(&st, |u| u.navigate(Page::Users, u.period, Some(id)))),
             10.,

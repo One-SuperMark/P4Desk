@@ -7,6 +7,7 @@
  * timing are retained; no graphics framework is initialized here.
  */
 #include "board_p4.h"
+#include "touch_io.h"
 
 #include <string.h>
 #include <fcntl.h>
@@ -34,6 +35,7 @@
 static const char *TAG = "board_p4";
 static esp_ldo_channel_handle_t s_dsi_power;
 static i2c_master_bus_handle_t s_i2c;
+static esp_lcd_panel_io_handle_t s_touch_io;
 static sdmmc_card_t *s_card;
 static esp_lcd_panel_handle_t s_diagnostic_panel;
 static int64_t s_display_log_us;
@@ -120,6 +122,12 @@ static esp_err_t panel_init(board_p4_t *board)
     ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_dbi(bus, &dbi, &io), TAG, "panel IO");
 
     esp_lcd_dpi_panel_config_t dpi = EK79007_1024_600_PANEL_60HZ_CONFIG_CF(LCD_COLOR_FMT_RGB565);
+    // IDF 6.0.2 rounds PLL 240 / requested 52 to a real 48 MHz DPI clock.
+    // With the inherited HFP 160, the bridge rounds HTOTAL to 1250 while the
+    // 1000 Mbps Host rounds HLINE to 3255 byte clocks: line periods differ.
+    // HTOTAL 1352 (=26*52) instead gives bridge 1248 (=26*48) and Host 3250
+    // (=26*125), both exactly 26 us. Keep 1024x600 and the other panel porches.
+    dpi.video_timing.hsync_front_porch = 158;
     dpi.num_fbs = P4DESK_FB_COUNT;
     ek79007_vendor_config_t vendor = {
         .mipi_config = {.dsi_bus = bus, .dpi_config = &dpi},
@@ -161,11 +169,8 @@ static esp_err_t touch_init(board_p4_t *board)
         addr = ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS_BACKUP;
         if (i2c_master_probe(s_i2c, addr, 100) != ESP_OK) return ESP_ERR_NOT_FOUND;
     }
-    esp_lcd_panel_io_i2c_config_t io_config = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
-    io_config.dev_addr = addr;
-    io_config.scl_speed_hz = 400000;
     esp_lcd_panel_io_handle_t io = NULL;
-    ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_i2c(s_i2c, &io_config, &io), TAG, "touch IO");
+    ESP_RETURN_ON_ERROR(board_p4_new_gt911_io(s_i2c, addr, &io), TAG, "touch IO");
     esp_lcd_touch_io_gt911_config_t driver_data = {.dev_addr = addr};
     const esp_lcd_touch_config_t config = {
         .x_max = P4DESK_WIDTH, .y_max = P4DESK_HEIGHT,
@@ -176,7 +181,30 @@ static esp_err_t touch_init(board_p4_t *board)
         .flags = {.swap_xy = false, .mirror_x = false, .mirror_y = false},
         .driver_data = &driver_data,
     };
-    return esp_lcd_touch_new_i2c_gt911(io, &config, &board->touch);
+    const esp_err_t error = esp_lcd_touch_new_i2c_gt911(io, &config, &board->touch);
+    if (error != ESP_OK) {
+        esp_lcd_panel_io_del(io);
+    } else {
+        s_touch_io = io;
+        (void)board_p4_gt911_io_take_error(io);
+    }
+    return error;
+}
+
+esp_err_t board_p4_touch_read(board_p4_t *board, bool *sample_ready)
+{
+    if (sample_ready) *sample_ready = false;
+    if (!board || !board->touch || !s_touch_io || !sample_ready) return ESP_ERR_INVALID_ARG;
+    const esp_err_t error = esp_lcd_touch_read_data(board->touch);
+    // The managed driver ignores its final ACK error for zero-contact frames.
+    // Recover that error before the touch task can mistake it for a release.
+    const esp_err_t io_error = board_p4_gt911_io_take_error(s_touch_io);
+    const esp_err_t result = error != ESP_OK ? error : io_error;
+    bool ready = false;
+    if (result == ESP_OK && board_p4_gt911_io_status_ready(s_touch_io, &ready)) {
+        *sample_ready = ready;
+    }
+    return result;
 }
 
 static esp_err_t sd_mount(void)

@@ -756,6 +756,7 @@ pub fn build(shared: Arc<Mutex<LauncherState>>, size: Size) -> impl Widget {
     if state.item_count() > 0 && state.error != Some(FileError::StorageUnavailable) {
         let cache_key = state.list_content_revision
             ^ (tiny_flutter::graphics::font::file_fontpack_revision() as u64).rotate_left(17)
+            ^ (tiny_flutter::graphics::font::typeface_revision() as u64).rotate_left(37)
             ^ ((state.trash_mode as u64) << 63)
             ^ ((crate::icon_theme::raster_key() as u64) << 40);
         view = view.push(at(
@@ -1491,7 +1492,8 @@ fn preview_view(shared: Arc<Mutex<LauncherState>>, state: &State, size: Size) ->
                 state.preview_text_pages.clone()
             };
             let cache_key = state.revision
-                ^ (tiny_flutter::graphics::font::file_fontpack_revision() as u64).rotate_left(29);
+                ^ (tiny_flutter::graphics::font::file_fontpack_revision() as u64).rotate_left(29)
+                ^ (tiny_flutter::graphics::font::typeface_revision() as u64).rotate_left(43);
             view = view.push(at(
                 panel(size.width - 36.0, 390.0, Folio::surface()).child(Padding::new(
                     EdgeInsets::all(18.0),
