@@ -20,12 +20,13 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
-png = { version = "0.17", optional = true }
+png = "0.17"
+jpeg-decoder = { version = "=0.3.2", default-features = false }
 
 [features]
 default = []
 simulator = ["tiny-flutter/simulator", "calculator/simulator"]
-screenshots = ["dep:png"]
+screenshots = []
 
 [[example]]
 name = "usage-preview"

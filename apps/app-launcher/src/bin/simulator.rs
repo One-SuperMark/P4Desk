@@ -19,7 +19,12 @@ fn simulator_commands(
                 let current = state.lock().unwrap().snapshot.clone();
                 match store.delete_note(&current, &id) {
                     Ok(next) => state.lock().unwrap().apply_snapshot(next),
-                    Err(_) => state.lock().unwrap().notice = "保存失败，原数据已保留".into(),
+                    Err(_) => {
+                        state
+                            .lock()
+                            .unwrap()
+                            .show_error(app_launcher::launcher_state::SystemError::SaveFailed);
+                    }
                 }
             }
             app_launcher::UiCommand::Brightness(value) => {
@@ -44,10 +49,19 @@ fn simulator_commands(
                 *wall_offset = 0;
             }
             app_launcher::UiCommand::Screen(_) => {
-                state.lock().unwrap().notice = "窗口模拟器使用 F2 或空格切换屏幕".into();
+                state
+                    .lock()
+                    .unwrap()
+                    .show_notice(app_launcher::launcher_state::SystemNotice::SimulatorScreenHelp);
+            }
+            app_launcher::UiCommand::DismissError { id } => {
+                state.lock().unwrap().dismiss_dialog(id);
             }
             _ => {
-                state.lock().unwrap().notice = "USB 动作需在开发板与 Mac 之间执行".into();
+                state
+                    .lock()
+                    .unwrap()
+                    .show_notice(app_launcher::launcher_state::SystemNotice::SimulatorUSBHelp);
             }
         }
     }

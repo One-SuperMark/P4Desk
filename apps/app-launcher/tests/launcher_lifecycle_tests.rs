@@ -401,7 +401,7 @@ fn recent_shortcuts_do_not_keep_closed_instances_or_change_background_limits() {
     assert_eq!(s.recent_app_ids().last(), Some("display"));
 }
 #[test]
-fn desktop_notice_stays_between_cards_and_grid_and_keeps_apps_touchable() {
+fn legacy_notice_never_draws_a_banner_or_covers_application_icons() {
     let state = Arc::new(Mutex::new(LauncherState::new()));
     let size = Size::new(1024.0, 600.0);
     let mut backend = HeadlessBackend::new(1024, 600);
@@ -411,7 +411,7 @@ fn desktop_notice_stays_between_cards_and_grid_and_keeps_apps_touchable() {
     state.lock().unwrap().notice = "便签与字体已同步".repeat(8);
     app.request_rebuild();
     step_ui(&mut app, &mut backend, &state);
-    // A persistent sync result must not obscure either row of application icons.
+    // Legacy text is no longer drawn as a persistent desktop banner.
     for y in 208..600 {
         assert_eq!(
             &before[y * 1024..(y + 1) * 1024],

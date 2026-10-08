@@ -34,6 +34,7 @@ pub enum ActiveApp {
     MacControls,
     Settings,
     Usage,
+    Files,
     Planned(crate::planned_apps::PlannedApp),
     /// Temporary handoff page, never stored as a background app.
     DisplaySetup,
@@ -49,6 +50,7 @@ impl ActiveApp {
             Self::MacControls => Some("mac"),
             Self::Settings => Some("settings"),
             Self::Usage => Some("sub2api-monitor"),
+            Self::Files => Some("file-manager"),
             Self::Planned(app) => Some(app.id()),
             Self::DisplaySetup => Some("display"),
         }
@@ -70,6 +72,8 @@ impl Default for NotesView {
 }
 #[derive(Debug, Clone)]
 pub enum UiCommand {
+    DismissError { id: u64 },
+    Files(crate::files::Request),
     Usage(crate::usage::Command),
     Radio(crate::radio::RadioCommand),
     DeleteNote(String),
@@ -85,6 +89,126 @@ pub enum UiCommand {
     RequestMode(Mode),
     StartDisplayTransition { duration_ms: u32 },
     CancelDisplayTransition,
+}
+
+/// User-visible failures are explicitly classified by the caller. Status notices
+/// never become alerts just because their text happens to contain an error word.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SystemError {
+    SyncFailed,
+    ResourceRecoveryFailed,
+    SessionRecoveryFailed,
+    SaveFailed,
+    OperationFailed,
+    MacDisconnected,
+    WirelessBusy,
+    NoteNotFound,
+    File(crate::files::FileError),
+    Monitor(crate::usage::api::Error),
+    MonitorUnavailable,
+}
+impl SystemError {
+    pub fn title(self) -> &'static str {
+        match self {
+            Self::SyncFailed => "同步失败",
+            Self::ResourceRecoveryFailed => "资源恢复失败",
+            Self::SessionRecoveryFailed => "应用状态恢复失败",
+            Self::SaveFailed => "保存失败",
+            Self::OperationFailed => "操作未完成",
+            Self::MacDisconnected => "Mac 未连接",
+            Self::WirelessBusy => "无线任务繁忙",
+            Self::NoteNotFound => "便签已不存在",
+            Self::File(_) => "文件操作失败",
+            Self::Monitor(_) => "监控操作未完成",
+            Self::MonitorUnavailable => "监控未启动",
+        }
+    }
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::SyncFailed => "保留已有便签和字体，请重试",
+            Self::ResourceRecoveryFailed => "基本工具仍可用，请检查存储",
+            Self::SessionRecoveryFailed => "请检查存储后重试",
+            Self::SaveFailed => "原数据已保留，请检查存储",
+            Self::OperationFailed => "请重试",
+            Self::MacDisconnected => "请连接 USB 和 Mac 应用",
+            Self::WirelessBusy => "请稍后重试",
+            Self::NoteNotFound => "请重新同步便签",
+            Self::File(error) => error.message(),
+            Self::Monitor(error) => error.message(),
+            Self::MonitorUnavailable => "请检查存储后重试",
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ErrorDialog {
+    pub id: u64,
+    pub error: SystemError,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SystemNotice {
+    NotesSynced,
+    UnsupportedWifiSecurity,
+    SimulatorScreenHelp,
+    SimulatorUSBHelp,
+    OperationCompleted,
+    MonitorSaved,
+    MonitorCleared,
+}
+impl SystemNotice {
+    pub fn title(self) -> &'static str {
+        match self {
+            Self::NotesSynced => "同步完成",
+            Self::UnsupportedWifiSecurity => "Wi-Fi",
+            Self::SimulatorScreenHelp | Self::SimulatorUSBHelp => "提示",
+            Self::OperationCompleted => "操作完成",
+            Self::MonitorSaved => "配置已保存",
+            Self::MonitorCleared => "配置已清除",
+        }
+    }
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::NotesSynced => "便签与字体已同步",
+            Self::UnsupportedWifiSecurity => "暂不支持企业认证或旧式加密网络",
+            Self::SimulatorScreenHelp => "窗口模拟器使用 F2 或空格切换屏幕",
+            Self::SimulatorUSBHelp => "USB 动作需在开发板与 Mac 之间执行",
+            Self::OperationCompleted => "操作已完成",
+            Self::MonitorSaved => "监控配置已保存，可以刷新数据",
+            Self::MonitorCleared => "本机监控配置已清除",
+        }
+    }
+    pub fn is_success(self) -> bool {
+        matches!(
+            self,
+            Self::NotesSynced
+                | Self::OperationCompleted
+                | Self::MonitorSaved
+                | Self::MonitorCleared
+        )
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DialogContent {
+    Error(SystemError),
+    Notice(SystemNotice),
+}
+impl DialogContent {
+    pub fn title(self) -> &'static str {
+        match self {
+            Self::Error(error) => error.title(),
+            Self::Notice(notice) => notice.title(),
+        }
+    }
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::Error(error) => error.message(),
+            Self::Notice(notice) => notice.message(),
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SystemDialog {
+    pub id: u64,
+    pub content: DialogContent,
 }
 
 pub struct LauncherState {
@@ -105,6 +229,7 @@ pub struct LauncherState {
     pub radio: crate::radio::RadioSnapshot,
     pub settings_view: crate::radio::SettingsView,
     pub usage: crate::usage::State,
+    pub files: crate::files::ui::State,
     pub usb_connected: bool,
     pub connected: bool,
     pub sd_ready: bool,
@@ -123,6 +248,11 @@ pub struct LauncherState {
     pub flip_clock: FlipClockState,
     pub date: String,
     pub notice: String,
+    pub system_dialog: Option<SystemDialog>,
+    /// Compatibility view of an error dialog. Informational messages clear it.
+    pub error_dialog: Option<ErrorDialog>,
+    error_dialog_sequence: u64,
+    pending_dialogs: VecDeque<SystemDialog>,
     pub mac_page: usize,
     pub revision: u64,
     pub manual_time_open: bool,
@@ -159,6 +289,7 @@ impl LauncherState {
             radio: crate::radio::RadioSnapshot::default(),
             settings_view: crate::radio::SettingsView::default(),
             usage: crate::usage::State::default(),
+            files: crate::files::ui::State::default(),
             usb_connected: false,
             connected: false,
             sd_ready: false,
@@ -176,6 +307,10 @@ impl LauncherState {
             flip_clock: FlipClockState::default(),
             date: "等待 Mac 校时".into(),
             notice: String::new(),
+            system_dialog: None,
+            error_dialog: None,
+            error_dialog_sequence: 0,
+            pending_dialogs: VecDeque::new(),
             mac_page: 0,
             revision: 1,
             manual_time_open: false,
@@ -206,7 +341,7 @@ impl LauncherState {
             "calculator" => ActiveApp::Calculator(Arc::new(Mutex::new(CalcState::new()))),
             "mac" => ActiveApp::MacControls,
             "settings" => ActiveApp::Settings,
-            "file-manager" => ActiveApp::Planned(crate::planned_apps::PlannedApp::Files),
+            "file-manager" => ActiveApp::Files,
             "office-viewer" => ActiveApp::Planned(crate::planned_apps::PlannedApp::Office),
             "sub2api-monitor" => ActiveApp::Usage,
             "display" => ActiveApp::DisplaySetup,
@@ -222,6 +357,10 @@ impl LauncherState {
             }
         }
         self.flip_clock.snap(&self.clock);
+        if matches!(self.active_app, ActiveApp::Files) {
+            let request = self.files.refresh_request();
+            self.queue(UiCommand::Files(request));
+        }
         self.changed();
     }
     /// Oldest hidden application first; resuming and hiding again moves it last.
@@ -264,6 +403,9 @@ impl LauncherState {
                     if oldest == "settings" {
                         self.manual_time_open = false;
                     }
+                    if oldest == "file-manager" {
+                        self.files.close();
+                    }
                 }
             }
         }
@@ -273,6 +415,9 @@ impl LauncherState {
     }
     /// The original BackListener semantics, with the settings editor's nested route.
     pub fn back_active_app(&mut self) {
+        if self.dismiss_current_error() {
+            return;
+        }
         if self.status_panel_open {
             self.status_panel_open = false;
             self.changed();
@@ -286,7 +431,13 @@ impl LauncherState {
         }
     }
     pub fn kill_active_app(&mut self) {
+        if self.dismiss_current_error() {
+            return;
+        }
         self.status_panel_open = false;
+        if matches!(self.active_app, ActiveApp::Files) {
+            self.files.close();
+        }
         if matches!(self.active_app, ActiveApp::DisplaySetup) {
             self.commands.retain(|c| {
                 !matches!(
@@ -321,6 +472,148 @@ impl LauncherState {
     }
     pub fn changed(&mut self) {
         self.revision = self.revision.wrapping_add(1);
+    }
+    pub fn show_error(&mut self, error: SystemError) -> u64 {
+        self.show_dialog(DialogContent::Error(error))
+    }
+    pub fn show_notice(&mut self, notice: SystemNotice) -> u64 {
+        self.show_dialog(DialogContent::Notice(notice))
+    }
+    pub fn active_dialog(&self) -> Option<SystemDialog> {
+        self.system_dialog.or_else(|| {
+            self.error_dialog.map(|dialog| SystemDialog {
+                id: dialog.id,
+                content: DialogContent::Error(dialog.error),
+            })
+        })
+    }
+    fn show_dialog(&mut self, content: DialogContent) -> u64 {
+        // DisplaySetup consumes this field as its connection/first-frame state,
+        // rather than as a global notification. An unrelated result must not
+        // overwrite the waiting or failed-creation page when its modal closes.
+        let cleared_notice =
+            !self.notice.is_empty() && !matches!(self.active_app, ActiveApp::DisplaySetup);
+        if cleared_notice {
+            self.notice.clear();
+        }
+        if let Some(dialog) = self
+            .active_dialog()
+            .filter(|dialog| dialog.content == content)
+        {
+            if cleared_notice {
+                self.changed();
+            }
+            return dialog.id;
+        }
+        if let Some(dialog) = self
+            .pending_dialogs
+            .iter()
+            .find(|dialog| dialog.content == content)
+        {
+            let id = dialog.id;
+            if cleared_notice {
+                self.changed();
+            }
+            return id;
+        }
+        let dialog = SystemDialog {
+            id: self.next_dialog_id(),
+            content,
+        };
+        let id = dialog.id;
+        if let Some(current) = self.active_dialog() {
+            if matches!(current.content, DialogContent::Error(_))
+                && matches!(content, DialogContent::Notice(_))
+            {
+                self.enqueue_dialog(dialog);
+                self.changed();
+                return id;
+            }
+            // Interrupted messages receive a new ID, so a stale button from
+            // their previous visible incarnation cannot close them later.
+            let interrupted = SystemDialog {
+                id: self.next_dialog_id(),
+                content: current.content,
+            };
+            self.enqueue_dialog(interrupted);
+        }
+        self.activate_dialog(Some(dialog));
+        self.changed();
+        id
+    }
+    fn next_dialog_id(&mut self) -> u64 {
+        self.error_dialog_sequence = self.error_dialog_sequence.wrapping_add(1).max(1);
+        self.error_dialog_sequence
+    }
+    fn enqueue_dialog(&mut self, dialog: SystemDialog) {
+        if self
+            .pending_dialogs
+            .iter()
+            .any(|pending| pending.content == dialog.content)
+        {
+            return;
+        }
+        if self.pending_dialogs.len() == 8 {
+            if let Some(index) = self
+                .pending_dialogs
+                .iter()
+                .position(|pending| matches!(pending.content, DialogContent::Notice(_)))
+            {
+                self.pending_dialogs.remove(index);
+            } else if matches!(dialog.content, DialogContent::Notice(_)) {
+                return;
+            } else {
+                self.pending_dialogs.pop_back();
+            }
+        }
+        if matches!(dialog.content, DialogContent::Error(_)) {
+            self.pending_dialogs.push_front(dialog);
+        } else {
+            self.pending_dialogs.push_back(dialog);
+        }
+    }
+    fn activate_dialog(&mut self, dialog: Option<SystemDialog>) {
+        self.system_dialog = dialog;
+        self.error_dialog = match dialog.map(|dialog| (dialog.id, dialog.content)) {
+            Some((id, DialogContent::Error(error))) => Some(ErrorDialog { id, error }),
+            _ => None,
+        };
+    }
+    /// A delayed click or acknowledgment must never dismiss a newer failure.
+    pub fn dismiss_error(&mut self, id: u64) -> bool {
+        self.dismiss_dialog(id)
+    }
+    pub fn dismiss_dialog(&mut self, id: u64) -> bool {
+        if self.active_dialog().is_some_and(|dialog| dialog.id == id) {
+            let next = self.pending_dialogs.pop_front();
+            self.activate_dialog(next);
+            self.changed();
+            true
+        } else {
+            false
+        }
+    }
+    fn dismiss_current_error(&mut self) -> bool {
+        if let Some(dialog) = self.active_dialog() {
+            if self.dismiss_dialog(dialog.id) {
+                self.queue(UiCommand::DismissError { id: dialog.id });
+                return true;
+            }
+        }
+        false
+    }
+    /// Storage results are transient alerts; stale completions cannot replace a
+    /// current directory or open a dialog after the file application was closed.
+    pub fn apply_files_response(&mut self, response: crate::files::Response) -> bool {
+        let silent = self.files.is_silent_response(response.revision);
+        let error = response.result.as_ref().err().copied();
+        if !self.files.apply(response) {
+            return false;
+        }
+        if let Some(error) = error.filter(|_| !silent) {
+            self.show_error(SystemError::File(error));
+        }
+        true
     }
     /// Desktop launches animate; direct opens and status-bar resumes retain
     /// their existing routing and preserved app instances.
@@ -395,6 +688,9 @@ impl LauncherState {
             }
         }
         dirty
+    }
+    pub fn display_launch_waiting(&self) -> bool {
+        self.display_wait_since.is_some() || self.display_request_pending
     }
     pub fn fail_display_launch(&mut self, notice: &str) {
         if matches!(self.active_app, ActiveApp::DisplaySetup) {

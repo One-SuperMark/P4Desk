@@ -152,6 +152,12 @@ impl Snapshot {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum HostMessage {
+    FileList { request_id: u16, path: String, #[serde(default)] offset: u32, limit: u16 },
+    FileMkdir { request_id: u16, path: String },
+    FileUploadBegin { request_id: u16, path: String, length: u64, sha256: String },
+    FileUploadCommit { request_id: u16 },
+    FileUploadAbort { request_id: u16 },
+    FileFontInstall { request_id: u16, path: String, sha256: String },
     MonitorConfigure { request_id: u16, site: String, key: MonitorKey },
     MonitorForget { request_id: u16 },
     MonitorGetStatus { request_id: u16 },
@@ -195,7 +201,13 @@ pub enum HostMessage {
 impl HostMessage {
     pub fn request_id(&self) -> u16 {
         match self {
-            Self::MonitorConfigure { request_id, .. }
+            Self::FileList { request_id, .. }
+            | Self::FileMkdir { request_id, .. }
+            | Self::FileUploadBegin { request_id, .. }
+            | Self::FileUploadCommit { request_id }
+            | Self::FileUploadAbort { request_id }
+            | Self::FileFontInstall { request_id, .. }
+            | Self::MonitorConfigure { request_id, .. }
             | Self::MonitorForget { request_id }
             | Self::MonitorGetStatus { request_id }
             | Self::Hello { request_id, .. }
@@ -224,6 +236,7 @@ pub struct TouchPoint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum DeviceMessage {
+    FileListing { request_id: u16, path: String, entries: Vec<RemoteFileEntry>, total: u32, truncated: bool, read_only: bool },
     MonitorStatus { request_id: u16, configured: bool, busy: bool, configuration_result: Option<bool>, message: String },
     Caps {
         request_id: u16,
@@ -236,6 +249,8 @@ pub enum DeviceMessage {
         mode: Mode,
         #[serde(default)]
         direct_jpeg_rotation_degrees: u16,
+        #[serde(default)]
+        file_transfer: bool,
     },
     Ack {
         request_id: u16,
@@ -274,6 +289,16 @@ pub enum DeviceMessage {
         sequence: u16,
         device_us: u64,
     },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteFileEntry {
+    pub name: String,
+    pub path: String,
+    pub directory: bool,
+    pub size: u64,
+    pub modified_seconds: Option<i64>,
+    pub read_only: bool,
 }
 
 pub fn crc16(data: &[u8]) -> u16 {
@@ -619,6 +644,7 @@ mod tests {
             message,
             DeviceMessage::Caps {
                 direct_jpeg_rotation_degrees: 0,
+                file_transfer: false,
                 version: 1,
                 ..
             }
@@ -656,6 +682,7 @@ mod tests {
             sd_ready: true,
             mode: Mode::Pad,
             direct_jpeg_rotation_degrees: 180,
+            file_transfer: true,
         };
         let received: DeviceMessage =
             serde_json::from_slice(&serde_json::to_vec(&caps).unwrap()).unwrap();

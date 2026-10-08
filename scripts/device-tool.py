@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Flash only after a verified backup, or read a bounded, sanitized UART log."""
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 from pathlib import Path
@@ -36,6 +37,55 @@ def run_tool(arguments, python, port):
         raise SystemExit('esptool 操作失败，未标记为成功')
 
 
+@contextmanager
+def stable_uart(port):
+    # pyserial normally opens with asserted DTR/RTS. Set both inactive before
+    # open so the CH343 automatic-download circuit does not select BOOT or EN.
+    # An OS/USB driver can still briefly change modem lines during open/close;
+    # this removes the avoidable application-side transitions.
+    import serial
+    uart = serial.Serial(port=None, baudrate=115200, timeout=0.5,
+                         rtscts=False, dsrdtr=False)
+    try:
+        uart.dtr = False
+        uart.rts = False
+        uart.port = port
+        uart.open()
+        yield uart
+    finally:
+        if uart.is_open:
+            try:
+                uart.dtr = False
+            finally:
+                try:
+                    uart.rts = False
+                finally:
+                    uart.close()
+        else:
+            uart.close()
+
+
+def pulse_reset(uart):
+    # CH343 RTS drives EN through the board's automatic reset circuit. Keep
+    # DTR inactive throughout: the BOOT input must stay in normal-run mode.
+    uart.dtr = False
+    uart.rts = True
+    try:
+        time.sleep(0.1)
+    finally:
+        uart.rts = False
+        uart.dtr = False
+
+
+def reset(args):
+    with stable_uart(args.port) as uart:
+        time.sleep(0.2)
+        pulse_reset(uart)
+        # Do not close the bridge at the same instant EN is released.
+        time.sleep(0.5)
+    print('烧录后稳定硬复位已完成。', flush=True)
+
+
 def flash(args):
     backup = Path(args.backup).resolve()
     manifest = json.loads(backup.with_suffix('.json').read_text())
@@ -56,7 +106,13 @@ def flash(args):
             raise SystemExit('固件地址超出 P4Desk 允许范围')
         pairs.extend([offset, str(binary)])
     print('完整 Flash/NVS 备份已校验，开始写入构建清单列出的固件分区。', flush=True)
-    run_tool(['--baud', args.baud, 'write-flash', *metadata['write_flash_args'], *pairs], args.python, args.port)
+    # Exit the stub to ROM, without starting the app on esptool's immediately
+    # closing serial connection. Only a successful write may start the app.
+    run_tool(['--after', 'no-reset', '--baud', args.baud, 'write-flash',
+              *metadata['write_flash_args'], *pairs], args.python, args.port)
+    if subprocess.call([args.python, str(Path(__file__).resolve()), 'reset',
+                        '--port', args.port]):
+        raise SystemExit('固件已写入，但启动复位失败；请按开发板复位键')
 
 
 def monitor(args):
@@ -69,20 +125,16 @@ def monitor(args):
         if args.output:
             command.extend(['--output', args.output])
         raise SystemExit(subprocess.call(command))
-    import serial
     destination = None
     if args.output:
         path = Path(args.output).resolve()
         path.parent.mkdir(parents=True, exist_ok=True)
         destination = path.open('w')
     try:
-        with serial.Serial(args.port, 115200, timeout=0.5) as uart:
-            uart.dtr = False
-            uart.rts = False
+        with stable_uart(args.port) as uart:
             if args.reset:
-                uart.rts = True
-                time.sleep(0.1)
-                uart.rts = False
+                time.sleep(0.2)
+                pulse_reset(uart)
             deadline = time.monotonic() + args.duration
             while time.monotonic() < deadline:
                 raw = uart.readline()
@@ -108,6 +160,8 @@ def main():
     flashing.add_argument('--backup', required=True)
     flashing.add_argument('--build-dir', default='/Volumes/work/esp/build/p4desk')
     flashing.add_argument('--baud', default='460800')
+    restarting = commands.add_parser('reset', help='通过 CH343 串口执行稳定硬复位')
+    restarting.add_argument('--port', required=True)
     logging = commands.add_parser('monitor')
     logging.add_argument('--port', required=True)
     logging.add_argument('--python')
@@ -122,6 +176,8 @@ def main():
         if not args.worker and not args.python:
             parser.error('--python is required')
         monitor(args)
+    elif args.operation == 'reset':
+        reset(args)
     else:
         flash(args)
 

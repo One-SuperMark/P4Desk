@@ -15,7 +15,7 @@
 | 8/10 | width/height，JPEG为1024/600，其余为0 | 2+2 |
 | 12 | u32，低10位 sequence，高22位 payload length | 4 |
 
-JPEG 最大 1 MiB（HELLO 协商），完整 baseline JPEG。视频不要求应用层CRC，控制和资源使用CRC。CONTROL为UTF-8 JSON，最大64KiB。RESOURCE为u32 offset加原始字体包字节，单包数据不超过32768字节，使用帧头sequence作为请求ID。接收器支持任意USB短包/拼包；无效头或长度重置当前消息，超时/断线清空流。主机一次完整发送一个消息，控制优先于下一待发JPEG，禁止在JPEG payload中插入控制数据。
+JPEG 最大 1 MiB（HELLO 协商），完整 baseline JPEG。视频不要求应用层CRC，控制和资源使用CRC。CONTROL为UTF-8 JSON，最大64KiB。RESOURCE为u32 offset加原始资源字节（便签字体包或有效文件上传中的文件块），单包数据不超过32768字节，使用帧头sequence作为请求ID。接收器支持任意USB短包/拼包；无效头或长度重置当前消息，超时/断线清空流。主机一次完整发送一个消息，控制优先于下一待发JPEG，禁止在JPEG payload中插入控制数据。
 
 JPEG 图像颜色采用 sRGB 输入、JFIF 的 **完整范围 YCbCr／BT.601 系数**（Y 与色度使用 0–255）。支持 4:4:4、4:2:2、4:2:0 和灰度；不可将没有矩阵标记的 BT.709 输出直接当作 JFIF 发送。Mac 清晰度方案优先完整色度，实际编码结果必须仍为 SOF0、8 bit、1024×600；超过 1 MiB 时在有限质量梯度内重新编码，最终仍越界则丢弃该帧，不截断 JPEG。
 
@@ -48,6 +48,28 @@ JPEG 图像颜色采用 sRGB 输入、JFIF 的 **完整范围 YCbCr／BT.601 系
 - `request_time_sync {}`；板上 USB 校时按钮请求主机立即发送当前时间
 - `status {mode, sd_ready:bool, time_valid:bool, generation:u64}`
 - `frame_presented {session:u32, sequence:u16, device_us:u64}`；新版固件在该帧开始扫描后，首次完整 LCD DMA 源读取完成时发送一次。可选性能元数据为 `jpeg_bytes:u32`、`decode_us:u64`、`copy_us:u64`、`present_us:u64`：依次为该帧 JPEG payload 字节数、头校验及硬件解码耗时、可见 600 行裁剪／旋转拷贝耗时、LCD 提交开始至该帧完整 DMA 读取完成耗时。协商直接解码后 `copy_us=0`。旧固件的 `present_us` 包含两次刷新安全等待。时间均来自板端单调时钟；旧主机忽略新增字段，新主机接受缺少字段的旧固件。DMA 完成用于保证缓冲所有权，不等于光学显示完成；回执到达 Mac 还包含 USB 回传时间。
+
+## 可选文件传输（v1 兼容扩展）
+
+`caps.file_transfer:bool` 缺省为 false，新固件工作线程就绪时为 true。文件传输只允许 Pad 模式且 TF 就绪，与便签字体同步、副屏及待进入副屏互斥。路径均相对 `/sdcard`（空字符串为根），使用 docs/file-manager.md 的 FAT 和系统目录限制。
+
+| 请求 | 字段 | 成功响应 |
+| --- | --- | --- |
+| `file_list` | request_id, path:string, offset:u32, limit:u16（1～32） | `file_listing` |
+| `file_mkdir` | request_id, path:string | ACK |
+| `file_upload_begin` | request_id, path:string, length:u64（0～256 MiB）, sha256:64 hex | ACK |
+| RESOURCE（kind 17） | offset:u32 小端 + 1～32768 原始文件字节 | ACK acknowledged=`file_chunk` |
+| `file_upload_commit` | request_id | 完成 TF 重读校验及提交后 ACK |
+| `file_upload_abort` | request_id | 清理未提交文件后 ACK |
+| `file_font_install` | request_id, path:string, sha256:64 hex | 校验独立 P4F1 字库及保存指针后 ACK |
+
+`file_listing`：`{request_id,path,entries:[{name,path,directory:bool,size:u64,modified_seconds:i64|null,read_only:bool}],total:u32,truncated:bool,read_only:bool}`。每页最多 32 项；设备当前目录结果集最多 256 项，truncated 同时提示截断。普通 JSON 最大仍为 64 KiB。
+
+ACK 使用原格式，`acknowledged` 为请求 op。上传 ACK 表示该块已写入或整个文件已提交，不表示仅入队。每块等待 ACK，偏移必须等于已接收字节数；长度为 0 时 begin 后直接 commit。RESOURCE 有效上传期间解释为文件块，否则保持便签字体块。单次只允许一个上传，严禁两类传输交叉。
+
+校验使用流式 SHA256，先验证接收数据，再在关闭与同步后从 TF 卡重读。仅完整正确的新文件提交；不覆盖已有文件。15 秒无后续块取消上传；commit 重读窗口为 `30秒 + ceil(length/512KiB)秒`，最大 542 秒。断线／主动取消／新 hello 握手通过 epoch 和取消 token 中止旧校验与发布，清空旧回复，避免 Mac 进程重启后沿用旧上传。
+
+独立字库最大 8 MiB、16,384 条记录，先验证头部和索引边界再分配。P4 仅加载索引和缓存，文件名／预览 provider 不替换便签或系统 provider。安全错误码固定为 `storage_unavailable`、`files_unavailable`、`busy`、`display_busy`、`sync_busy`、`invalid_path`、`protected`、`already_exists`、`too_large`、`no_space`、`integrity`、`offset`、`cancelled` 等，不含路径或内容。未 hello 时保持 `hello_required`。
 
 ## Snapshot
 

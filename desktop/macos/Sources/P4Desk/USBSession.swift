@@ -60,8 +60,8 @@ enum DeskError: LocalizedError {
         switch self {
         case .usbDisconnected: return "USB 未连接。请连接板上 Type-A USB-OTG 大接口；Type-C 小接口仅用于供电／烧录调试。"
         case .usbQueueUnavailable: return "USB 发送队列不可用，请重新连接。"
-        case .timeout(let op): return "设备操作超时：\(op)。"
-        case .deviceRejected(let op): return "设备未接受操作：\(op)。请查看 TF 卡与设备状态。"
+        case .timeout: return "设备响应超时，请保持 USB 连接并重试。"
+        case .deviceRejected: return "设备未能完成操作，请检查连接、配置和存储状态。"
         case .invalidDevice: return "设备协议或屏幕尺寸不匹配。"
         case .permission(let name): return "需要在系统设置中允许\(name)。"
         case .displayUnavailable: return "当前系统无法创建 P4 Desk 虚拟显示器。"

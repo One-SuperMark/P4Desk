@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-07",
+  "branch": "codex/folio-ui",
+  "scope": "closable one-shot operation notices; no persistent global result banners",
+  "tests": {
+    "rust_workspace_passed": 479,
+    "swift_passed": 85,
+    "new_cjk_missing": 0
+  },
+  "build": {
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "files": {
+      "p4desk.bin": {
+        "bytes": 6995440,
+        "sha256": "30c5d126ffd5612b69028a0a97e1c089a419cd03c89505bff0e71cfe5bfe3461"
+      },
+      "p4desk.elf": {
+        "bytes": 27830200,
+        "sha256": "eb2f653ffc8bab7849da82fe9a92b5a0fc76f6229a3f0118454fc4d653ae0b18"
+      },
+      "flasher_args.json": {
+        "bytes": 911,
+        "sha256": "b72ae642525cfde46dca189772e9f433b2758f5afbf541a8964cbcf44917120d"
+      },
+      "bootloader/bootloader.bin": {
+        "bytes": 23888,
+        "sha256": "fc9c3534b9f183cc10e6bdd47fd43be5753023f3251981d679805939c35d8fa8"
+      },
+      "partition_table/partition-table.bin": {
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      }
+    },
+    "source_hashes": {
+      "firmware/components/rust_main/CMakeLists.txt": "f4860f570308f0754dd3dd5f30812e42ed5b00f58817f3b5b8c46d83990c2f8b",
+      "firmware/components/rust_main/build.rs": "6ed1a45b6c9bd6bad50712ff3a603b302be11295528133eff3627134b548fd08",
+      "firmware/components/rust_main/src/ffi.rs": "ba9fccb5d7c042f434fa800d1fedfe81bfed4477a002e2555fedc1e0f3c510d1",
+      "apps/app-launcher/src/files/ui.rs": "c1e5a0f2a97cccd62ec33f665cdf442b1a29feb5c5fe7a1f33598af0b4e755fb",
+      "apps/app-launcher/src/files/fs.rs": "f0a93cc45bdf3e00046e260087ea64aea75a62a876b674347b4a0ac1363d3882",
+      "apps/app-launcher/src/files/preview.rs": "2b48a5b75beeb9b4e01ef3f63fcf6c11e48153bb84af3f4b03d18c05fb447df2",
+      "firmware/components/rust_main/src/files.rs": "3028eafcb3c07f7606b8b6c164f8289d68741a0fd7b19ccc13896be3ee80392f",
+      "firmware/components/rust_main/src/runtime.rs": "d0b08f1ca0f5bba140a8173da2f80eb64e2596af50f7fe3587ae65f3bfb1c869",
+      "crates/p4desk-protocol/src/lib.rs": "83a8618ee77d43cc827096c4c5be9785ee69da07cbcafc9b912e59bdd6917e28",
+      "assets/generated/ui.p4f": "99a7afb503eb9d776be5ee929d6583ff1d7ef73221507c833c3415c8b0500b2c",
+      "third_party/jpeg-decoder/src/decoder.rs": "4fea0fabcb5a244b3f650d7f8e4c72143ee39199a2f1662012be69ed734a4889",
+      "apps/app-launcher/src/storage.rs": "f1e07e1f90f151136c01a564714460bcf8c200c883a9adacb205275b4df6b3b1",
+      "scripts/device-tool.py": "43f19335164f5368d4eb327f65580afd42c661eebc695fac553117122f5ce420",
+      "apps/app-launcher/src/launcher_state.rs": "c1aaeec0fc35987fa1e17e8f0a08f8ffac0bceb4378cbe6b1f6e6d49773f838d",
+      "apps/app-launcher/src/launcher_ui.rs": "b1392d76f25c5e109aa391e224c83a127326bb5fe645b86cfcfbfd36e1ada167",
+      "firmware/components/rust_main/src/usage.rs": "2924fe9b19aac22900cd0663626d871875ba1f03ce264f210b9ce5a572e4ee77"
+    }
+  },
+  "flash": {
+    "exit": 0,
+    "verified_regions": 3,
+    "nvs_tf_preserved": true
+  },
+  "mac": {
+    "installed_path": "/Applications/P4Desk.app",
+    "developer_id_signature_verified": true,
+    "bytes": 2379248,
+    "sha256": "47177a12da573111f92a56c1fecf9d67bb2b6382aae570a2db3a3d7f264e9522",
+    "actual_sync_success_alert_visible": true,
+    "closed_then_footer_connection_state": true,
+    "persistent_sync_result_absent_after_close": true,
+    "left_open": true
+  },
+  "device": {
+    "capture": {
+      "elapsed_seconds": 60.04,
+      "planned_seconds": 60,
+      "exit": 0,
+      "failure": null,
+      "filter": "numeric health, UI and request diagnostics; no content or credentials"
+    },
+    "sync_commit_success_logged": true,
+    "pad_visual_close_acceptance": "pending",
+    "latest_diagnostics": {
+      "p4desk_diag:": "I (32315) p4desk_diag: uptime_s=30 mode=pad internal_free=79435 internal_min=73615 psram_free=13743112 psram_min=13400720 alloc_failures=0 last_alloc_bytes=0 last_alloc_caps=0x0 presented=37 bad_jpeg=0 parser_errors=0 control_queue=1 jpeg_received=0 jpeg_dropped=0 frame_ack_dropped=0",
+      "p4desk_dsi_host:": "I (32344) p4desk_dsi_host: query=0 polls=456 error_polls=1 status0_or=0x100000 status1_or=0x0 dpi_overflow_polls=0 dpi_underflow_polls=0 first_us=449250 last_us=449250",
+      "p4desk_display_health:": "I (32359) p4desk_display_health: boundary_gap_max_us=16743 delayed_over_25ms=0 boundary_queue_peak=2 cache_query=0 cache_calls=37 cache_errors=0 cache_max_us=1225 cache_last_error=0 ppa_calls=3 ppa_errors=0 ppa_timeouts=0 ppa_submit_max_us=2155 ppa_wait_max_us=12662 ppa_last_error=0",
+      "display underruns=": "I (34406) board_p4: display underruns=0 added=0 first_us=0 last_us=0 last_age_ms=-1"
+    }
+  },
+  "policy": {
+    "document": "AGENTS.md",
+    "pad_pending_limit": 8,
+    "mac_pending_limit": 8,
+    "background_refresh": "status only; no repeated operation alerts"
+  },
+  "evidence_boundary": "host UI regressions and real commit do not substitute for Pad close-button or long-term device acceptance"
+}

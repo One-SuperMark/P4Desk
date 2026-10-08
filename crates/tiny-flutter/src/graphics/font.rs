@@ -10,9 +10,12 @@ static DEFAULT_FONT_BYTES: &[u8] =
 static UI_FONT_BYTES: &[u8] = include_bytes!("../../../../assets/generated/ui.p4f");
 static DEFAULT_FONT: OnceLock<Font> = OnceLock::new();
 static CONTENT_FONT: OnceLock<Font> = OnceLock::new();
+static FILE_FONT: OnceLock<Font> = OnceLock::new();
 static UI_PACK: OnceLock<Option<Arc<FontPack>>> = OnceLock::new();
 static ACTIVE_PACK: RwLock<Option<Arc<FontPack>>> = RwLock::new(None);
 static ACTIVE_PACK_VERSION: AtomicUsize = AtomicUsize::new(0);
+static FILE_PACK: RwLock<Option<Arc<FontPack>>> = RwLock::new(None);
+static FILE_PACK_VERSION: AtomicUsize = AtomicUsize::new(0);
 #[cfg(test)]
 pub(crate) static FONT_PACK_TEST_LOCK: Mutex<()> = Mutex::new(());
 const CACHE_BYTES: usize = 512 * 1024;
@@ -26,6 +29,19 @@ pub fn install_fontpack(pack: Option<Arc<FontPack>>) {
     // layouts can reuse immutable metrics, but synced content must remeasure
     // after its atlas changes, even if the text and width stayed the same.
     ACTIVE_PACK_VERSION.fetch_add(1, Ordering::Release);
+}
+
+/// File names and previews have their own atlas; replacing it never changes note text or UI labels.
+/// Owned glyph references remain valid while an older page finishes drawing.
+pub fn install_file_fontpack(pack: Option<Arc<FontPack>>) {
+    let mut active = FILE_PACK.write().unwrap_or_else(|p| p.into_inner());
+    *active = pack;
+    FILE_PACK_VERSION.fetch_add(1, Ordering::Release);
+}
+
+/// Include this revision in any raster cache that contains file text.
+pub fn file_fontpack_revision() -> usize {
+    FILE_PACK_VERSION.load(Ordering::Acquire)
 }
 
 fn ui_pack() -> Option<&'static Arc<FontPack>> {
@@ -111,6 +127,7 @@ pub struct Font {
     cache: Arc<Mutex<GlyphCache>>,
     is_default: bool,
     use_active_pack: bool,
+    use_file_pack: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -125,9 +142,12 @@ impl Font {
         Arc::ptr_eq(&self.inner, &other.inner)
             && self.is_default == other.is_default
             && self.use_active_pack == other.use_active_pack
+            && self.use_file_pack == other.use_file_pack
     }
     pub(crate) fn layout_revision(&self) -> usize {
-        if self.is_default && self.use_active_pack {
+        if self.is_default && self.use_file_pack {
+            FILE_PACK_VERSION.load(Ordering::Acquire)
+        } else if self.is_default && self.use_active_pack {
             ACTIVE_PACK_VERSION.load(Ordering::Acquire)
         } else {
             0
@@ -142,6 +162,7 @@ impl Font {
             cache: Arc::new(Mutex::new(GlyphCache::default())),
             is_default: false,
             use_active_pack: false,
+            use_file_pack: false,
         })
     }
     pub fn default_font() -> &'static Font {
@@ -159,6 +180,25 @@ impl Font {
             f.use_active_pack = true;
             f
         })
+    }
+    /// Dynamic file text: file atlas → bundled UI subset → shared bounded Latin/missing-glyph cache.
+    /// This face never falls back through the note/button atlas.
+    pub fn file_font() -> &'static Font {
+        FILE_FONT.get_or_init(|| {
+            let mut font = Self::default_font().clone();
+            font.use_file_pack = true;
+            font
+        })
+    }
+    fn dynamic_pack(&self) -> Option<Arc<FontPack>> {
+        let provider = if self.use_file_pack {
+            &FILE_PACK
+        } else if self.use_active_pack {
+            &ACTIVE_PACK
+        } else {
+            return None;
+        };
+        provider.read().unwrap_or_else(|p| p.into_inner()).clone()
     }
     pub fn inner(&self) -> &InnerFont {
         &self.inner
@@ -183,15 +223,7 @@ impl Font {
     pub fn glyph(&self, ch: char, size: f32) -> Glyph {
         let px = size.round().clamp(8.0, 128.0) as u16;
         if self.is_default {
-            let active = self
-                .use_active_pack
-                .then(|| {
-                    ACTIVE_PACK
-                        .read()
-                        .unwrap_or_else(|p| p.into_inner())
-                        .clone()
-                })
-                .flatten();
+            let active = self.dynamic_pack();
             if let Some(g) = active.as_ref().and_then(|p| p.glyph(px, ch)) {
                 return Glyph::from_pack(g);
             }
@@ -253,15 +285,7 @@ impl Font {
         }
         if self.is_default {
             let px = size.round().clamp(8.0, 128.0) as u16;
-            let active = self
-                .use_active_pack
-                .then(|| {
-                    ACTIVE_PACK
-                        .read()
-                        .unwrap_or_else(|p| p.into_inner())
-                        .clone()
-                })
-                .flatten();
+            let active = self.dynamic_pack();
             if let Some(m) = active.as_ref().and_then(|p| p.metrics(px, ch)) {
                 return m.advance;
             }
@@ -335,6 +359,106 @@ mod tests {
             advance: bytes as f32,
             bitmap: Bitmap::Owned(vec![value; bytes].into()),
         }
+    }
+
+    fn provider(character: char, advance: f32, mask: u8) -> Arc<FontPack> {
+        Arc::new(
+            FontPack::from_bytes(
+                encode_fontpack(vec![PackGlyph {
+                    character,
+                    size: 22,
+                    width: 2,
+                    height: 3,
+                    xmin: 0,
+                    ymin: 0,
+                    advance,
+                    bitmap: vec![mask; 6],
+                }])
+                .unwrap(),
+            )
+            .unwrap(),
+        )
+    }
+    #[test]
+    fn file_and_note_providers_never_override_each_other_or_system_labels() {
+        let _provider_guard = FONT_PACK_TEST_LOCK.lock().unwrap();
+        install_fontpack(None);
+        install_file_fontpack(None);
+        let ui = Font::default_font();
+        let note = Font::content_font();
+        let file = Font::file_font();
+        let ui_glyph = ui.glyph('钟', 22.0);
+        let ui_advance = ui.advance('钟', 22.0);
+        install_fontpack(Some(provider('钟', 41.0, 127)));
+        install_file_fontpack(Some(provider('钟', 55.0, 211)));
+        assert_eq!(note.advance('钟', 22.0), 41.0);
+        assert_eq!(file.advance('钟', 22.0), 55.0);
+        assert_eq!(note.glyph('钟', 22.0).bitmap(), [127; 6]);
+        assert_eq!(file.glyph('钟', 22.0).bitmap(), [211; 6]);
+        assert_eq!(ui.advance('钟', 22.0), ui_advance);
+        assert_eq!(ui.glyph('钟', 22.0).bitmap(), ui_glyph.bitmap());
+        assert_eq!(file.measure_text("钟钟", 22.0).width, 110.0);
+        assert!(!file.same_layout_source(note));
+        assert!(!file.same_layout_source(ui));
+        assert!(file.same_layout_source(&file.clone()));
+        let old_file = file.glyph('钟', 22.0);
+        install_file_fontpack(None);
+        assert_eq!(file.advance('钟', 22.0), ui_advance);
+        assert_eq!(note.advance('钟', 22.0), 41.0);
+        assert_eq!(old_file.bitmap(), [211; 6]);
+        install_fontpack(None);
+    }
+    #[test]
+    fn file_pack_layout_revision_changes_only_for_its_provider() {
+        let _provider_guard = FONT_PACK_TEST_LOCK.lock().unwrap();
+        let ui = Font::default_font();
+        let note = Font::content_font();
+        let file = Font::file_font();
+        let (ui_revision, note_revision, file_revision) = (
+            ui.layout_revision(),
+            note.layout_revision(),
+            file.layout_revision(),
+        );
+        install_file_fontpack(Some(provider('钟', 55.0, 211)));
+        assert_eq!(ui.layout_revision(), ui_revision);
+        assert_eq!(note.layout_revision(), note_revision);
+        assert_ne!(file.layout_revision(), file_revision);
+        let file_revision = file.layout_revision();
+        install_fontpack(Some(provider('钟', 41.0, 127)));
+        assert_eq!(file.layout_revision(), file_revision);
+        assert_ne!(note.layout_revision(), note_revision);
+        install_fontpack(None);
+        install_file_fontpack(None);
+    }
+    #[test]
+    fn existing_file_text_layout_remeasures_after_file_atlas_swap_only() {
+        use crate::rendering::BoxConstraints;
+        use crate::widgets::{Text, Widget};
+        let _provider_guard = FONT_PACK_TEST_LOCK.lock().unwrap();
+        install_fontpack(Some(provider('钟', 41.0, 127)));
+        install_file_fontpack(Some(provider('钟', 55.0, 211)));
+        let bounds = BoxConstraints::loose(Size::new(400.0, 100.0));
+        let mut file = Text::new("钟钟")
+            .font_size(22.0)
+            .font(Font::file_font().clone())
+            .create_render_object();
+        let mut note = Text::new("钟钟")
+            .font_size(22.0)
+            .font(Font::content_font().clone())
+            .create_render_object();
+        let mut ui = Text::new("钟钟").font_size(22.0).create_render_object();
+        let ui_size = ui.layout(&bounds);
+        assert_eq!(file.layout(&bounds).width, 110.0);
+        assert_eq!(note.layout(&bounds).width, 82.0);
+        install_file_fontpack(Some(provider('钟', 17.0, 201)));
+        assert_eq!(file.layout(&bounds).width, 34.0);
+        assert_eq!(note.layout(&bounds).width, 82.0);
+        assert_eq!(ui.layout(&bounds), ui_size);
+        install_fontpack(Some(provider('钟', 13.0, 188)));
+        assert_eq!(file.layout(&bounds).width, 34.0);
+        assert_eq!(note.layout(&bounds).width, 26.0);
+        install_fontpack(None);
+        install_file_fontpack(None);
     }
 
     #[test]

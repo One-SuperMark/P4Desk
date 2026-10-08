@@ -18,7 +18,7 @@ enum FontPackage {
         guard !data.isEmpty, data.count <= 8 * 1024 * 1024 else { throw DeskError.invalidFont }
         return data
     }
-    private static func run(_ tool: URL, _ arguments: [String]) throws {
+    static func run(_ tool: URL, _ arguments: [String]) throws {
         let process = Process()
         process.executableURL = tool; process.arguments = arguments
         // Tool output may describe user text. Do not print, persist or display it.

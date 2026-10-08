@@ -1,5 +1,6 @@
 //! Single background worker: latest pending request wins; network never holds UI locks.
 use app_launcher::{
+    launcher_state::{SystemError, SystemNotice},
     storage::MonitorStore,
     usage::{
         self,
@@ -82,6 +83,10 @@ struct Done {
     work: Work,
     result: Result<Option<Data>, Error>,
     cached: Option<Data>,
+}
+
+fn configuration_idle_status(configured: bool) -> &'static str {
+    if configured { "等待采样" } else { "连接站点后开始监控" }
 }
 
 fn same_totals(a: &usage::Totals, b: &usage::Totals) -> bool {
@@ -304,9 +309,10 @@ impl Service {
                         state.usage.status = "正在验证管理员接口".into();
                     }
                     Err(e) => {
-                        state.usage.status = e.message().into();
+                        state.usage.status = configuration_idle_status(state.usage.config.is_some()).into();
                         state.usage.busy = false;
                         state.usage.configuration_result = Some(false);
+                        state.show_error(SystemError::Monitor(e));
                     }
                 }
                 state.changed();
@@ -334,6 +340,15 @@ impl Service {
             let fast_sample = matches!(&done.work, Work::Fetch(.., FetchKind::Headline(_)));
             let live_update = live_completion(state, &done);
             let open_after = matches!(done.work, Work::Save(..)) && done.result.is_ok();
+            // Only explicit configuration work produces a one-shot result.
+            // Automatic full/headline fetches retain their live status and
+            // backoff, including failures, without reopening a dialog.
+            let configuration_dialog = match (&done.work, &done.result) {
+                (Work::Save(..), Ok(_)) => Some(Ok(SystemNotice::MonitorSaved)),
+                (Work::Forget, Ok(_)) => Some(Ok(SystemNotice::MonitorCleared)),
+                (Work::Save(..) | Work::Forget, Err(error)) => Some(Err(*error)),
+                _ => None,
+            };
             let u = &mut state.usage;
             u.busy = false;
             if matches!(done.work, Work::Save(..) | Work::Forget) {
@@ -350,7 +365,7 @@ impl Service {
                     u.editor.keyboard = false;
                     u.navigate(Page::Overview, u.period, None);
                     u.refresh = true;
-                    u.status = "配置已保存".into();
+                    u.status = configuration_idle_status(true).into();
                     self.request_key = None;
                     self.failures = 0;
                     self.last_preflight = None;
@@ -360,7 +375,6 @@ impl Service {
                 (Work::Forget, Ok(_)) => {
                     *u = usage::State::default();
                     u.page = Page::Connection;
-                    u.status = "连接配置已清除".into();
                     u.configuration_result = Some(true);
                     self.request_key = None;
                     self.last_preflight = None;
@@ -415,7 +429,9 @@ impl Service {
                         u.data = done.cached.map(Arc::new);
                     }
                     u.clamp_selection();
-                    u.status = e.message().into();
+                    u.status = if configuration_dialog.is_some() {
+                        configuration_idle_status(u.config.is_some())
+                    } else { e.message() }.into();
                     self.failures = (self.failures + 1).min(4);
                     u.next_refresh_ms = now.saturating_add(15_000 * (1u64 << self.failures));
                     self.retry_not_before_ms = u.next_refresh_ms;
@@ -424,6 +440,13 @@ impl Service {
             }
             if open_after {
                 state.open_app("sub2api-monitor");
+            }
+            match configuration_dialog {
+                Some(Ok(notice)) => { state.show_notice(notice); }
+                Some(Err(error)) if error != Error::Cancelled => {
+                    state.show_error(SystemError::Monitor(error));
+                }
+                _ => {}
             }
             if !fast_sample || (matches!(state.active_app, ActiveApp::Usage) && !live_update) {
                 state.changed();
@@ -729,6 +752,10 @@ mod tests {
         finish(&mut service, &mut state, |s| {
             s.usage.configuration_result == Some(true)
         });
+        let dialog = state.active_dialog().unwrap();
+        assert_eq!(dialog.content, app_launcher::launcher_state::DialogContent::Notice(SystemNotice::MonitorSaved));
+        assert!(state.dismiss_dialog(dialog.id));
+        assert_ne!(state.usage.status, "配置已保存");
         assert_eq!(store.load_config().unwrap(), Some(config.clone()));
         finish(&mut service, &mut state, |s| !s.usage.busy);
         fail.store(true, Ordering::Relaxed);
@@ -739,11 +766,21 @@ mod tests {
         finish(&mut service, &mut state, |s| {
             s.usage.configuration_result == Some(false)
         });
+        let dialog = state.active_dialog().unwrap();
+        assert_eq!(dialog.content, app_launcher::launcher_state::DialogContent::Error(SystemError::Monitor(Error::Authentication)));
+        assert_ne!(state.usage.status, Error::Authentication.message());
+        assert!(state.dismiss_dialog(dialog.id));
         assert_eq!(store.load_config().unwrap(), Some(config));
         service.command(&mut state, Command::Forget);
         finish(&mut service, &mut state, |s| {
             s.usage.config.is_none() && !s.usage.busy
         });
+        let dialog = state.active_dialog().unwrap();
+        assert_eq!(dialog.content, app_launcher::launcher_state::DialogContent::Notice(SystemNotice::MonitorCleared));
+        assert_eq!(state.usage.status, "连接站点后开始监控");
+        assert!(state.dismiss_dialog(dialog.id));
+        for _ in 0..5 { service.poll(&mut state); }
+        assert!(state.active_dialog().is_none(), "consumed operation results must not reopen");
         assert!(store.load_config().unwrap().is_none());
         drop(service);
         let _ = std::fs::remove_dir_all(root);
@@ -758,7 +795,74 @@ mod tests {
         );
         assert_eq!(state.usage.configuration_result, Some(false));
         assert!(!state.usage.busy);
+        assert_eq!(state.active_dialog().unwrap().content,
+            app_launcher::launcher_state::DialogContent::Error(SystemError::Monitor(Error::Offline)));
+        assert_ne!(state.usage.status, Error::Offline.message());
         assert!(store.load_config().unwrap().is_none());
+        drop(service);
+        let _ = std::fs::remove_dir_all(root);
+    }
+    #[test]
+    fn time_preflight_failure_is_dismissible_without_a_persistent_result() {
+        let (mut service, mut state, store, _, root) = setup("notice-time");
+        state.time_valid = false;
+        service.command(&mut state, Command::Save(Config::new("test.example", "test-key").unwrap()));
+        let dialog = state.active_dialog().unwrap();
+        assert_eq!(dialog.content,
+            app_launcher::launcher_state::DialogContent::Error(SystemError::Monitor(Error::Time)));
+        assert_eq!(state.usage.configuration_result, Some(false));
+        assert_eq!(state.usage.status, "连接站点后开始监控");
+        assert!(store.load_config().unwrap().is_none());
+        assert!(state.dismiss_dialog(dialog.id));
+        for _ in 0..5 { service.poll(&mut state); }
+        assert!(state.active_dialog().is_none());
+        drop(service);
+        let _ = std::fs::remove_dir_all(root);
+    }
+    #[test]
+    fn save_and_forget_storage_failures_preserve_config_and_report_once() {
+        for forget in [false, true] {
+            let name = if forget { "notice-forget-storage" } else { "notice-save-storage" };
+            let (mut service, mut state, _, _, root) = setup(name);
+            let previous = Config::new("previous.example", "synthetic-key").unwrap();
+            state.usage.config = Some(previous.clone());
+            state.usage.page = Page::Connection;
+            // A regular file in the temporary fixture prevents creating the
+            // configuration directory. No device or user filesystem is used.
+            std::fs::create_dir_all(&root).unwrap();
+            std::fs::write(root.join("flash"), b"blocked fixture").unwrap();
+            let command = if forget { Command::Forget }
+                else { Command::Save(Config::new("next.example", "synthetic-key").unwrap()) };
+            service.command(&mut state, command);
+            finish(&mut service, &mut state, |s| s.usage.configuration_result == Some(false));
+            let dialog = state.active_dialog().unwrap();
+            assert_eq!(dialog.content,
+                app_launcher::launcher_state::DialogContent::Error(SystemError::Monitor(Error::Storage)));
+            assert_eq!(state.usage.config, Some(previous));
+            assert_eq!(state.usage.status, "等待采样");
+            assert!(state.dismiss_dialog(dialog.id));
+            for _ in 0..5 { service.poll(&mut state); }
+            assert!(state.active_dialog().is_none());
+            drop(service);
+            let _ = std::fs::remove_dir_all(root);
+        }
+    }
+    #[test]
+    fn automatic_full_and_headline_failures_remain_silent() {
+        let (mut service, mut state, _, fail, root) = setup("notice-auto-fetch");
+        state.usage.config = Some(Config::new("test.example", "synthetic-key").unwrap());
+        fail.store(true, Ordering::Relaxed);
+        finish(&mut service, &mut state, |s| !s.usage.busy && s.usage.status == Error::Authentication.message());
+        assert!(state.active_dialog().is_none());
+        fail.store(false, Ordering::Relaxed);
+        state.monotonic_ms = state.usage.next_refresh_ms;
+        finish(&mut service, &mut state, |s| s.usage.data.is_some() && !s.usage.busy);
+        assert!(state.active_dialog().is_none());
+        fail.store(true, Ordering::Relaxed);
+        state.monotonic_ms += HEADLINE_INTERVAL_MS + 1;
+        finish(&mut service, &mut state, |s| s.usage.status == Error::Authentication.message());
+        assert!(state.usage.data.is_some(), "automatic failure retains the last data");
+        assert!(state.active_dialog().is_none(), "five-second samples must not reopen operation alerts");
         drop(service);
         let _ = std::fs::remove_dir_all(root);
     }

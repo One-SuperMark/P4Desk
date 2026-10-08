@@ -76,15 +76,20 @@ fn local_apps_change_background_and_foreground_in_light_mode() {
     }
 }
 #[test]
-fn desktop_hides_mac_connection_notice_but_keeps_storage_failure_visible() {
-    let scene = |notice: &str| {
-        let mut s = LauncherState::new();
-        s.notice = notice.into();
-        s
-    };
-    let normal = render(scene(""));
-    assert_eq!(normal, render(scene("Mac 未连接，请连接 USB 和 Mac 应用")));
-    assert_ne!(normal, render(scene("保存失败，原数据已保留")));
+fn desktop_has_no_persistent_notice_bar_and_explicit_errors_use_a_dialog() {
+    let normal = render(LauncherState::new());
+    for notice in [
+        "Mac 未连接，请连接 USB 和 Mac 应用",
+        "保存失败，原数据已保留",
+        "便签与字体已同步",
+    ] {
+        let mut state = LauncherState::new();
+        state.notice = notice.into();
+        assert!(normal == render(state));
+    }
+    let mut failed = LauncherState::new();
+    failed.show_error(app_launcher::launcher_state::SystemError::SaveFailed);
+    assert!(normal != render(failed));
 }
 
 #[test]

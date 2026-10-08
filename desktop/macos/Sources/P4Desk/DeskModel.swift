@@ -15,6 +15,10 @@ final class DeskModel: ObservableObject {
     @Published var displayActive = false
     @Published var changingMode = false
     @Published var syncing = false
+    @Published private var noticeQueue = OperationNoticeQueue()
+    var activeNotice: OperationNotice? { noticeQueue.current }
+    var suppressNotices = false
+    private(set) var lastSyncResult = SyncResult()
     @Published var syncProgress = 0.0
     @Published var dirty = true
     @Published var sdReady = false
@@ -36,6 +40,27 @@ final class DeskModel: ObservableObject {
     @Published var monitorBusy = false
     @Published var monitorMessage = "连接 USB 后可为设备配置独立 Wi-Fi 监控"
     @Published var monitorConfigured = false
+    private(set) var monitorConfigurationSucceeded = false
+    @Published var fileTransferSupported = false
+    @Published var fileBusy = false
+    @Published var fileUploading = false
+    @Published var fileDirectory = "Downloads"
+    @Published var fileEntries: [RemoteFileEntry] = []
+    @Published var fileTotal: UInt32 = 0
+    @Published var fileHasMore = false
+    @Published var fileReadOnly = false
+    @Published var fileProgress = 0.0
+    @Published var fileTransferredBytes: UInt64 = 0
+    @Published var fileTotalBytes: UInt64 = 0
+    @Published var fileGlyphWarning = ""
+    @Published var fileFontInstalled = false
+    @Published var fileFontMissingCount = 0
+    @Published var fileFontSkipped = false
+    @Published var fileMessage = "连接 USB 后可传文件到 TF 卡"
+    @Published var fileResults: [FileTransferResult] = []
+    var fileNextOffset: UInt32 = 0
+    var fileOperationIdentity: UUID?
+    var fileOperationTask: Task<Void, Never>?
     @Published var fontPath = ""
     @Published var fontToolPath = ""
 
@@ -70,6 +95,7 @@ final class DeskModel: ObservableObject {
     private struct Pending {
         var identity: UUID
         var expected: String
+        var acknowledged: String
         var continuation: CheckedContinuation<[String: Any], Error>
     }
     private var pending: [UInt16: Pending] = [:]
@@ -189,6 +215,8 @@ final class DeskModel: ObservableObject {
         case .disconnected:
             connectionEpoch &+= 1
             usbOpen = false; usbSpeedMbps = 0; connected = false; sdReady = false; directJPEGRotationDegrees = 0
+            fileTransferSupported = false
+            invalidateFileOperation(message: "连接 USB 后可浏览 TF 卡与传输文件")
             deviceActions.removeAll()
             connectionStatus = "USB 已断开"; parser.reset(); failPending(DeskError.usbDisconnected)
             heartbeatTask?.cancel(); heartbeatTask = nil
@@ -219,6 +247,8 @@ final class DeskModel: ObservableObject {
                   number(caps, "height") == 600, (number(caps, "max_jpeg") ?? 0) >= 1_048_576,
                   (number(caps, "max_control") ?? 0) >= 65_536 else { throw DeskError.invalidDevice }
             sdReady = caps["sd_ready"] as? Bool ?? false
+            fileTransferSupported = caps["file_transfer"] as? Bool ?? false
+            fileMessage = fileTransferSupported ? "选择目标文件夹，上传后可在板上文件管理查看" : "设备固件不支持文件传输，请升级固件"
             directJPEGRotationDegrees = number(caps, "direct_jpeg_rotation_degrees") == 180 ? 180 : 0
             _ = try await request("time_sync", ["unix_ms": Int64(Date().timeIntervalSince1970 * 1000),
                                                 "timezone_minutes": TimeZone.current.secondsFromGMT() / 60], timeout: 2)
@@ -232,8 +262,10 @@ final class DeskModel: ObservableObject {
             message = sdReady ? "Pad 可用；编辑后同步便签、按钮与中文字库。" : "已连接；TF 卡未就绪，暂不能保存配置。"
         } catch {
             guard currentConnection(epoch) else { return }
-            report(error)
             connected = false; connectionStatus = "设备握手失败"
+            // Reconnect attempts are connection state, not completed user
+            // operations. Do not repeatedly open alerts in the background.
+            message = "设备握手未完成，请检查 USB、设备固件和 TF 卡状态。"
             await endDisplay(sendPad: usbOpen)
             // Keep the actual USB ownership visible. User can retry after firmware/TF correction.
         }
@@ -271,11 +303,12 @@ final class DeskModel: ObservableObject {
         do {
             let c = try MonitorConfiguration.readLocal()
             monitorSite = c.site; monitorKey = c.key
-            monitorMessage = "已读取本机配置，点击下发后由 P4 验证并保存"
-        } catch { monitorMessage = "未找到可用的本机用量监控配置，请手动填写" }
+            setNotice(title: "本机配置已读取", message: "点击“下发并验证”后，配置会由 P4 验证并保存。")
+        } catch { setError(title: "未找到本机配置", message: "未找到可用的本机用量监控配置，请手动填写站点和管理员 API Key。") }
     }
     func configureMonitor(forget: Bool = false) async {
         guard connected, !monitorBusy else { return }
+        monitorConfigurationSucceeded = false
         monitorBusy = true
         defer { monitorBusy = false }
         do {
@@ -291,41 +324,64 @@ final class DeskModel: ObservableObject {
                 let status = try await request("monitor_get_status", [:], expected: "monitor_status")
                 monitorConfigured = status["configured"] as? Bool == true
                 if let ok = status["configuration_result"] as? Bool {
-                    monitorMessage = ok ? (forget ? "设备配置已清除" : "验证并保存成功，P4 可脱离 Mac 独立刷新") : (status["message"] as? String ?? "设备配置失败")
+                    monitorConfigurationSucceeded = ok
+                    resetMonitorStatus()
+                    if ok {
+                        setNotice(title: forget ? "监控配置已清除" : "监控配置已保存", message: forget ? "设备上的监控配置已清除。" : "验证和保存成功，P4 可以脱离 Mac 独立刷新。")
+                    } else { setError(title: "监控配置失败", message: "设备未能验证或保存监控配置，请检查板上 Wi-Fi、时间与管理员密钥后重试。") }
                     return
                 }
             }
-            monitorMessage = "设备仍未完成验证，请查看板上连接状态"
+            resetMonitorStatus()
+            setError(title: "监控配置未完成", message: "设备未在等待时间内完成验证，请检查板上连接状态后重试。")
         } catch {
             // Do not interpolate configuration, payloads or database errors.
-            monitorMessage = "配置未完成，请检查 USB、板上 Wi-Fi、时间和管理员密钥"
+            resetMonitorStatus()
+            if !(error is CancellationError) { setError(title: "监控配置失败", message: "配置未完成，请检查 USB、板上 Wi-Fi、时间和管理员密钥。") }
         }
     }
-    func refreshMonitorStatus() async {
+    private func resetMonitorStatus() {
+        monitorMessage = connected ? (monitorConfigured ? "设备已保存独立 Wi-Fi 监控配置" : "设备尚未配置独立 Wi-Fi 监控") : "连接 USB 后可读取设备监控状态"
+    }
+    func refreshMonitorStatus(userInitiated: Bool = false) async {
         guard connected else { return }
         do {
             let status = try await request("monitor_get_status", [:], expected: "monitor_status")
             monitorConfigured = status["configured"] as? Bool == true
-            monitorMessage = status["message"] as? String ?? "设备未返回监控状态"
-        } catch { monitorMessage = "无法读取监控状态，请检查连接和固件版本" }
+            resetMonitorStatus()
+        } catch {
+            resetMonitorStatus()
+            if userInitiated, !(error is CancellationError) { setError(title: "读取状态失败", message: "无法读取监控状态，请检查连接和固件版本。") }
+        }
     }
     private func request(_ op: String, _ fields: [String: Any], expected: String? = nil, timeout: Double = 3) async throws -> [String: Any] {
         guard usbOpen else { throw DeskError.usbDisconnected }
         let id = try nextRequest()
         var object = fields; object["op"] = op; object["request_id"] = id
         let packet = Packet(kind: .control, sequence: id, payload: try JSONControl.data(object))
-        return try await awaitReply(packet, id: id, expected: expected ?? op, timeout: timeout)
+        return try await awaitReply(packet, id: id, expected: expected ?? op, acknowledged: op, timeout: timeout)
     }
-    private func awaitReply(_ packet: Packet, id: UInt16, expected: String, timeout: Double) async throws -> [String: Any] {
+    private func awaitReply(_ packet: Packet, id: UInt16, expected: String, acknowledged: String? = nil, timeout: Double) async throws -> [String: Any] {
         let identity = UUID()
-        return try await withCheckedThrowingContinuation { continuation in
-            pending[id] = Pending(identity: identity, expected: expected, continuation: continuation)
-            do { try transport.send(packet) }
-            catch { pending.removeValue(forKey: id)?.continuation.resume(throwing: error); return }
-            Task { [weak self] in
-                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                guard let self, let current = self.pending[id], current.identity == identity else { return }
-                self.pending.removeValue(forKey: id)?.continuation.resume(throwing: DeskError.timeout(expected))
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await withCheckedThrowingContinuation { continuation in
+                pending[id] = Pending(identity: identity, expected: expected, acknowledged: acknowledged ?? expected, continuation: continuation)
+                if Task.isCancelled {
+                    pending.removeValue(forKey: id)?.continuation.resume(throwing: CancellationError()); return
+                }
+                do { try transport.send(packet) }
+                catch { pending.removeValue(forKey: id)?.continuation.resume(throwing: error); return }
+                Task { [weak self] in
+                    do { try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000)) } catch { return }
+                    guard let self, let current = self.pending[id], current.identity == identity else { return }
+                    self.pending.removeValue(forKey: id)?.continuation.resume(throwing: DeskError.timeout(expected))
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                guard let self, self.pending[id]?.identity == identity else { return }
+                self.pending.removeValue(forKey: id)?.continuation.resume(throwing: CancellationError())
             }
         }
     }
@@ -339,12 +395,24 @@ final class DeskModel: ObservableObject {
                 var merged = snapshot; try merged.mergeDevice(device)
                 deviceActions = Dictionary(uniqueKeysWithValues: device.buttons.map { ($0.id, $0.action) })
                 if merged != snapshot { snapshot = merged; changed() }
-            } catch { report(error); if let id { pending.removeValue(forKey: id)?.continuation.resume(throwing: DeskError.invalidDevice) }; return }
+            } catch {
+                // The request owner reports one failure. Unsolicited or old
+                // state packets must not create another background alert.
+                if let id, id == sequence, pending[id]?.expected == "state" {
+                    pending.removeValue(forKey: id)?.continuation.resume(throwing: DeskError.invalidDevice)
+                }
+                return
+            }
         }
         if let id, id == sequence, let waiting = pending[id] {
-            if op == waiting.expected || (op == "ack" && fields["acknowledged"] as? String == waiting.expected) {
+            if op == waiting.expected || (op == "ack" && fields["acknowledged"] as? String == waiting.acknowledged) {
                 pending.removeValue(forKey: id)
-                if op == "ack", fields["ok"] as? Bool != true { waiting.continuation.resume(throwing: DeskError.deviceRejected(waiting.expected)) }
+                if op == "ack", fields["ok"] as? Bool != true {
+                    if waiting.expected.hasPrefix("file_") {
+                        // Never display untrusted payload text or interpolate a path.
+                        waiting.continuation.resume(throwing: FileTransferError.rejected(FileAcknowledgement.safeErrorCode(fields)))
+                    } else { waiting.continuation.resume(throwing: DeviceFailure(code: DeviceAcknowledgement.safeErrorCode(fields))) }
+                }
                 else { waiting.continuation.resume(returning: fields) }
             }
         }
@@ -406,6 +474,7 @@ final class DeskModel: ObservableObject {
 
     func beginDisplay() async {
         guard connected, !changingMode, !displayActive, !sleeping, !stopping else { return }
+        guard !fileBusy, !syncing else { setError(title: "暂时无法开启副屏", message: "请等待文件传输或配置同步完成后再开启副屏。"); return }
         refreshPermissions()
         if !screenAllowed { requestScreenPermission() }
         guard screenAllowed else { report(DeskError.permission("屏幕录制")); return }
@@ -564,7 +633,7 @@ final class DeskModel: ObservableObject {
     }
 
     func addNote() {
-        guard snapshot.notes.count < 32 else { message = "便签最多 32 条。"; return }
+        guard snapshot.notes.count < 32 else { setError(title: "无法添加便签", message: "便签最多 32 条，请删除不需要的便签后重试。"); return }
         snapshot.notes.insert(Note(), at: 0); changed()
     }
     func deleteNote(_ id: String) {
@@ -580,7 +649,7 @@ final class DeskModel: ObservableObject {
         changed()
     }
     func addButton() {
-        guard snapshot.buttons.count < 48 else { message = "按钮最多 48 个。"; return }
+        guard snapshot.buttons.count < 48 else { setError(title: "无法添加快捷按钮", message: "快捷按钮最多 48 个，请删除不需要的按钮后重试。"); return }
         snapshot.buttons.append(DeskButton()); changed()
     }
     func deleteButton(_ id: String) { snapshot.buttons.removeAll { $0.id == id }; changed() }
@@ -598,12 +667,17 @@ final class DeskModel: ObservableObject {
             self?.save()
         }
     }
-    private func save() {
+    @discardableResult
+    private func save(notifyOnFailure: Bool = true) -> Bool {
         do {
             try snapshot.validated()
             try FileManager.default.createDirectory(at: storeURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try JSONEncoder().encode(snapshot).write(to: storeURL, options: .atomic)
-        } catch { report(error) }
+            return true
+        } catch {
+            if notifyOnFailure { setError(title: "本机保存失败", message: "编辑数据未能保存到 Mac，请检查本机磁盘空间和权限。设备已保存的数据不受影响。") }
+            return false
+        }
     }
     func selectFont() {
         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
@@ -646,22 +720,24 @@ final class DeskModel: ObservableObject {
             // Freeze the observation before showing the picker. A blocking
             // runModal stalls MainActor JPEG/USB delivery and biases the FPS.
             data = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
-        } catch { message = "性能诊断数据未能生成。"; return }
+        } catch { setError(title: "导出失败", message: "性能诊断数据未能生成，请重试。"); return }
         let panel = NSSavePanel(); panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = "P4Desk-performance.json"
         let save: (NSApplication.ModalResponse) -> Void = { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             do {
                 try data.write(to: url, options: .atomic)
-                self?.message = "已导出性能元数据；文件不包含画面、便签或按钮内容。"
-            } catch { self?.message = "性能诊断文件未能保存。" }
+                self?.setNotice(title: "诊断数据已导出", message: "文件已保存，其中不包含画面、便签或快捷按钮内容。")
+            } catch { self?.setError(title: "导出失败", message: "性能诊断文件未能保存，请检查目标文件夹权限和磁盘空间。") }
         }
         if let window = NSApp.keyWindow { panel.beginSheetModal(for: window, completionHandler: save) }
         else { panel.begin(completionHandler: save) }
     }
     func sync() async {
-        guard connected, !syncing else { return }
-        guard sdReady else { message = "TF 卡未就绪，无法同步。"; return }
+        lastSyncResult = SyncResult()
+        guard connected else { failSync(DeskError.usbDisconnected); return }
+        guard !syncing, !fileBusy, !displayActive, !changingMode else { failSync(FileTransferError.busy); return }
+        guard sdReady else { failSync(FileTransferError.storageUnavailable); return }
         syncing = true; syncProgress = 0
         let epoch = connectionEpoch
         var started = false
@@ -674,16 +750,19 @@ final class DeskModel: ObservableObject {
             guard !overflow else { throw ProtocolError.invalidSnapshot("配置代次超出范围，无法继续同步。") }
             state.generation = max(nextGeneration, UInt64(Date().timeIntervalSince1970 * 1000))
             try state.validated()
+            lastSyncResult.generation = state.generation
             let revision = editRevision, tool = URL(fileURLWithPath: fontToolPath), font = URL(fileURLWithPath: fontPath)
             message = "正在生成本次配置的中文字库…"
             let bake = Task.detached(priority: .utility) { try FontPackage.bake(snapshot: state, toolURL: tool, fontURL: font) }
             fontTask = bake
             let data = try await bake.value
+            lastSyncResult.fontBytes = data.count
             guard connected, currentConnection(epoch) else { throw DeskError.usbDisconnected }
             let stateObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(state))
+            // The device may open staging before its reply reaches the host.
+            started = true
             _ = try await request("sync_begin", ["generation": state.generation, "state": stateObject,
                                                 "font_length": data.count, "font_sha256": FontPackage.hash(data)], timeout: 5)
-            started = true
             var offset = 0
             while offset < data.count {
                 guard connected, currentConnection(epoch) else { throw DeskError.usbDisconnected }
@@ -701,20 +780,63 @@ final class DeskModel: ObservableObject {
             deviceActions = Dictionary(uniqueKeysWithValues: state.buttons.map { ($0.id, $0.action) })
             snapshot.generation = max(snapshot.generation, state.generation)
             dirty = editRevision != revision
-            save()
-            message = dirty ? "本次同步已提交；新的编辑尚未同步。" : "同步已提交，设备已切换到新的便签、按钮与字库。"
+            let localSaved = save(notifyOnFailure: false)
+            lastSyncResult.committed = true; lastSyncResult.errorCode = "none"
+            if localSaved {
+                setNotice(title: "同步完成", message: dirty ? "本次同步已提交。同步期间产生的新编辑尚未同步。" : "设备已切换到新的便签、快捷按钮和字体。")
+            } else {
+                setNotice(title: "设备同步完成，本机保存未完成", message: "新的便签、快捷按钮和字体已在设备生效；Mac 本地副本未能保存。请检查本机磁盘空间和权限后再同步。")
+            }
         } catch {
             if started, currentConnection(epoch) { _ = try? await request("sync_abort", [:], timeout: 1.5) }
-            report(error)
+            failSync(error)
         }
     }
+    var fileConnectionEpoch: UInt64 { connectionEpoch }
+    func fileControl(_ op: String, _ fields: [String: Any], expected: String? = nil, timeout: Double = 8) async throws -> [String: Any] {
+        try await request(op, fields, expected: expected, timeout: timeout)
+    }
+    func fileChunk(offset: UInt32, data: Data) async throws {
+        let id = try nextRequest()
+        let payload = try FileResourceChunk.payload(offset: offset, data: data)
+        _ = try await awaitReply(Packet(kind: .resource, sequence: id, payload: payload), id: id, expected: "file_chunk", timeout: 8)
+    }
+
+    func setError(title: String = "操作未完成", message text: String) {
+        setNotice(title: title, message: text)
+    }
+    func setNotice(title: String, message text: String) {
+        // Only connection and progress live in the footer. Success, warning and
+        // failure results share one dismissible presentation and CLI suppression.
+        message = connected ? (displayActive ? "USB 副屏运行中" : "Pad 已连接，可同步编辑或传输文件。") : "USB 未连接，连接后可继续操作。"
+        let notice = OperationNotice(title: title, message: text)
+        guard noticeQueue.enqueue(notice, suppressed: suppressNotices || stopping) else { return }
+        if !DeskEditorWindow.shared.isVisible { DeskEditorWindow.shared.show() }
+    }
+    func dismissNotice() {
+        noticeQueue.dismissCurrent()
+        // Let SwiftUI finish dismissing the current alert before presenting a
+        // queued result. A new success must not replace an unacknowledged error.
+        DispatchQueue.main.async { [weak self] in self?.noticeQueue.presentNext() }
+    }
+    private func errorMessage(_ error: Error) -> String {
+        if let error = error as? DeviceFailure { return error.errorDescription ?? "设备操作未完成。" }
+        if let error = error as? FileTransferError { return error.errorDescription ?? "文件操作未完成。" }
+        if let error = error as? DeskError { return error.errorDescription ?? "操作未完成。" }
+        if error is ProtocolError { return "配置未通过验证，请检查便签、快捷按钮或减少内容后重试。" }
+        return "操作未完成，请检查设备、权限与资源后重试。"
+    }
+    private func failSync(_ error: Error) {
+        lastSyncResult.errorCode = Diagnostics.safeErrorCode(error)
+        if error is CancellationError { return }
+        setError(title: "同步失败", message: errorMessage(error) + "\n\n设备已有的便签、快捷按钮和字体会保留。")
+    }
     func report(_ error: Error) {
-        if let error = error as? ProtocolError, case .invalidSnapshot(let text) = error { message = text }
-        else if error is CancellationError { return }
-        else { message = (error as? DeskError)?.errorDescription ?? "操作失败，请检查设备、权限与资源。" }
+        guard !(error is CancellationError) else { return }
+        setError(message: errorMessage(error))
     }
     func shutdown() async {
-        stopping = true; heartbeatTask?.cancel(); performanceTask?.cancel(); fontTask?.cancel(); saveTask?.cancel()
+        stopping = true; invalidateFileOperation(message: "应用正在退出，传输已停止"); heartbeatTask?.cancel(); performanceTask?.cancel(); fontTask?.cancel(); saveTask?.cancel()
         await endDisplay(sendPad: usbOpen)
         failPending(DeskError.usbDisconnected)
         transport.stop(); usbOpen = false; connected = false; save()

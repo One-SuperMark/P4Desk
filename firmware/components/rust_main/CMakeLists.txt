@@ -38,7 +38,9 @@ ExternalProject_Add(project_rust_main
         "CARGO_CMAKE_BUILD_ESP_IDF=${idf_path}"
         "CARGO_CMAKE_BUILD_COMPILER=${CMAKE_C_COMPILER}"
         "CARGO_TARGET_DIR=${CARGO_TARGET_DIR}"
-        "RUSTFLAGS=--cfg espidf_time64"
+        # The cfg must also reach build-std's libc: IDF 6 uses picolibc's
+        # O_CREAT/O_TRUNC/O_APPEND values, not newlib's values.
+        "RUSTFLAGS=--cfg espidf_time64 --cfg espidf_picolibc"
         "MCU=esp32p4"
         cargo +${RUST_TOOLCHAIN} build --manifest-path "${CARGO_PROJECT_DIR}/Cargo.toml"
             --target ${RUST_TARGET} --target-dir "${CARGO_TARGET_DIR}" --release

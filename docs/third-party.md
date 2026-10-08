@@ -52,3 +52,7 @@ Folio 分支的状态电池数字同样使用固定 DINish Heavy 原始轮廓。
 `assets/whitesur/` 保留规范化派生矢量，完整 64×64 画布等比转为 128×128，保留多段、非垂直与径向渐变、透明度、圆角轮廓。经过数量校验后删除 4 层时钟固定指针／阴影，设备动态绘制当前时间。源包已移除内嵌位图阴影；固件未引入位图替代。源包的 USB 矩形裁剪经包围盒验证冗余后展开。生成器会拒绝新增的未支持元素／非冗余裁剪。源清单中的 4 个备选项未导入。
 
 新增 Folio 浅色底板为项目原有原创 SVG 的衍生，仍使用 MIT，不混入第三方图标许可。两者生成记录分别见 `assets/whitesur-icons.json`、`assets/folio-light-icons.json`。
+
+## 文件管理 JPEG 解码器（2026-10-07）
+
+固定 `jpeg-decoder 0.3.2` 来自官方 crates.io 包，原始 SHA256、来源与补丁说明见 `third_party/jpeg-decoder/SOURCES.json`，保留 MIT 与 Apache-2.0 两份许可证。文件预览通过 Cargo 路径补丁使用该副本，仅对 ESP-IDF（或显式测试 feature）固定 Immediate 同步 worker，避免库自行创建解码 pthread；普通主机行为保持上游实现。PNG 使用已锁定 png 0.17，BMP 缩略、文件界面与操作图形由本项目实现。

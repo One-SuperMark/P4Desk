@@ -6,6 +6,7 @@ mod battery_digits_generated;
 pub mod boot_diagnostics;
 mod control_center_glass;
 pub mod flip_clock;
+pub mod files;
 pub mod folio_desktop;
 pub mod headless;
 pub mod icon_theme;

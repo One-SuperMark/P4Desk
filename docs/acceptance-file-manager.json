@@ -1,0 +1,274 @@
+{
+  "date": "2026-10-07",
+  "branch": "codex/folio-ui",
+  "baseline_commit": "e3b5e46e189365e6792ae07c1797370e3626a6ee",
+  "committed": false,
+  "pushed": false,
+  "tests": {
+    "workspace_passed": 461,
+    "workspace_failed": false,
+    "swift_passed": 75,
+    "swift_failed": 0
+  },
+  "build": {
+    "idf": "6.0.2",
+    "rust": "nightly-2026-09-27",
+    "files": {
+      "p4desk.bin": {
+        "bytes": 6989248,
+        "sha256": "355057941b636770482b5c4a8efe7aaec2160feb16d4922967e735fbcd2713b1"
+      },
+      "p4desk.elf": {
+        "bytes": 27812164,
+        "sha256": "9effcae01c3bf6ab5c5e787067e781fca7db8fea62f4bba8e273ac6ff661b43e"
+      },
+      "flasher_args.json": {
+        "bytes": 911,
+        "sha256": "b72ae642525cfde46dca189772e9f433b2758f5afbf541a8964cbcf44917120d"
+      },
+      "bootloader/bootloader.bin": {
+        "bytes": 23888,
+        "sha256": "fc9c3534b9f183cc10e6bdd47fd43be5753023f3251981d679805939c35d8fa8"
+      },
+      "partition_table/partition-table.bin": {
+        "bytes": 3072,
+        "sha256": "4eeaebf031e691fcd6ff3ffad24d6a67ff1b3275743d4c6feb90e974a2af6330"
+      }
+    },
+    "source_hashes": {
+      "firmware/components/rust_main/CMakeLists.txt": "f4860f570308f0754dd3dd5f30812e42ed5b00f58817f3b5b8c46d83990c2f8b",
+      "firmware/components/rust_main/build.rs": "6ed1a45b6c9bd6bad50712ff3a603b302be11295528133eff3627134b548fd08",
+      "firmware/components/rust_main/src/ffi.rs": "ba9fccb5d7c042f434fa800d1fedfe81bfed4477a002e2555fedc1e0f3c510d1",
+      "apps/app-launcher/src/files/ui.rs": "42eb5722031fc932d8c34c9dc195cb94f110e07ee782690ada2943aa005d391f",
+      "apps/app-launcher/src/files/fs.rs": "f0a93cc45bdf3e00046e260087ea64aea75a62a876b674347b4a0ac1363d3882",
+      "apps/app-launcher/src/files/preview.rs": "2b48a5b75beeb9b4e01ef3f63fcf6c11e48153bb84af3f4b03d18c05fb447df2",
+      "firmware/components/rust_main/src/files.rs": "3028eafcb3c07f7606b8b6c164f8289d68741a0fd7b19ccc13896be3ee80392f",
+      "firmware/components/rust_main/src/runtime.rs": "9cd2831065e8171873e5c7f63db306ddb11f3a407d71e41d16e20accb6d3026f",
+      "crates/p4desk-protocol/src/lib.rs": "83a8618ee77d43cc827096c4c5be9785ee69da07cbcafc9b912e59bdd6917e28",
+      "assets/generated/ui.p4f": "99a7afb503eb9d776be5ee929d6583ff1d7ef73221507c833c3415c8b0500b2c",
+      "third_party/jpeg-decoder/src/decoder.rs": "4fea0fabcb5a244b3f650d7f8e4c72143ee39199a2f1662012be69ed734a4889"
+    }
+  },
+  "flash": {
+    "exit": 0,
+    "verified_regions": 3,
+    "nvs_tf_preserved": true
+  },
+  "mac_app": {
+    "installed": true,
+    "signature_verified": true,
+    "developer_id": true,
+    "hardened_runtime": true,
+    "timestamp": true,
+    "executable_bytes": 2304064,
+    "executable_sha256": "1ebbf298578f60ac03c4211aa68351dfc43b112f31d6bcd0844f1daa4a08c682",
+    "helper_sha256": "f70fe2a27701200a1da8423377bdede928352ddf3d8760cedda745899f2f0259",
+    "previous_bundle_preserved": true
+  },
+  "mac_ui": {
+    "installed_app_opened": true,
+    "connected": true,
+    "files_tab": true,
+    "tf_uploads_visible": 5,
+    "create_folder_visible_success": true,
+    "closed_before_next_diagnostics": true,
+    "final_app_opened": true,
+    "reboot_tf_entries_visible": 9,
+    "final_files_tab_visible": true,
+    "left_open_for_user": true
+  },
+  "real_file_upload": {
+    "synthetic_only": true,
+    "initial_five_formats_total_bytes": 259514,
+    "text": {
+      "probe": "file_upload",
+      "connected": true,
+      "committed": true,
+      "font_installed": true,
+      "missing": 0,
+      "skipped": false,
+      "bytes": 36680,
+      "sha256": "07b0c4e48887ab56c545e9c49d5aa4b65456a26de0046337a5a7448b5bf89d96"
+    },
+    "other_formats": {
+      "png": {
+        "exit": 0,
+        "elapsed_seconds": 1.548,
+        "probe": "file_upload",
+        "connected": true,
+        "committed": true,
+        "font_installed": false,
+        "missing": 0,
+        "skipped": true,
+        "bytes": 3242,
+        "sha256": "93015406a095bfa2ec8ef7a45ef2d25d2cec411fb85418713b7fb3d4b7bddabb"
+      },
+      "jpeg": {
+        "exit": 0,
+        "elapsed_seconds": 1.038,
+        "probe": "file_upload",
+        "connected": true,
+        "committed": true,
+        "font_installed": false,
+        "missing": 0,
+        "skipped": true,
+        "bytes": 40018,
+        "sha256": "826c7ac239c997e55c0237948a47ba26bdcb69515103abcd0391c39928c74555"
+      },
+      "bmp": {
+        "exit": 0,
+        "elapsed_seconds": 1.263,
+        "probe": "file_upload",
+        "connected": true,
+        "committed": true,
+        "font_installed": false,
+        "missing": 0,
+        "skipped": true,
+        "bytes": 179574,
+        "sha256": "5fdaef76bb605ead1c886738e7340079fdefacaf16f0d76d124be50da900e72f"
+      },
+      "empty": {
+        "exit": 0,
+        "elapsed_seconds": 1.149,
+        "probe": "file_upload",
+        "connected": true,
+        "committed": true,
+        "font_installed": false,
+        "missing": 0,
+        "skipped": true,
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "duplicate": {
+        "exit": 1,
+        "probe": "file_upload",
+        "connected": true,
+        "committed": false,
+        "error_code": "already_exists",
+        "font_installed": false,
+        "missing": 0,
+        "skipped": true
+      }
+    },
+    "consecutive_final_font_updates": [
+      {
+        "exit": 0,
+        "probe": "file_upload",
+        "connected": true,
+        "committed": true,
+        "font_installed": true,
+        "missing": 0,
+        "skipped": false,
+        "bytes": 123,
+        "sha256": "62a377705fe8bf688f63e27741faf6ab5a5514cff8a0c9f417b0c697478b2f8f"
+      },
+      {
+        "exit": 0,
+        "probe": "file_upload",
+        "connected": true,
+        "committed": true,
+        "font_installed": true,
+        "missing": 0,
+        "skipped": false,
+        "bytes": 123,
+        "sha256": "562df5708dec773d914cc1c48395c5912415e8adb353a5ffd0a471e8b5ebcda2"
+      },
+      {
+        "exit": 0,
+        "probe": "file_upload",
+        "connected": true,
+        "committed": true,
+        "font_installed": true,
+        "missing": 0,
+        "skipped": false,
+        "bytes": 123,
+        "sha256": "ca8e07a04fdfc43f71fd856d7d1c02a63afce612d0190fb013743958c4b182c7"
+      }
+    ],
+    "post_reboot_downloads": {
+      "probe": "file_list",
+      "connected": true,
+      "listed": true,
+      "entries": 9,
+      "total": 9,
+      "truncated": false,
+      "read_only": false
+    },
+    "tf_readback_sha256_before_ack": true
+  },
+  "final_device_observation": {
+    "capture": {
+      "elapsed_seconds": 180.45,
+      "planned_seconds": 180,
+      "exit": 0,
+      "failure": null,
+      "filter": "numeric health, UI and request diagnostics; no content or credentials"
+    },
+    "health_samples": 5,
+    "internal_free_min_sampled": 73151,
+    "internal_low_water_mark": 68267,
+    "psram_low_water_mark": 17600076,
+    "allocation_failures_max": 0,
+    "display_last": {
+      "boundary_gap_max_us": 16661,
+      "delayed_over_25ms": 0,
+      "boundary_queue_peak": 2,
+      "cache_query": 0,
+      "cache_calls": 142,
+      "cache_errors": 0,
+      "cache_max_us": 1373,
+      "cache_last_error": 0,
+      "ppa_calls": 4,
+      "ppa_errors": 0,
+      "ppa_timeouts": 0,
+      "ppa_submit_max_us": 2489,
+      "ppa_wait_max_us": 12704,
+      "ppa_last_error": 0
+    },
+    "dsi_last": {
+      "query": 0,
+      "polls": 2280,
+      "error_polls": 1,
+      "status0_or": 1048576,
+      "status1_or": 0,
+      "dpi_overflow_polls": 0,
+      "dpi_underflow_polls": 0,
+      "first_us": 488681,
+      "last_us": 488681
+    },
+    "font_restored": true,
+    "worker_stack_free_min_sampled": 15280
+  },
+  "prior_observation": {
+    "five_format_upload_window": {
+      "elapsed_seconds": 180.13,
+      "planned_seconds": 180,
+      "exit": 0,
+      "filter": "numeric health, UI and request diagnostics; no content or credentials"
+    },
+    "final_font_updates_window": {
+      "elapsed_seconds": 91.93,
+      "planned_seconds": 240,
+      "exit": 130,
+      "failure": "interrupted",
+      "filter": "numeric health, UI and request diagnostics; no content or credentials"
+    }
+  },
+  "manual_acceptance": {
+    "status": "awaiting_user",
+    "vertical_scroll_centered_details": null,
+    "text_image_preview_file_operations": null
+  },
+  "limitations": [
+    "短时诊断不证明长期稳定、实屏 FPS 或触摸延迟",
+    "启动一次 DSI status0=0x100000 状态记录，观察窗口内未增加",
+    "实际断电写入中断、TF 空间耗尽、物理拔线与大图压力需单独验收",
+    "PDF、Office 文档和媒体播放暂不预览"
+  ],
+  "privacy": {
+    "no_user_documents_uploaded": true,
+    "no_content_credentials_paths_serial_in_diagnostics": true,
+    "tf_not_formatted": true,
+    "nvs_not_erased": true
+  }
+}

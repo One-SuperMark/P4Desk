@@ -898,7 +898,9 @@ fn wifi_page(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
                             return;
                         }
                         if ap.security == 2 {
-                            s.notice = "暂不支持企业认证或旧式加密网络".into();
+                            s.show_notice(
+                                crate::launcher_state::SystemNotice::UnsupportedWifiSecurity,
+                            );
                         } else if ap.saved != 0 {
                             s.queue(UiCommand::Radio(Cmd::WifiSavedConnect));
                         } else {

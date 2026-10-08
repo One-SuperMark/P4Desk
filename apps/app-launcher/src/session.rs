@@ -53,6 +53,7 @@ pub enum SavedApp {
     Mac,
     Settings,
     Usage,
+    Files { directory: String, sort: u8 },
     Planned(crate::planned_apps::PlannedApp),
 }
 impl SavedApp {
@@ -65,6 +66,7 @@ impl SavedApp {
             Self::Mac => "mac",
             Self::Settings => "settings",
             Self::Usage => "sub2api-monitor",
+            Self::Files { .. } => "file-manager",
             Self::Planned(app) => app.id(),
         }
     }
@@ -83,6 +85,9 @@ impl SavedApp {
             ActiveApp::MacControls => Self::Mac,
             ActiveApp::Settings => Self::Settings,
             ActiveApp::Usage => Self::Usage,
+            ActiveApp::Files => Self::Files { directory: state.files.directory.clone(), sort: match state.files.sort {
+                crate::files::SortOrder::Name => 0, crate::files::SortOrder::Modified => 1, crate::files::SortOrder::Size => 2,
+            } },
             ActiveApp::Planned(app) => Self::Planned(*app),
             ActiveApp::Launcher | ActiveApp::DisplaySetup => return None,
         })
@@ -95,6 +100,8 @@ impl SavedApp {
             Self::Mac => ActiveApp::MacControls,
             Self::Settings => ActiveApp::Settings,
             Self::Usage => ActiveApp::Usage,
+            Self::Files { .. } => ActiveApp::Files,
+            Self::Planned(crate::planned_apps::PlannedApp::Files) => ActiveApp::Files,
             Self::Planned(crate::planned_apps::PlannedApp::Usage) => ActiveApp::Usage,
             Self::Planned(app) => ActiveApp::Planned(*app),
             Self::Notes {
@@ -118,6 +125,7 @@ impl SavedApp {
     }
     fn valid(&self) -> bool {
         match self {
+            Self::Files { directory, sort } => directory.len() <= 512 && *sort <= 2,
             Self::Calculator(c) => c.valid_checkpoint(),
             Self::Notes {
                 selected_id,
@@ -222,6 +230,10 @@ impl Session {
         }
         state.running_apps.clear();
         state.background_order.clear();
+        if let Some(SavedApp::Files { directory, sort }) = self.foreground.iter().chain(self.background.iter()).find(|app| matches!(app, SavedApp::Files { .. })) {
+            state.files.directory.clone_from(directory);
+            state.files.sort = match sort { 1 => crate::files::SortOrder::Modified, 2 => crate::files::SortOrder::Size, _ => crate::files::SortOrder::Name };
+        }
         for app in &self.background {
             state
                 .running_apps

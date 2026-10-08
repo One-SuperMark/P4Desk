@@ -9,8 +9,11 @@ members = [
     "tools/fontpack",
     "firmware/components/rust_main",
 ]
-exclude = ["apps/counter", "apps/hello", "apps/terminal", "apps/music-player"]
+exclude = ["apps/counter", "apps/hello", "apps/terminal", "apps/music-player", "third_party/jpeg-decoder"]
 default-members = ["crates/p4desk-protocol", "apps/app-launcher", "tools/fontpack"]
+
+[patch.crates-io]
+jpeg-decoder = { path = "third_party/jpeg-decoder" }
 
 [profile.release]
 opt-level = "s"

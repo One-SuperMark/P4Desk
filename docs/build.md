@@ -44,7 +44,7 @@ P4DESK_BUILD_DIR=/absolute/ascii/path/p4desk-build \
 
 构建目录使用英文路径。ESP-IDF 6.0.2 的编译参数响应文件在本机中文输出路径下发生损坏；源码可以保留在中文目录中。
 
-构建过程由 CMake 统一传递 SDK、sdkconfig、include、链接依赖与 C 编译器给 Rust 的 `esp-idf-sys`／`embuild`，使用 `-Zbuild-std=std,panic_abort` 生成静态库。`espidf_time64` 在两侧统一启用，C／Rust 都检查 `time_t`、`timeval`、布尔值和整数 ABI。
+构建过程由 CMake 统一传递 SDK、sdkconfig、include、链接依赖与 C 编译器给 Rust 的 `esp-idf-sys`／`embuild`，使用 `-Zbuild-std=std,panic_abort` 生成静态库。全局 `RUSTFLAGS` 同时传入 `espidf_time64` 和 `espidf_picolibc`，确保标准库也使用 ESP-IDF 6.0.2 的时间类型与文件打开标志。C／Rust 检查 `time_t`、`timeval`、布尔值、整数 ABI，以及 `O_CREAT`、`O_TRUNC`、`O_APPEND`、`O_EXCL` 与生成 C 绑定的一致性；缺少参数时拒绝构建。
 
 `sdkconfig.defaults` 默认选择 `CONFIG_COMPILER_OPTIMIZATION_PERF=y`，C、JPEG 驱动、LCD 驱动与旋转拷贝使用 `-O2`。已有 `firmware/sdkconfig` 会覆盖默认值；升级旧构建目录时，在 `menuconfig → Compiler options → Optimization Level` 选择性能优化，再重新构建。可从构建目录 `compile_commands.json` 核对实际参数，不能仅凭默认配置认定产物已启用 `-O2`。
 
@@ -111,6 +111,8 @@ python3 scripts/device-tool.py flash \
 
 只写 `flasher_args.json` 列出的 bootloader、分区表和应用。NVS 地址／大小保持为 0x9000／0x6000；旧 `storage` 区保留 0x810000 起的 7 MiB。P4Desk 的设置／删除记录改用独立 `p4settings` SPIFFS，0xf10000 起的 1 MiB。首次初始化仅允许全 0xFF 的空白新分区；既有数据挂载失败时保持原状。TF 卡不参与刷写。
 
+烧录脚本针对本板 CH343 USB TO UART 调试口，使用 `esptool --after no-reset`，成功写入后留在 ROM 下载模式并释放串口。随后通过指定 ESP-IDF Python 环境重新打开串口：打开前预置 DTR／RTS 为未断言状态，等待 200 毫秒，保持 DTR 未断言并执行 100 毫秒 RTS 硬复位，释放后保持串口打开 500 毫秒再关闭。写入失败不会执行启动复位。这样避免在释放 EN 的同一时刻关闭串口；操作系统或 USB 驱动仍可能产生短暂控制线变化，刷后画面方向和位置需要单独实机确认，不能只凭脚本退出码判定。
+
 这块板的旧 `storage` 挂载返回 `SPIFFS_ERR_NOT_A_FS`，旧／新 SPIFFS 关键参数相同。完整备份确认新增设置区全部为空白，因此保留旧区并单独建立 P4Desk 设置区。没有格式化旧 `storage` 或 TF。
 
 读取启动日志：
@@ -123,6 +125,8 @@ python3 scripts/device-tool.py monitor \
 ```
 
 日志去除设备 MAC／串口标识。完整备份回滚可使用 esptool 的 `write-flash 0 backup.bin`；只在确需恢复时执行，备份文件与当前设备必须对应。
+
+日志监控同样在打开串口前预置 DTR／RTS 未断言。省略 `--reset` 时不主动发送复位脉冲；提供 `--reset` 时保持 DTR 未断言，通过 RTS 执行正常启动硬复位。不要同时打开其他串口终端。
 
 连接不稳定时可为刷写指定 `--baud 115200`。备份已完成的情况无需重复备份；刷写脚本每次都会重新核对完整备份的 SHA256。
 

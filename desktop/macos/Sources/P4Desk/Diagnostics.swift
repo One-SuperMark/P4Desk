@@ -10,6 +10,7 @@ enum Diagnostics {
         var code: Int32 = 1
         Task { @MainActor in
             let model = DeskModel.shared
+            model.suppressNotices = true
             model.start()
             for _ in 0..<100 {
                 if model.connected { break }
@@ -18,10 +19,119 @@ enum Diagnostics {
             if model.connected {
                 model.importMonitorConfiguration()
                 if !model.monitorKey.isEmpty { await model.configureMonitor() }
-                if model.monitorMessage == "验证并保存成功，P4 可脱离 Mac 独立刷新" { code = 0 }
+                if model.monitorConfigurationSucceeded { code = 0 }
             }
             print("{\"probe\":\"monitor_configure\",\"connected\":\(model.connected),\"configured\":\(code == 0)}")
-            if code != 0 { print(model.monitorMessage) }
+            await model.shutdown()
+            stop(app)
+        }
+        app.run()
+        return code
+    }
+    @MainActor static func uploadFile(localPath: String, destination: String) -> Int32 {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        var code: Int32 = 1
+        Task { @MainActor in
+            let model = DeskModel.shared
+            model.suppressNotices = true
+            model.start()
+            for _ in 0..<100 {
+                if model.connected { break }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            do {
+                guard model.connected else { throw DeskError.usbDisconnected }
+                let manifest = try await model.uploadFileForDiagnostics(URL(fileURLWithPath: localPath), destination: destination)
+                print("{\"probe\":\"file_upload\",\"connected\":true,\"committed\":true,\"font_installed\":\(model.fileFontInstalled),\"missing\":\(model.fileFontMissingCount),\"skipped\":\(model.fileFontSkipped),\"bytes\":\(manifest.length),\"sha256\":\"\(manifest.sha256)\"}")
+                code = 0
+            } catch {
+                // File paths, names and Foundation error descriptions are private.
+                print("{\"probe\":\"file_upload\",\"connected\":\(model.connected),\"committed\":false,\"error_code\":\"\(safeErrorCode(error))\",\"font_installed\":\(model.fileFontInstalled),\"missing\":\(model.fileFontMissingCount),\"skipped\":\(model.fileFontSkipped)}")
+            }
+            await model.shutdown()
+            stop(app)
+        }
+        app.run()
+        return code
+    }
+    @MainActor static func syncCurrent() -> Int32 {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        var code: Int32 = 1
+        Task { @MainActor in
+            let model = DeskModel.shared
+            model.suppressNotices = true
+            model.start()
+            for _ in 0..<100 {
+                if model.connected { break }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            await model.sync()
+            let result = model.lastSyncResult
+            print("{\"probe\":\"sync_current\",\"connected\":\(model.connected),\"committed\":\(result.committed),\"error_code\":\"\(result.errorCode)\",\"font_bytes\":\(result.fontBytes),\"generation\":\(result.generation)}")
+            code = result.committed ? 0 : 1
+            await model.shutdown()
+            stop(app)
+        }
+        app.run()
+        return code
+    }
+    static func safeErrorCode(_ error: Error) -> String {
+        if let error = error as? DeviceFailure { return error.code }
+        if let error = error as? FileTransferError { return error.diagnosticCode }
+        if error is CancellationError { return "cancelled" }
+        if let error = error as? DeskError {
+            switch error {
+            case .usbDisconnected: return "usb_disconnected"
+            case .usbQueueUnavailable: return "usb_queue_unavailable"
+            case .timeout: return "timeout"
+            case .deviceRejected: return "device_rejected"
+            case .invalidDevice: return "invalid_device"
+            case .permission: return "permission"
+            case .displayUnavailable: return "display_unavailable"
+            case .captureUnavailable: return "capture_unavailable"
+            case .encodingFailed: return "encoding_failed"
+            case .fontUnavailable: return "font_unavailable"
+            case .fontBakeFailed: return "font_bake_failed"
+            case .invalidFont: return "invalid_font"
+            }
+        }
+        if let error = error as? ProtocolError {
+            switch error {
+            case .invalidHeader: return "invalid_header"
+            case .invalidLength: return "invalid_length"
+            case .invalidCRC: return "invalid_crc"
+            case .invalidJSON: return "invalid_json"
+            case .invalidSnapshot: return "invalid_snapshot"
+            }
+        }
+        return "operation_failed"
+    }
+    @MainActor static func listFiles(path: String) -> Int32 {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        var code: Int32 = 1
+        Task { @MainActor in
+            let model = DeskModel.shared
+            model.suppressNotices = true
+            model.start()
+            for _ in 0..<100 {
+                if model.connected { break }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            do {
+                guard model.connected else { throw DeskError.usbDisconnected }
+                guard model.fileTransferSupported else { throw FileTransferError.unsupported }
+                guard model.sdReady else { throw FileTransferError.storageUnavailable }
+                try RemoteFilePath.validate(path)
+                let reply = try await model.fileControl("file_list", ["path": path, "offset": UInt32(0), "limit": UInt16(32)], expected: "file_listing")
+                let listing = try RemoteFileListing.decode(reply, expectedPath: path)
+                print("{\"probe\":\"file_list\",\"connected\":true,\"listed\":true,\"entries\":\(listing.entries.count),\"total\":\(listing.total),\"truncated\":\(listing.truncated),\"read_only\":\(listing.readOnly)}")
+                code = 0
+            } catch {
+                print("{\"probe\":\"file_list\",\"connected\":\(model.connected),\"listed\":false,\"error_code\":\"\(safeErrorCode(error))\"}")
+            }
             await model.shutdown()
             stop(app)
         }
@@ -172,6 +282,23 @@ enum Diagnostics {
 @main
 enum P4DeskLauncher {
     @MainActor static func main() {
+        if CommandLine.arguments.contains("--sync-current") { exit(Diagnostics.syncCurrent()) }
+        if let index = CommandLine.arguments.firstIndex(of: "--list-files") {
+            guard CommandLine.arguments.count > index + 1 else {
+                print("{\"probe\":\"file_list\",\"listed\":false,\"arguments_valid\":false}")
+                exit(2)
+            }
+            exit(Diagnostics.listFiles(path: CommandLine.arguments[index + 1]))
+        }
+        if let index = CommandLine.arguments.firstIndex(of: "--upload-file") {
+            guard CommandLine.arguments.count > index + 1,
+                  let target = CommandLine.arguments.firstIndex(of: "--destination"),
+                  CommandLine.arguments.count > target + 1 else {
+                print("{\"probe\":\"file_upload\",\"committed\":false,\"arguments_valid\":false}")
+                exit(2)
+            }
+            exit(Diagnostics.uploadFile(localPath: CommandLine.arguments[index + 1], destination: CommandLine.arguments[target + 1]))
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--inspect-display"), CommandLine.arguments.count > index + 1,
            let id = UInt32(CommandLine.arguments[index + 1]) { exit(Diagnostics.inspectDisplay(id)) }
         if CommandLine.arguments.contains("--configure-monitor-from-mac") { exit(Diagnostics.configureMonitorFromMac()) }

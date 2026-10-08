@@ -28,7 +28,7 @@ TASK_CODESIGN_FLAGS=(--force --sign "$TASK_CODESIGN_IDENTITY" --options runtime)
 if [[ "$TASK_CODESIGN_IDENTITY" != "-" ]]; then
   TASK_CODESIGN_FLAGS+=(--timestamp)
 fi
-if [[ ! -x "$TASK_FONTPACK" ]]; then
+if [[ "$TASK_FONTPACK" == "$TASK_ROOT/target/release/p4desk-fontpack" ]]; then
   cargo build --manifest-path "$TASK_ROOT/Cargo.toml" --release -p p4desk-fontpack
 fi
 for TASK_RESOURCE in "$TASK_FONT" "$TASK_FONT_LICENSE" "$TASK_FONT_SOURCES" "$TASK_FONTPACK"; do

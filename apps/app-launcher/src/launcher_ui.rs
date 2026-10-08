@@ -9,7 +9,7 @@ use crate::app_launch::AppLaunchOverlay;
 use crate::flip_clock::{
     ClockControl, ClockControlPainter, FlipClockPainter, CLOCK_CONTENT_ORIGIN,
 };
-use crate::launcher_state::{ActiveApp, LauncherState, UiCommand};
+use crate::launcher_state::{ActiveApp, LauncherState, SystemDialog, UiCommand};
 use crate::pomodoro_ui::{build_timer_navigation, build_timer_ui};
 use crate::status_bar::STATUS_BAR_HEIGHT;
 use crate::timer_completion::TimerCompletionOverlay;
@@ -159,7 +159,7 @@ fn calculator_navigation(state: Arc<Mutex<LauncherState>>, w: f32) -> Stack {
         ))
 }
 pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dyn Widget> {
-    let (active, date, notice) = {
+    let (active, date, system_dialog) = {
         let s = state.lock().unwrap();
         crate::appearance::configure(&s.settings);
         (
@@ -169,7 +169,7 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             } else {
                 s.date.clone()
             },
-            s.notice.clone(),
+            s.active_dialog(),
         )
     };
     let w = size.width.max(1.0);
@@ -190,6 +190,7 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             ActiveApp::MacControls => "Mac 控制",
             ActiveApp::Settings => "设置",
             ActiveApp::Usage => "用量监控",
+            ActiveApp::Files => "文件管理",
             ActiveApp::Planned(app) => app.title(),
             ActiveApp::DisplaySetup => "USB 副屏",
             ActiveApp::Launcher => unreachable!(),
@@ -213,7 +214,14 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
             )),
             ActiveApp::MacControls => Box::new(mac_page(state.clone(), content_w)),
             ActiveApp::Settings => unreachable!(),
-            ActiveApp::Usage => Box::new(crate::usage::ui::build(state.clone(), Size::new(content_w, content_h))),
+            ActiveApp::Usage => Box::new(crate::usage::ui::build(
+                state.clone(),
+                Size::new(content_w, content_h),
+            )),
+            ActiveApp::Files => Box::new(crate::files::ui::build(
+                state.clone(),
+                Size::new(content_w, content_h),
+            )),
             ActiveApp::Planned(app) => Box::new(crate::planned_apps::build(
                 app,
                 Size::new(content_w, content_h),
@@ -250,48 +258,6 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
                 )),
         )
     };
-    if !notice.is_empty()
-        && !(matches!(active, ActiveApp::Launcher)
-            && notice == "Mac 未连接，请连接 USB 和 Mac 应用")
-        && !matches!(
-            active,
-            ActiveApp::Clock
-                | ActiveApp::Calculator(_)
-                | ActiveApp::Timer
-                | ActiveApp::DisplaySetup
-                | ActiveApp::Usage
-        )
-    {
-        // The slim gap between cards and the grid keeps notices clear of app icons.
-        let on_desktop = matches!(active, ActiveApp::Launcher);
-        let notice_width = if on_desktop {
-            crate::folio_desktop::workspace_width(Size::new(w, h))
-        } else {
-            w - 48.0
-        };
-        let notice_chars = if on_desktop {
-            ((notice_width - 12.0) / 14.0).floor().max(4.0) as usize
-        } else {
-            42
-        };
-        root = Box::new(
-            Stack::new().push(root).push(at(
-                Container::new()
-                    .width(notice_width)
-                    .height(if on_desktop { 24.0 } else { 38.0 })
-                    .color(Folio::line())
-                    .border_radius(8.0)
-                    .padding(EdgeInsets::all(if on_desktop { 4.0 } else { 6.0 }))
-                    .child(text(
-                        short(&notice, notice_chars),
-                        if on_desktop { 14.0 } else { 18.0 },
-                        Folio::orange(),
-                    )),
-                24.0,
-                if on_desktop { 182.0 } else { h - 43.0 },
-            )),
-        );
-    }
     let keep_control_backdrop = {
         let s = state.lock().unwrap();
         matches!(active, ActiveApp::Launcher)
@@ -327,6 +293,12 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
         backdrop,
         matches!(active, ActiveApp::Launcher),
     ));
+    if let Some(dialog) = system_dialog {
+        root = Box::new(ErrorOverlay {
+            child: root,
+            alert: Box::new(system_error_dialog(state.clone(), dialog, Size::new(w, h))),
+        });
+    }
     let back = state.clone();
     let kill = state.clone();
     Box::new(
@@ -335,19 +307,144 @@ pub fn build_launcher_ui(state: Arc<Mutex<LauncherState>>, size: Size) -> Box<dy
     )
 }
 
-pub(crate) fn build_desktop(state: Arc<Mutex<LauncherState>>, size: Size) -> impl Widget {
-    crate::folio_desktop::build(state, size)
+pub fn system_error_dialog_bounds(size: Size) -> Rect {
+    let width = 560.0_f32.min((size.width - 48.0).max(1.0));
+    let height = 280.0_f32.min((size.height - 48.0).max(1.0));
+    Rect::from_ltwh(
+        (size.width - width) * 0.5,
+        (size.height - height) * 0.5,
+        width,
+        height,
+    )
+}
+fn dismiss_system_error(state: &Arc<Mutex<LauncherState>>, id: u64) {
+    edit(state, |state| {
+        if state.dismiss_dialog(id) {
+            state.queue(UiCommand::DismissError { id });
+        }
+    });
+}
+fn system_error_dialog(
+    state: Arc<Mutex<LauncherState>>,
+    dialog: SystemDialog,
+    size: Size,
+) -> Stack {
+    let bounds = system_error_dialog_bounds(size);
+    let close = state.clone();
+    let contents = Stack::new()
+        .push(at(
+            text(dialog.content.title(), 26.0, Folio::ink()),
+            32.0,
+            32.0,
+        ))
+        .push(at(
+            Container::new()
+                .width(bounds.width - 64.0)
+                .height(84.0)
+                .child(text(dialog.content.message(), 22.0, Folio::muted()).wrap()),
+            32.0,
+            92.0,
+        ))
+        .push(at(
+            clock_icon_button(ClockControl::Close, move || {
+                dismiss_system_error(&close, dialog.id)
+            }),
+            bounds.width - 64.0,
+            16.0,
+        ))
+        .push(at(
+            button("关闭", 164.0, 46.0, true, move || {
+                dismiss_system_error(&state, dialog.id)
+            }),
+            (bounds.width - 164.0) * 0.5,
+            bounds.height - 72.0,
+        ));
+    Stack::new()
+        .push(
+            GestureDetector::new(
+                Container::new()
+                    .width(size.width)
+                    .height(size.height)
+                    .color(Color::BLACK.with_opacity(0.45)),
+            )
+            .on_tap(|| {}),
+        )
+        .push(at(
+            panel(bounds.width, bounds.height).child(contents),
+            bounds.x,
+            bounds.y,
+        ))
 }
 
-fn short(s: &str, max: usize) -> String {
-    if s.chars().count() > max {
-        format!(
-            "{}...",
-            s.chars().take(max.saturating_sub(3)).collect::<String>()
-        )
-    } else {
-        s.into()
+/// The alert owns input exclusively, even if an underlying scroll or launch
+/// animation held a gesture before the asynchronous failure arrived.
+struct ErrorOverlay {
+    child: Box<dyn Widget>,
+    alert: Box<dyn Widget>,
+}
+impl Widget for ErrorOverlay {
+    fn create_render_object(&self) -> Box<dyn RenderBox> {
+        Box::new(RenderErrorOverlay {
+            child: self.child.create_render_object(),
+            alert: self.alert.create_render_object(),
+            size: Size::ZERO,
+            offset: Offset::ZERO,
+            canceled_child: false,
+        })
     }
+}
+struct RenderErrorOverlay {
+    child: Box<dyn RenderBox>,
+    alert: Box<dyn RenderBox>,
+    size: Size,
+    offset: Offset,
+    canceled_child: bool,
+}
+impl RenderBox for RenderErrorOverlay {
+    fn layout(&mut self, constraints: &BoxConstraints) -> Size {
+        self.size = self.child.layout(constraints);
+        self.alert.layout(&BoxConstraints::tight(self.size));
+        if !self.canceled_child {
+            self.child.dispatch_touch(&TouchEvent::Cancel);
+            self.canceled_child = true;
+        }
+        self.size
+    }
+    fn size(&self) -> Size {
+        self.size
+    }
+    fn offset(&self) -> Offset {
+        self.offset
+    }
+    fn set_offset(&mut self, offset: Offset) {
+        self.offset = offset;
+    }
+    fn paint(&self, canvas: &mut Canvas, offset: Offset) {
+        self.child.paint(canvas, offset);
+        self.alert.paint(canvas, offset);
+    }
+    fn dispatch_touch(&mut self, event: &TouchEvent) -> bool {
+        self.alert.dispatch_touch(event)
+    }
+    fn set_pressed_at(&mut self, point: Point, pressed: bool) {
+        self.alert.set_pressed_at(point, pressed);
+    }
+    fn hit_rect(&self, point: Point) -> Option<Rect> {
+        self.alert.hit_rect(point)
+    }
+    fn captures_touch(&self) -> bool {
+        true
+    }
+    fn animation_dirty(&self) -> Option<Rect> {
+        self.child.animation_dirty()
+    }
+    fn needs_rebuild(&self) -> bool {
+        self.child.needs_rebuild() || self.alert.needs_rebuild()
+    }
+}
+
+pub(crate) fn build_desktop(state: Arc<Mutex<LauncherState>>, size: Size) -> impl Widget {
+    crate::folio_desktop::build(state, size)
 }
 
 fn content_excerpt(value: &str, px: f32, width: f32, lines: usize) -> String {

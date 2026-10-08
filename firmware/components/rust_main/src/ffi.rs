@@ -1,11 +1,25 @@
 #[cfg(not(espidf_time64))]
 compile_error!("P4Desk requires --cfg espidf_time64 to match ESP-IDF 6.0.2 time_t ABI");
+#[cfg(not(espidf_picolibc))]
+compile_error!("P4Desk requires --cfg espidf_picolibc for ESP-IDF 6.0.2 file-open ABI");
 const _: () = {
     assert!(std::mem::size_of::<bool>() == 1);
     assert!(std::mem::size_of::<i32>() == 4);
     assert!(std::mem::size_of::<libc::time_t>() == 8);
     assert!(std::mem::size_of::<esp_idf_sys::time_t>() == 8);
     assert!(std::mem::size_of::<libc::timeval>() == std::mem::size_of::<esp_idf_sys::timeval>());
+    assert!(libc::O_CREAT as u32 == esp_idf_sys::O_CREAT);
+    assert!(libc::O_TRUNC as u32 == esp_idf_sys::O_TRUNC);
+    assert!(libc::O_APPEND as u32 == esp_idf_sys::O_APPEND);
+    assert!(libc::O_EXCL as u32 == esp_idf_sys::O_EXCL);
+    assert!(std::mem::size_of::<libc::stat>() == std::mem::size_of::<esp_idf_sys::stat>());
+    assert!(std::mem::align_of::<libc::stat>() == std::mem::align_of::<esp_idf_sys::stat>());
+    assert!(std::mem::offset_of!(libc::stat, st_mode) == std::mem::offset_of!(esp_idf_sys::stat, st_mode));
+    assert!(std::mem::offset_of!(libc::stat, st_size) == std::mem::offset_of!(esp_idf_sys::stat, st_size));
+    assert!(std::mem::offset_of!(libc::stat, st_mtime) == std::mem::offset_of!(esp_idf_sys::stat, st_mtim));
+    assert!(std::mem::size_of::<libc::dirent>() == std::mem::size_of::<esp_idf_sys::dirent>());
+    assert!(std::mem::align_of::<libc::dirent>() == std::mem::align_of::<esp_idf_sys::dirent>());
+    assert!(std::mem::offset_of!(libc::dirent, d_name) == std::mem::offset_of!(esp_idf_sys::dirent, d_name));
 };
 use crate::runtime::{DeviceRuntime, Hal};
 use p4desk_protocol::{DeviceMessage, Mode, KIND_CONTROL, KIND_RESOURCE, MAX_CONTROL};

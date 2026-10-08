@@ -48,7 +48,7 @@ fn run() -> Result<(), String> {
     let mut i = usize::from(args.first().is_some_and(|v| !v.starts_with('-')));
     while i < args.len() {
         if args[i] == "--help" {
-            println!("p4desk-fontpack [bake] --font TTF (--text-file UTF8 | --snapshot JSON) --output P4F --sizes 18,22,28,36\np4desk-fontpack validate --input P4F [--snapshot JSON]");
+            println!("p4desk-fontpack [bake] --font TTF (--text-file UTF8 | --snapshot JSON) --output P4F --sizes 18,22,28,36 [--missing-glyphs skip] [--report JSON]\np4desk-fontpack validate --input P4F [--snapshot JSON]");
             return Ok(());
         }
         if i + 1 >= args.len() || !args[i].starts_with("--") {
@@ -114,8 +114,17 @@ fn run() -> Result<(), String> {
         },
     )
     .map_err(|_| "TTF parse failed")?;
-    if characters.iter().any(|c| !font.has_glyph(*c)) {
+    let skip_missing = match options.get("--missing-glyphs").map(String::as_str) {
+        None | Some("error") => false,
+        Some("skip") => true,
+        _ => return Err("invalid missing glyph policy".into()),
+    };
+    let unsupported_count = characters.iter().filter(|c| !font.has_glyph(**c)).count();
+    if unsupported_count > 0 && !skip_missing {
         return Err("source font lacks required glyphs".into());
+    }
+    if skip_missing {
+        characters.retain(|c| font.has_glyph(*c));
     }
     let mut glyphs = Vec::new();
     for size in &sizes {
@@ -139,10 +148,12 @@ fn run() -> Result<(), String> {
         fs::create_dir_all(parent).map_err(|_| "output directory failed")?;
     }
     fs::write(&output, &bytes).map_err(|_| "font package write failed")?;
-    println!(
-        "{}",
-        serde_json::json!({"valid":true,"bytes":bytes.len(),"glyph_count":characters.len()*sizes.len(),"sizes":sizes})
-    );
+    let report = serde_json::json!({"valid":true,"bytes":bytes.len(),"glyph_count":characters.len()*sizes.len(),"sizes":sizes,"unsupported_count":unsupported_count});
+    if let Some(path) = options.get("--report") {
+        fs::write(path, serde_json::to_vec(&report).map_err(|_| "font report failed")?)
+            .map_err(|_| "font report write failed")?;
+    }
+    println!("{}", report);
     Ok(())
 }
 fn main() {

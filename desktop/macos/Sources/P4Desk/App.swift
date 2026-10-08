@@ -72,10 +72,10 @@ struct MenuContent: View {
         Text(model.displayActive ? "当前模式：USB 副屏" : "当前模式：Pad")
         Button(model.displayActive ? "切回 Pad" : "开启 USB 副屏") {
             Task { if model.displayActive { await model.endDisplay(sendPad: true) } else { await model.beginDisplay() } }
-        }.disabled(!model.connected || model.changingMode)
-        Button("打开便签与按钮配置") { DeskEditorWindow.shared.show() }
+        }.disabled(!model.connected || model.changingMode || model.fileBusy || model.syncing)
+        Button("打开配置与文件管理") { DeskEditorWindow.shared.show() }
         Button(model.syncing ? "正在同步…" : "同步到设备") { Task { await model.sync() } }
-            .disabled(!model.connected || model.syncing || !model.sdReady)
+            .disabled(!model.connected || model.syncing || model.fileBusy || model.displayActive || model.changingMode || !model.sdReady)
         Divider()
         SettingsLink { Text("设置与权限…") }
         Button("重新连接") { model.reconnect() }
@@ -98,15 +98,16 @@ struct DeskEditor: View {
                 Spacer()
                 Button(model.displayActive ? "切回 Pad" : "开启副屏") {
                     Task { if model.displayActive { await model.endDisplay(sendPad: true) } else { await model.beginDisplay() } }
-                }.disabled(!model.connected || model.changingMode)
+                }.disabled(!model.connected || model.changingMode || model.fileBusy || model.syncing)
                 Button(model.syncing ? "同步中" : model.dirty ? "同步更改" : "重新同步") { Task { await model.sync() } }
-                    .buttonStyle(.borderedProminent).disabled(!model.connected || model.syncing || !model.sdReady)
+                    .buttonStyle(.borderedProminent).disabled(!model.connected || model.syncing || model.fileBusy || model.displayActive || model.changingMode || !model.sdReady)
                 SettingsLink { Image(systemName: "gearshape") }
             }.padding()
             Divider()
             TabView {
                 NotesEditor(model: model).tabItem { Label("便签", systemImage: "note.text") }
                 ButtonsEditor(model: model).tabItem { Label("快捷按钮", systemImage: "square.grid.3x3") }
+                FilesEditor(model: model).tabItem { Label("文件", systemImage: "folder") }
                 MonitorEditor(model: model).tabItem { Label("用量监控", systemImage: "chart.xyaxis.line") }
                 DisplayStatus(model: model).tabItem { Label("副屏", systemImage: "display") }
             }.padding(.top, 8)
@@ -116,6 +117,9 @@ struct DeskEditor: View {
                 if model.syncing { ProgressView(value: model.syncProgress).frame(width: 160) }
             }.padding(12)
         }.frame(minWidth: 800, minHeight: 560)
+        .alert(item: Binding(get: { model.activeNotice }, set: { if $0 == nil { model.dismissNotice() } })) { notice in
+            Alert(title: Text(notice.title), message: Text(notice.message), dismissButton: .default(Text("关闭")))
+        }
     }
 }
 
@@ -358,7 +362,7 @@ struct MonitorEditor: View {
                 Label(model.monitorConfigured ? "设备已配置" : "等待配置", systemImage: model.monitorConfigured ? "checkmark.circle" : "network")
                 Text(model.monitorMessage).foregroundStyle(.secondary).textSelection(.enabled)
                 HStack {
-                    Button("读取状态") { Task { await model.refreshMonitorStatus() } }
+                    Button("读取状态") { Task { await model.refreshMonitorStatus(userInitiated: true) } }
                     Button("清除设备配置", role: .destructive) { Task { await model.configureMonitor(forget: true) } }
                 }.disabled(!model.connected || model.monitorBusy)
             }

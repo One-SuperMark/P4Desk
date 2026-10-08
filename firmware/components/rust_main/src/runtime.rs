@@ -1,4 +1,5 @@
 use app_launcher::{GenerationStore, LauncherState, UiCommand};
+use app_launcher::launcher_state::{SystemError, SystemNotice};
 use p4desk_protocol::{
     DeviceMessage, HostMessage, Mode, MAX_CONTROL, MAX_JPEG, PROTOCOL_VERSION, SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -73,6 +74,12 @@ pub struct DeviceRuntime<H: Hal> {
     session_writer: Option<crate::persistence::SessionWriter>,
     recovered_clock: Option<(i64, u64)>,
     usage: Option<crate::usage::Service>,
+    files: Option<crate::files::Service>,
+    file_upload_active: bool,
+    file_upload_activity: u64,
+    file_upload_length: u64,
+    file_verifying: bool,
+    file_replies: std::collections::VecDeque<(u16, u32, DeviceMessage)>,
 }
 
 fn battery_ui_changed(
@@ -114,6 +121,10 @@ fn publish_persistence_status(
 ) {
     let changed = state.persistence_status != next;
     state.persistence_status = next;
+    if changed && next == app_launcher::session::PersistenceStatus::Failed {
+        state.show_error(SystemError::SaveFailed);
+        return;
+    }
     if changed
         && state.mode == Mode::Pad
         && state.settings.screen_on
@@ -126,6 +137,8 @@ fn publish_persistence_status(
 
 impl<H: Hal> DeviceRuntime<H> {
     pub fn new(mut hal: H, root: impl Into<PathBuf>, local_root: impl Into<PathBuf>) -> Self {
+        let root = root.into();
+        let files_root = root.parent().unwrap_or(&root).to_path_buf();
         let mut store = GenerationStore::new(root, local_root);
         let mut state = LauncherState::new();
         state.reset_reason = hal.reset_reason();
@@ -139,7 +152,7 @@ impl<H: Hal> DeviceRuntime<H> {
                     state.apply_snapshot(c.state);
                 }
                 Ok(None) => (),
-                Err(_) => state.notice = "资源恢复失败，基本工具仍可用".into(),
+                Err(_) => { state.show_error(SystemError::ResourceRecoveryFailed); },
             }
         }
         let session_store = store.session_store();
@@ -158,7 +171,7 @@ impl<H: Hal> DeviceRuntime<H> {
             Ok(None) => crate::diagnostics::diagnostic!("p4desk_session: restore=empty"),
             Err(_) => {
                 state.persistence_status = app_launcher::session::PersistenceStatus::Failed;
-                state.notice = "应用状态恢复失败，请检查存储".into();
+                state.show_error(SystemError::SessionRecoveryFailed);
                 crate::diagnostics::diagnostic!("p4desk_session: restore=failed");
             }
         }
@@ -171,6 +184,7 @@ impl<H: Hal> DeviceRuntime<H> {
         };
         if session_writer.is_none() {
             state.persistence_status = app_launcher::session::PersistenceStatus::Failed;
+            state.show_error(SystemError::SaveFailed);
         }
         crate::diagnostics::diagnostic!(
             "p4desk_session: writer={}",
@@ -186,6 +200,7 @@ impl<H: Hal> DeviceRuntime<H> {
             Err(_) => state.usage.status = "监控配置读取失败，请重新配置".into(),
         }
         let usage = hal.usage_transport().and_then(|transport| crate::usage::Service::new(transport, monitor_store).ok());
+        let files = crate::files::Service::new(files_root).ok();
         let was_connected = hal.connected();
         Self {
             hal,
@@ -201,6 +216,12 @@ impl<H: Hal> DeviceRuntime<H> {
             session_writer,
             recovered_clock,
             usage,
+            files,
+            file_upload_active: false,
+            file_upload_activity: 0,
+            file_upload_length: 0,
+            file_verifying: false,
+            file_replies: std::collections::VecDeque::new(),
         }
     }
     fn ack(
@@ -240,6 +261,28 @@ impl<H: Hal> DeviceRuntime<H> {
             return;
         }
         match message {
+            HostMessage::FileList { path, offset, limit, .. } => {
+                self.file_job(id, crate::files::HostJob::List { path, offset, limit });
+            }
+            HostMessage::FileMkdir { path, .. } => {
+                self.file_job(id, crate::files::HostJob::Mkdir { path });
+            }
+            HostMessage::FileUploadBegin { path, length, sha256, .. } => {
+                if self.file_upload_active { self.ack(id, "file_upload_begin", Err("busy"), None); }
+                else if self.store.pending_generation().is_some() { self.ack(id, "file_upload_begin", Err("sync_busy"), None); }
+                else if self.hal.sd_free_bytes() < length.saturating_add(128 * 1024) { self.ack(id, "file_upload_begin", Err("no_space"), None); }
+                else if self.file_job(id, crate::files::HostJob::Begin { path, length, sha256 }) {
+                    self.file_upload_active = true;
+                    self.file_upload_length = length;
+                    self.file_verifying = false;
+                    self.file_upload_activity = self.hal.monotonic_ms();
+                }
+            }
+            HostMessage::FileUploadCommit { .. } => {
+                if self.file_job(id, crate::files::HostJob::Commit) { self.file_verifying = true; }
+            }
+            HostMessage::FileUploadAbort { .. } => { self.file_job(id, crate::files::HostJob::Abort); }
+            HostMessage::FileFontInstall { path, sha256, .. } => { self.file_job(id, crate::files::HostJob::FontInstall { path, sha256 }); }
             HostMessage::MonitorGetStatus { .. } => {
                 let state = self.state.lock().unwrap();
                 self.hal.send(&DeviceMessage::MonitorStatus { request_id: id,
@@ -266,9 +309,13 @@ impl<H: Hal> DeviceRuntime<H> {
             HostMessage::Hello { version, .. } => {
                 if version != PROTOCOL_VERSION {
                     self.hello = false;
+                    self.abort_files();
                     self.ack(id, "hello", Err("version"), None);
                     return;
                 }
+                // A new companion handshake is a fresh file session, even if the
+                // physical USB configuration stayed mounted between processes.
+                self.abort_files();
                 self.hello = true;
                 self.hal.heartbeat();
                 self.hal.send(
@@ -282,6 +329,7 @@ impl<H: Hal> DeviceRuntime<H> {
                         sd_ready: self.hal.sd_ready(),
                         mode: self.hal.mode(),
                         direct_jpeg_rotation_degrees: self.hal.direct_jpeg_rotation_degrees(),
+                        file_transfer: self.files.is_some(),
                     },
                     id,
                 );
@@ -296,7 +344,9 @@ impl<H: Hal> DeviceRuntime<H> {
                 jpeg_rotation_degrees,
                 ..
             } => {
-                let result = if self.store.pending_generation().is_some() {
+                let result = if self.file_upload_active {
+                    Err("files_busy")
+                } else if self.store.pending_generation().is_some() {
                     Err("sync_busy")
                 } else if (mode == Mode::Pad && jpeg_rotation_degrees != 0)
                     || (jpeg_rotation_degrees != 0
@@ -346,7 +396,9 @@ impl<H: Hal> DeviceRuntime<H> {
                 font_sha256,
                 ..
             } => {
-                let result = if !self.hal.sd_ready() {
+                let result = if self.file_upload_active {
+                    Err("files_busy")
+                } else if !self.hal.sd_ready() {
                     Err("sd_unavailable")
                 } else if self.hal.sd_free_bytes() < font_length as u64 + 128 * 1024 {
                     Err("sd_space")
@@ -365,16 +417,17 @@ impl<H: Hal> DeviceRuntime<H> {
                         install_fontpack(Some(c.font));
                         let mut state = self.state.lock().unwrap();
                         state.apply_snapshot(c.state);
-                        state.notice = "便签与字体已同步".into();
+                        state.show_notice(SystemNotice::NotesSynced);
                         Ok(())
                     }
                     Err(code) => {
                         let mut state = self.state.lock().unwrap();
-                        state.notice = "同步失败，保留已有便签和字体".into();
-                        state.changed();
+                        state.show_error(SystemError::SyncFailed);
                         Err(code)
                     }
                 };
+                let errno = if result.is_ok() { 0 } else { std::io::Error::last_os_error().raw_os_error().unwrap_or(0) };
+                crate::diagnostics::diagnostic!("p4desk_sync: commit ok={} code={} errno={}", result.is_ok(), result.err().unwrap_or("none"), errno);
                 self.ack(id, "sync_commit", result, Some(generation));
                 if result.is_ok() {
                     let state = self.state.lock().unwrap().snapshot.clone();
@@ -394,6 +447,18 @@ impl<H: Hal> DeviceRuntime<H> {
         }
     }
     pub fn resource(&mut self, sequence: u16, bytes: &[u8]) {
+        if sequence > 1023 { return; }
+        if self.file_upload_active {
+            if bytes.len() < 5 || bytes.len() > p4desk_protocol::MAX_RESOURCE {
+                self.ack(sequence, "file_chunk", Err("resource_length"), None);
+                self.abort_files();
+            } else {
+                self.file_job(sequence, crate::files::HostJob::Chunk {
+                    offset: u32::from_le_bytes(bytes[..4].try_into().unwrap()), bytes: bytes[4..].to_vec(),
+                });
+            }
+            return;
+        }
         let result = if !self.hello {
             Err("hello_required")
         } else if !self.hal.sd_ready() {
@@ -419,6 +484,25 @@ impl<H: Hal> DeviceRuntime<H> {
             self.store.pending_generation(),
         );
     }
+    fn file_job(&mut self, id: u16, job: crate::files::HostJob) -> bool {
+        let op = job.op();
+        let abort = matches!(job, crate::files::HostJob::Abort);
+        let result = if !self.hello { Err("hello_required") }
+            else if !abort && self.store.pending_generation().is_some() { Err("sync_busy") }
+            else if !abort && !self.hal.sd_ready() { Err("storage_unavailable") }
+            else if !abort && (self.hal.mode() != Mode::Pad || self.hal.display_transition_pending()
+                || self.state.lock().unwrap().display_launch_waiting()) { Err("display_busy") }
+            else if let Some(files) = &self.files { files.host(id, job, self.hal.sd_ready()).map_err(|e| e.code()) }
+            else { Err("files_unavailable") };
+        if let Err(code) = result { self.ack(id, op, Err(code), None); false }
+        else { self.file_upload_activity = self.hal.monotonic_ms(); true }
+    }
+    fn abort_files(&mut self) {
+        self.file_upload_active = false;
+        self.file_verifying = false;
+        self.file_replies.clear();
+        if let Some(files) = &self.files { files.disconnect(); }
+    }
     fn set_time(&mut self, unix_ms: i64, timezone_minutes: i32) -> Result<(), &'static str> {
         if !(MIN_UNIX_MS..=MAX_UNIX_MS).contains(&unix_ms)
             || !(-840..=840).contains(&timezone_minutes)
@@ -443,13 +527,19 @@ impl<H: Hal> DeviceRuntime<H> {
         if self.was_connected && !connected {
             self.hello = false;
             let _ = self.store.abort();
+            self.abort_files();
         }
         if self.was_active && !active {
             self.hello = false;
             let _ = self.store.abort();
+            self.abort_files();
         }
         self.was_active = active;
         self.was_connected = connected;
+        let file_timeout = if self.file_verifying { 30_000 + self.file_upload_length.div_ceil(512 * 1024) * 1000 } else { 15_000 };
+        if self.file_upload_active && (!sd_ready || now.saturating_sub(self.file_upload_activity) > file_timeout) {
+            self.abort_files();
+        }
         if self.store.pending_generation().is_some()
             && (!sd_ready || now.saturating_sub(self.pending_activity) > 15_000)
         {
@@ -457,6 +547,45 @@ impl<H: Hal> DeviceRuntime<H> {
         }
         let mut state = self.state.lock().unwrap();
         let before = state.revision;
+        if let Some(files) = &self.files {
+            for completion in files.poll() {
+                match completion {
+                    crate::files::Completion::Ui(response) => {
+                        let refresh = matches!(response.result, Ok(app_launcher::files::Outcome::Changed { .. }));
+                        if state.apply_files_response(response) {
+                            if refresh {
+                                let request = state.files.refresh_request_silent();
+                                let revision = request.revision;
+                                if let Err(error) = files.ui(request, sd_ready) {
+                                    state.apply_files_response(app_launcher::files::Response { revision, result: Err(error) });
+                                }
+                            }
+                            if matches!(state.active_app, app_launcher::ActiveApp::Files) { state.changed(); }
+                        }
+                    }
+                    crate::files::Completion::Host { id, epoch, message, clear_upload, changed } => {
+                        if epoch == files.epoch() && self.hello {
+                            if clear_upload { self.file_upload_active = false; self.file_verifying = false; }
+                            if self.file_replies.len() < 16 { self.file_replies.push_back((id, epoch, message)); }
+                            if changed && matches!(state.active_app, app_launcher::ActiveApp::Files) && !state.files.busy {
+                                let request = state.files.refresh_request_silent();
+                                let revision = request.revision;
+                                if let Err(error) = files.ui(request, sd_ready) { state.apply_files_response(app_launcher::files::Response { revision, result: Err(error) }); }
+                                state.changed();
+                            }
+                        }
+                    }
+                }
+            }
+            // A persisted foreground entry does not call open_app(), so initialize its directory here.
+            if matches!(state.active_app, app_launcher::ActiveApp::Files)
+                && state.files.listing.is_none() && !state.files.busy && state.files.error.is_none() {
+                let request = state.files.refresh_request_silent();
+                let revision = request.revision;
+                if let Err(error) = files.ui(request, sd_ready) { state.apply_files_response(app_launcher::files::Response { revision, result: Err(error) }); }
+                state.changed();
+            }
+        }
         if self
             .last_radio_poll_ms
             .is_none_or(|last| now.saturating_sub(last) >= 250)
@@ -554,6 +683,11 @@ impl<H: Hal> DeviceRuntime<H> {
         );
         let changed = state.revision != before;
         drop(state);
+        while let Some((id, epoch, message)) = self.file_replies.front() {
+            if !self.hello || self.files.as_ref().is_none_or(|f| f.epoch() != *epoch) { self.file_replies.pop_front(); continue; }
+            if !self.hal.send(message, *id) { break; }
+            self.file_replies.pop_front();
+        }
         if connected && self.hello && self.status != Some(status) {
             // A full USB queue did not accept this status; leave the previous value so
             // the next tick retries, including a gesture-driven return from Display.
@@ -576,10 +710,24 @@ impl<H: Hal> DeviceRuntime<H> {
         let changed = !commands.is_empty();
         for command in commands {
             let result = match command {
+                UiCommand::DismissError { id } => {
+                    self.state.lock().unwrap().dismiss_dialog(id);
+                    Ok(())
+                }
+                UiCommand::Files(request) => {
+                    let revision = request.revision;
+                    let result = if let Some(files) = &self.files { files.ui(request, self.hal.sd_ready()) }
+                        else { Err(app_launcher::files::FileError::StorageUnavailable) };
+                    if let Err(error) = result {
+                        let mut state = self.state.lock().unwrap();
+                        state.apply_files_response(app_launcher::files::Response { revision, result: Err(error) }); state.changed();
+                    }
+                    Ok(())
+                }
                 UiCommand::Usage(command) => {
                     let mut state = self.state.lock().unwrap();
                     if let Some(usage) = &mut self.usage { usage.command(&mut state, command); }
-                    else { state.usage.status = "监控网络服务未启动".into(); state.changed(); }
+                    else { state.usage.status.clear(); state.show_error(SystemError::MonitorUnavailable); }
                     Ok(())
                 }
                 UiCommand::Radio(command) => {
@@ -703,7 +851,9 @@ impl<H: Hal> DeviceRuntime<H> {
                 }
                 UiCommand::SetTime(ms, tz) => self.set_time(ms, tz),
                 UiCommand::StartDisplayTransition { duration_ms } => {
-                    if !self.hal.host_active() {
+                    if self.file_upload_active {
+                        Err("files_busy")
+                    } else if !self.hal.host_active() {
                         Err("mac_offline")
                     } else if !self.hal.arm_display_transition(duration_ms) {
                         Err("mode_rejected")
@@ -729,7 +879,9 @@ impl<H: Hal> DeviceRuntime<H> {
                     Ok(())
                 }
                 UiCommand::RequestMode(mode) => {
-                    if !self.hal.host_active() {
+                    if mode == Mode::Display && self.file_upload_active {
+                        Err("files_busy")
+                    } else if !self.hal.host_active() {
                         Err("mac_offline")
                     } else if self.hal.send(&DeviceMessage::RequestMode { mode }, 0) {
                         Ok(())
@@ -745,17 +897,16 @@ impl<H: Hal> DeviceRuntime<H> {
                 } else {
                     "操作未完成，请重试"
                 });
-                state.notice = match code {
-                    "radio_busy" => "无线任务繁忙，请稍后重试",
-                    "mac_offline" => "Mac 未连接，请连接 USB 和 Mac 应用",
-                    "note_not_found" => "便签已不存在",
+                let error = match code {
+                    "radio_busy" => SystemError::WirelessBusy,
+                    "mac_offline" => SystemError::MacDisconnected,
+                    "note_not_found" => SystemError::NoteNotFound,
                     "storage_create" | "state_write" | "state_fsync" | "state_rename" => {
-                        "保存失败，原数据已保留"
+                        SystemError::SaveFailed
                     }
-                    _ => "操作未完成，请重试",
-                }
-                .into();
-                state.changed();
+                    _ => SystemError::OperationFailed,
+                };
+                state.show_error(error);
             }
         }
         changed
@@ -765,7 +916,139 @@ impl<H: Hal> DeviceRuntime<H> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn committed_sync_opens_one_dismissible_notice_without_a_persistent_banner() {
+        use app_launcher::launcher_state::DialogContent;
+        use sha2::{Digest, Sha256};
+        use tiny_flutter::graphics::fontpack::{encode_fontpack, PackGlyph};
+        let mut r = runtime();
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("p4desk-sync-notice-{}-{nonce}", std::process::id()));
+        r.store = GenerationStore::new(path.join("sd"), path.join("flash"));
+        r.hal.sd = true;
+        {
+            let mut state = r.state.lock().unwrap();
+            state.open_app("clock");
+            state.take_commands();
+        }
+        let font = encode_fontpack([18, 22, 28, 36].into_iter().map(|size| PackGlyph {
+            character: 'a', size, width: 1, height: 1, xmin: 0, ymin: 0,
+            advance: 1.0, bitmap: vec![255],
+        }).collect()).unwrap();
+        let snapshot = p4desk_protocol::Snapshot { generation: 1, ..Default::default() };
+        file_request(&mut r, HostMessage::Hello { request_id: 10, version: 1 });
+        file_request(&mut r, HostMessage::SyncBegin {
+            request_id: 11, generation: 1, state: snapshot.clone(),
+            font_length: font.len() as u32, font_sha256: format!("{:x}", Sha256::digest(&font)),
+        });
+        let mut chunk = 0u32.to_le_bytes().to_vec();
+        chunk.extend_from_slice(&font);
+        r.resource(12, &chunk);
+        file_request(&mut r, HostMessage::SyncCommit { request_id: 13, generation: 1 });
+        assert!(matches!(r.hal.messages.iter().find(|(id, _)| *id == 13),
+            Some((_, DeviceMessage::Ack { ok: true, .. }))));
+        let mut state = r.state.lock().unwrap();
+        let dialog = state.active_dialog().unwrap();
+        assert_eq!(dialog.content, DialogContent::Notice(SystemNotice::NotesSynced));
+        assert!(state.error_dialog.is_none());
+        assert!(state.notice.is_empty());
+        assert_eq!(state.snapshot, snapshot);
+        assert!(matches!(state.active_app, app_launcher::ActiveApp::Clock));
+        state.queue(UiCommand::DismissError { id: dialog.id });
+        drop(state);
+        r.process_commands();
+        r.hal.now = 10_000;
+        r.tick();
+        let state = r.state.lock().unwrap();
+        assert!(state.active_dialog().is_none());
+        assert!(state.notice.is_empty());
+        assert_eq!(state.snapshot, snapshot);
+        drop(state);
+        let mut recovery = GenerationStore::new(path.join("sd"), path.join("flash"));
+        assert_eq!(recovery.restore().unwrap().unwrap().state, snapshot);
+        drop(r);
+        std::fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn sync_failure_opens_dismissible_error_and_preserves_snapshot() {
+        let mut r = runtime();
+        r.state.lock().unwrap().snapshot.notes.push(p4desk_protocol::Note {
+            id: "retained".into(), title: "synthetic".into(), body: "fixture".into(), updated_ms: 0,
+        });
+        let before = r.state.lock().unwrap().snapshot.clone();
+        r.control(0, br#"{"op":"hello","request_id":0,"version":1}"#);
+        r.control(1, br#"{"op":"sync_commit","request_id":1,"generation":1}"#);
+        let mut state = r.state.lock().unwrap();
+        assert_eq!(state.snapshot, before);
+        assert!(state.notice.is_empty());
+        let dialog = state.error_dialog.unwrap();
+        assert_eq!(dialog.error, SystemError::SyncFailed);
+        state.queue(UiCommand::DismissError { id: dialog.id });
+        drop(state);
+        r.process_commands();
+        assert!(r.state.lock().unwrap().error_dialog.is_none());
+        assert_eq!(r.state.lock().unwrap().snapshot, before);
+        assert!(matches!(r.hal.messages.iter().find(|(id, _)| *id == 1).map(|(_, message)| message),
+            Some(DeviceMessage::Ack { ok: false, error: Some(code), .. }) if code == "sync_not_started"));
+    }
+    fn file_request(r: &mut DeviceRuntime<Mock>, request: HostMessage) {
+        r.control(request.request_id(), &serde_json::to_vec(&request).unwrap());
+    }
+    fn wait_file_reply(r: &mut DeviceRuntime<Mock>, id: u16) -> DeviceMessage {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        loop {
+            r.tick();
+            if let Some(index) = r.hal.messages.iter().position(|(sequence, _)| *sequence == id) { return r.hal.messages.remove(index).1; }
+            assert!(std::time::Instant::now() < deadline, "file reply timed out");
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+    }
+    #[test]
+    fn usb_file_ack_tracks_persisted_completion_and_display_sync_exclusion() {
+        use sha2::{Digest, Sha256};
+        let mut r = runtime();
+        let path = std::env::temp_dir().join(format!("p4desk-file-runtime-{}", std::process::id()));
+        std::fs::create_dir_all(&path).unwrap();
+        r.files = Some(crate::files::Service::new(path.clone()).unwrap()); r.hal.sd = true;
+        file_request(&mut r, HostMessage::Hello { request_id: 10, version: 1 });
+        assert!(matches!(wait_file_reply(&mut r, 10), DeviceMessage::Caps { file_transfer: true, .. }));
+        let payload = b"file runtime fixture";
+        file_request(&mut r, HostMessage::FileUploadBegin { request_id: 11, path: "Downloads/runtime.txt".into(), length: payload.len() as u64, sha256: format!("{:x}", Sha256::digest(payload)) });
+        assert!(matches!(wait_file_reply(&mut r, 11), DeviceMessage::Ack { ok: true, .. }));
+        file_request(&mut r, HostMessage::SetMode { request_id: 12, mode: Mode::Display, session: 1, jpeg_rotation_degrees: 0 });
+        assert!(matches!(wait_file_reply(&mut r, 12), DeviceMessage::Ack { ok: false, error: Some(e), .. } if e == "files_busy"));
+        file_request(&mut r, HostMessage::SyncBegin { request_id: 13, generation: 1, state: Default::default(), font_length: 10, font_sha256: String::new() });
+        assert!(matches!(wait_file_reply(&mut r, 13), DeviceMessage::Ack { ok: false, error: Some(e), .. } if e == "files_busy"));
+        let mut chunk = 0u32.to_le_bytes().to_vec(); chunk.extend_from_slice(payload);
+        r.resource(14, &chunk);
+        assert!(matches!(wait_file_reply(&mut r, 14), DeviceMessage::Ack { acknowledged, ok: true, .. } if acknowledged == "file_chunk"));
+        assert!(!path.join("Downloads/runtime.txt").exists());
+        file_request(&mut r, HostMessage::FileUploadCommit { request_id: 15 });
+        assert!(matches!(wait_file_reply(&mut r, 15), DeviceMessage::Ack { ok: true, .. }));
+        assert_eq!(std::fs::read(path.join("Downloads/runtime.txt")).unwrap(), payload);
+        assert!(!r.file_upload_active);
+        file_request(&mut r, HostMessage::FileList { request_id: 16, path: "Downloads".into(), offset: 0, limit: 32 });
+        assert!(matches!(wait_file_reply(&mut r, 16), DeviceMessage::FileListing { total: 1, .. }));
+        drop(r); std::fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn unavailable_file_storage_is_explicit_and_no_ui_filesystem_work_runs() {
+        let mut r = runtime();
+        file_request(&mut r, HostMessage::Hello { request_id: 10, version: 1 });
+        wait_file_reply(&mut r, 10);
+        file_request(&mut r, HostMessage::FileList { request_id: 11, path: String::new(), offset: 0, limit: 32 });
+        assert!(matches!(wait_file_reply(&mut r, 11), DeviceMessage::Ack { ok: false, error: Some(e), .. } if e == "storage_unavailable"));
+        r.state.lock().unwrap().open_app("file-manager");
+        r.process_commands();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        while r.state.lock().unwrap().files.busy {
+            r.tick(); assert!(std::time::Instant::now() < deadline); std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        assert_eq!(r.state.lock().unwrap().files.error, Some(app_launcher::files::FileError::StorageUnavailable));
+    }
     struct Mock {
+        sd: bool,
         now: u64,
         wall: i64,
         connected: bool,
@@ -799,10 +1082,10 @@ mod tests {
             9
         }
         fn sd_ready(&self) -> bool {
-            false
+            self.sd
         }
         fn sd_free_bytes(&self) -> u64 {
-            0
+            if self.sd { 1024 * 1024 * 1024 } else { 0 }
         }
         fn mode(&self) -> Mode {
             self.mode
@@ -873,6 +1156,7 @@ mod tests {
         ));
         DeviceRuntime::new(
             Mock {
+                sd: false,
                 now: 0,
                 wall: 0,
                 connected: true,
@@ -1144,7 +1428,7 @@ mod tests {
         );
     }
     #[test]
-    fn actual_checkpoint_receipts_update_status_without_rebuilding_hidden_pages() {
+    fn checkpoint_success_only_updates_visible_storage_but_failure_opens_error() {
         use app_launcher::{radio::SettingsSection, session::PersistenceStatus};
         for (app, storage, fail) in [
             ("sub2api-monitor", false, false),
@@ -1185,9 +1469,10 @@ mod tests {
                 let changed = isolated_runtime_tick(&mut r, 12_500 + i * 500);
                 if r.state.lock().unwrap().persistence_status == expected {
                     assert_eq!(
-                        changed, storage,
-                        "only a visible Storage receipt should invalidate the UI"
+                        changed, storage || fail,
+                        "success updates visible Storage; a failure must show its alert"
                     );
+                    assert_eq!(r.state.lock().unwrap().error_dialog.map(|d| d.error), fail.then_some(SystemError::SaveFailed));
                     completed = true;
                     break;
                 }
@@ -1622,7 +1907,14 @@ mod tests {
         assert!(!r.hal.transition_pending);
         launch_tick(&mut r, 940);
         assert_eq!(r.state.lock().unwrap().active_app.id(), Some("display"));
-        assert!(r.state.lock().unwrap().notice.contains("操作未完成"));
+        let mut state = r.state.lock().unwrap();
+        // This is the failed-creation page state, never a global status banner.
+        assert_eq!(state.notice, "操作未完成，请重试");
+        assert_eq!(state.error_dialog.unwrap().error, SystemError::OperationFailed);
+        let id = state.active_dialog().unwrap().id;
+        assert!(state.dismiss_dialog(id));
+        assert_eq!(state.active_app.id(), Some("display"));
+        assert_eq!(state.notice, "操作未完成，请重试");
     }
 
     #[test]
@@ -1649,12 +1941,14 @@ mod tests {
             let revision = {
                 let mut state = r.state.lock().unwrap();
                 state.notice.clear();
+                if let Some(dialog) = state.error_dialog { state.dismiss_error(dialog.id); }
                 state.queue(command);
                 state.revision
             };
             assert!(r.process_commands());
             let state = r.state.lock().unwrap();
-            assert_eq!(state.notice, "操作未完成，请重试");
+            assert!(state.notice.is_empty());
+            assert_eq!(state.error_dialog.unwrap().error, SystemError::OperationFailed);
             assert!(state.revision > revision);
             assert_eq!(state.mode, Mode::Pad);
         }

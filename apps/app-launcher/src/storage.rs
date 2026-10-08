@@ -239,6 +239,10 @@ impl GenerationStore {
         if let Some(file) = &p.file {
             file.sync_all().map_err(|_| "font_fsync")?;
         }
+        // FatFs FS_LOCK denies a second read handle while this writer is open.
+        // Finish persistence and close before SHA/coverage verification, so the
+        // verified bytes are the actual closed file on the card.
+        drop(p.file.take());
         let font_path = p.path.join("font.p4f");
         if hash_file(&font_path)? != p.sha256.to_ascii_lowercase() {
             return Err("font_hash");
@@ -268,8 +272,7 @@ impl GenerationStore {
             },
         )?;
         sync_directory(&p.path)?;
-        // FAT can refuse directory rename while a file inside it is open.
-        drop(p.file.take());
+        // All font/state/manifest handles are closed before directory rename.
         let destination = self.root.join("generations").join(generation.to_string());
         fs::rename(&p.path, &destination).map_err(|_| "generation_rename")?;
         sync_directory(&self.root.join("generations"))?;
@@ -717,6 +720,37 @@ mod tests {
         assert_eq!(store.commit(1).err(), Some("font_hash"));
         assert_eq!(store.active_generation, 0);
         store.abort().unwrap();
+        fs::remove_dir_all(p).unwrap();
+    }
+
+    #[test]
+    fn failed_sync_retains_previous_generation_and_next_sync_can_commit() {
+        let p = temp("sync-retains-previous");
+        let root = p.join("sd");
+        let local = p.join("flash");
+        let mut store = GenerationStore::new(&root, &local);
+        let bytes = pack();
+        let hash = format!("{:x}", Sha256::digest(&bytes));
+        store.begin(1, state(1), bytes.len() as u32, hash.clone()).unwrap();
+        store.chunk(0, &bytes).unwrap();
+        assert_eq!(store.commit(1).unwrap().state, state(1));
+
+        store.begin(2, state(2), bytes.len() as u32, "0".repeat(64)).unwrap();
+        store.chunk(0, &bytes).unwrap();
+        assert_eq!(store.commit(2).err(), Some("font_hash"));
+        assert_eq!(store.active_generation, 1);
+        let mut recovery = GenerationStore::new(&root, &local);
+        assert_eq!(recovery.restore().unwrap().unwrap().state, state(1));
+        store.abort().unwrap();
+
+        store.begin(3, state(3), bytes.len() as u32, hash).unwrap();
+        store.chunk(0, &bytes).unwrap();
+        let committed = store.commit(3).unwrap();
+        assert_eq!(committed.state, state(3));
+        assert!(committed.font.has_glyph(22, 'a'));
+        drop(committed);
+        let mut recovery = GenerationStore::new(&root, &local);
+        assert_eq!(recovery.restore().unwrap().unwrap().state, state(3));
         fs::remove_dir_all(p).unwrap();
     }
 }
